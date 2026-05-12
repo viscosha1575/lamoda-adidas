@@ -1,0 +1,515 @@
+{
+  "info": {
+    "_postman_id": "3c8f05c5-7d95-4f9f-8c9a-c6eb1db53a51",
+    "name": "Lamoda Adidas API",
+    "description": "Полная Postman-коллекция для серверного API проекта Lamoda Adidas.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://lamoda-specials.ru"
+    },
+    {
+      "key": "auth_token",
+      "value": ""
+    },
+    {
+      "key": "init_data",
+      "value": "query_id=AAExample&user=%7B%22id%22%3A123456789%2C%22first_name%22%3A%22Mila%22%2C%22last_name%22%3A%22Test%22%2C%22username%22%3A%22lamoda_player%22%7D&auth_date=1710000000"
+    },
+    {
+      "key": "referral_code",
+      "value": "https://t.me/lamoda_games_bot/search?startapp=PLAYER42"
+    },
+    {
+      "key": "product_id",
+      "value": "1"
+    }
+  ],
+  "item": [
+    {
+      "name": "Root",
+      "item": [
+        {
+          "name": "GET /",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                ""
+              ]
+            },
+            "description": "Проверка, что корневой endpoint сервиса отвечает."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /api/health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/health",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ]
+            },
+            "description": "Healthcheck API и подключения к базе."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "POST /api/auth/session - Telegram",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const payload = pm.response.json();",
+                  "if (payload?.data?.token) {",
+                  "  pm.collectionVariables.set('auth_token', payload.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Telegram-Init-Data",
+                "value": "{{init_data}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"referralCode\": \"{{referral_code}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/session",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "session"
+              ]
+            },
+            "description": "Создаёт сессию по Telegram initData. `initData` передаётся только в заголовке `X-Telegram-Init-Data`. После выполнения автоматически сохраняет `auth_token` в переменные коллекции."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/auth/current",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/current",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "current"
+              ]
+            },
+            "description": "Удаляет текущего игрока по bearer token."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Game",
+      "item": [
+        {
+          "name": "GET /api/game/state",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/game/state",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "game",
+                "state"
+              ]
+            },
+            "description": "Текущее состояние игрока и игровой сессии."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/game/start",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"foundSneakerNumbers\": [4, 7]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/game/start",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "game",
+                "start"
+              ]
+            },
+            "description": "Старт игровой сессии. Сервер автоматически добавит первый кроссовок как уже открытый."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/game/start-session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"foundSneakerNumbers\": [1, 4, 7]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/game/start-session",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "game",
+                "start-session"
+              ]
+            },
+            "description": "Alias для Unity-flow. Поведение такое же, как у `/api/game/start`."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/game/pause",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/game/pause",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "game",
+                "pause"
+              ]
+            },
+            "description": "Ставит активную игровую сессию на паузу."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/game/resume",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/game/resume",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "game",
+                "resume"
+              ]
+            },
+            "description": "Снимает активную игровую сессию с паузы."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/game/heartbeat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/game/heartbeat",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "game",
+                "heartbeat"
+              ]
+            },
+            "description": "Обновляет last heartbeat игрока и активной сессии."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/game/activity-log",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"unity\",\n  \"action\": \"swipe\",\n  \"details\": {\n    \"direction\": \"left\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/game/activity-log",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "game",
+                "activity-log"
+              ]
+            },
+            "description": "Логирует игровое действие игрока."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/game/found-sneaker",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sneakerNumber\": 2\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/game/found-sneaker",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "game",
+                "found-sneaker"
+              ]
+            },
+            "description": "Отмечает найденный кроссовок."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/game/finish",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/game/finish",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "game",
+                "finish"
+              ]
+            },
+            "description": "Завершает текущую игровую сессию."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/game/state - by initData",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Telegram-Init-Data",
+                "value": "{{init_data}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/game/state",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "game",
+                "state"
+              ]
+            },
+            "description": "Альтернативная авторизация: без bearer token, только через `X-Telegram-Init-Data`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "GET /api/products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/products",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "products"
+              ]
+            },
+            "description": "Список товаров."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/products/:id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/products/{{product_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{product_id}}"
+              ]
+            },
+            "description": "Получение товара по ID."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/products",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Campus 00s\",\n  \"brand\": \"adidas\",\n  \"price\": 12999,\n  \"currency\": \"RUB\",\n  \"stock\": 25\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/products",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "products"
+              ]
+            },
+            "description": "Создание товара."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

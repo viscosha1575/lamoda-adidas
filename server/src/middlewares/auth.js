@@ -1,16 +1,13 @@
 import { HttpError } from "../lib/http-error.js";
+import { getTelegramInitDataFromHeadersOnly } from "../modules/auth/init-data.js";
 
 export function createAuthMiddleware({ authService }) {
   return async function authMiddleware(request, _response, next) {
     const authorizationHeader = request.headers.authorization ?? "";
     const [scheme, token] = authorizationHeader.split(" ");
-    const initDataFromRequest = request.headers["x-telegram-init-data"]
-      ?? request.headers["x-init-data"]
-      ?? request.body?.initData
-      ?? request.query?.initData
-      ?? null;
 
     try {
+      const initDataFromRequest = getTelegramInitDataFromHeadersOnly(request);
       let player = null;
 
       if (scheme === "Bearer" && token) {

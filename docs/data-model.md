@@ -10,7 +10,6 @@ Columns:
 
 - `id` - primary key
 - `telegram_user_id` - unique Telegram user id, nullable
-- `anonymous_id` - unique anonymous id, nullable
 - `username`
 - `first_name`
 - `last_name`
@@ -26,8 +25,7 @@ Columns:
 
 Rules:
 
-- Either `telegram_user_id` or `anonymous_id` must be present.
-- Player is upserted by Telegram user id or anonymous id.
+- Player is upserted by Telegram user id.
 - `referral_code` is the player's own share code.
 - `referred_by_code` stores who referred the player.
 - Once `has_referral` becomes `true`, it stays `true`.

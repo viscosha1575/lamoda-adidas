@@ -42,41 +42,25 @@ Example response:
 
 Creates or refreshes player session and returns bearer token.
 
-Supported modes:
+Telegram Mini App auth only.
 
-- Telegram Mini App auth with `initData`
-- Anonymous auth with `anonymousId`
+`initData` must be sent only in headers:
 
-Optional:
+- `X-Telegram-Init-Data`
+- `X-Init-Data`
+
+Optional body fields:
 
 - `referralCode`
-- `profile`
-
-### Anonymous request example
-
-```bash
-curl -X POST http://localhost:3001/api/auth/session \
-  -H "Content-Type: application/json" \
-  -d '{
-    "anonymousId": "anon-user-001",
-    "referralCode": "https://t.me/lamoda_games_bot/search?startapp=PLAYER42"
-  }'
-```
 
 ### Telegram request example
 
 ```bash
 curl -X POST http://localhost:3001/api/auth/session \
+  -H "X-Telegram-Init-Data: query_id=AA...&user=%7B...%7D&auth_date=1710000000" \
   -H "Content-Type: application/json" \
   -d '{
-    "initData": "query_id=AA...&user=%7B...%7D&auth_date=1710000000&hash=...",
-    "referralCode": "PLAYER42",
-    "profile": {
-      "id": 123456789,
-      "username": "player_one",
-      "first_name": "Alex",
-      "last_name": "Player"
-    }
+    "referralCode": "PLAYER42"
   }'
 ```
 
@@ -89,11 +73,10 @@ curl -X POST http://localhost:3001/api/auth/session \
     "expiresAt": "2026-06-11T12:00:00.000Z",
     "player": {
       "id": 7,
-      "telegramUserId": null,
-      "anonymousId": "anon-user-001",
-      "username": null,
-      "displayName": "Игрок",
-      "authProvider": "anonymous",
+      "telegramUserId": 123456789,
+      "username": "player_one",
+      "displayName": "Alex Player",
+      "authProvider": "telegram_unverified",
       "referralCode": "A1B2C3D4E5F6",
       "referredByCode": "PLAYER42",
       "referralLink": "https://t.me/lamoda_games_bot/search?startapp=A1B2C3D4E5F6",
@@ -144,6 +127,8 @@ Unity can also authenticate with:
 ```text
 X-Telegram-Init-Data: <initData>
 ```
+
+`initData` in body or query string is rejected.
 
 Header:
 

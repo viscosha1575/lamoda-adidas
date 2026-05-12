@@ -4,7 +4,7 @@ import {
   resetAnonymousId,
 } from './api.js'
 import { logGameDebug } from './debug.js'
-import { requestTelegramFullscreen } from './telegram.js'
+import { getTelegramWebApp, requestTelegramFullscreen } from './telegram.js'
 import { useServerGameSession } from './game-session.js'
 
 const channelUrl = 'https://www.lamoda.ru/'
@@ -2933,6 +2933,7 @@ function MapTutorialScreen({
   const mapSceneApiRef = useRef(null)
   const foundSneakerSlotRef = useRef(null)
   const friendsTransitionTimeoutRef = useRef(0)
+  const introInitDataLoggedRef = useRef(false)
   const getTutorialObjectTargetRect = useCallback(
     () => foundSneakerSlotRef.current?.getBoundingClientRect() ?? null,
     [],
@@ -2951,6 +2952,16 @@ function MapTutorialScreen({
       hasBindings: Boolean(gameplayBindings),
     })
   }, [gameplayActive, gameplayBindings, phase])
+
+  useEffect(() => {
+    if (phase !== 'intro' || introInitDataLoggedRef.current) {
+      return
+    }
+
+    const initData = getTelegramWebApp()?.initData?.trim() ?? null
+    console.log('Telegram initData on intro:', initData)
+    introInitDataLoggedRef.current = true
+  }, [phase])
 
   const startFocusSequence = useCallback(() => {
     if (phase !== 'intro') {

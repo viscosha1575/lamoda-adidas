@@ -1,39 +1,21 @@
 import { getTelegramStartParam, getTelegramWebApp } from './telegram.js'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001/api'
-const ANONYMOUS_ID_STORAGE_KEY = 'lamoda-adidas-anonymous-id'
 const ENTERED_GAME_STORAGE_KEY = 'lamoda-adidas-entered-game'
 
-function createAnonymousId() {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID()
-  }
-
-  return `anon-${Date.now()}-${Math.round(Math.random() * 1_000_000)}`
-}
-
-function getAnonymousId() {
-  if (typeof window === 'undefined') {
-    return createAnonymousId()
-  }
-
-  const existingId = window.localStorage.getItem(ANONYMOUS_ID_STORAGE_KEY)
-
-  if (existingId) {
-    return existingId
-  }
-
-  const nextId = createAnonymousId()
-  window.localStorage.setItem(ANONYMOUS_ID_STORAGE_KEY, nextId)
-  return nextId
-}
-
-async function request(pathname, { method = 'GET', token = null, body, keepalive = false } = {}) {
+async function request(pathname, {
+  method = 'GET',
+  token = null,
+  body,
+  keepalive = false,
+  headers = {},
+} = {}) {
   const response = await fetch(`${API_BASE_URL}${pathname}`, {
     method,
     headers: {
       ...(body ? { 'Content-Type': 'application/json' } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...headers,
     },
     body: body ? JSON.stringify(body) : undefined,
     keepalive,
@@ -56,18 +38,18 @@ export async function createAuthSession() {
   const initData = webApp?.initData?.trim()
   const referralCode = getTelegramStartParam()
 
+  if (!initData) {
+    throw new Error('Telegram initData is required')
+  }
+
   return request('/auth/session', {
     method: 'POST',
-    body: initData
-      ? {
-          initData,
-          profile: webApp?.initDataUnsafe?.user,
-          referralCode,
-        }
-      : {
-          anonymousId: getAnonymousId(),
-          referralCode,
-        },
+    headers: {
+      'X-Telegram-Init-Data': initData,
+    },
+    body: {
+      referralCode,
+    },
   })
 }
 
@@ -76,7 +58,6 @@ export function resetAnonymousId() {
     return
   }
 
-  window.localStorage.removeItem(ANONYMOUS_ID_STORAGE_KEY)
   window.localStorage.removeItem(ENTERED_GAME_STORAGE_KEY)
 }
 

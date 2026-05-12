@@ -49,7 +49,7 @@ server/
 ### Auth
 
 - Creates player sessions.
-- Supports Telegram auth and anonymous auth.
+- Supports Telegram Mini App auth only.
 - Issues bearer token.
 - Deletes current player.
 - Detects and stores referral state during session creation.
@@ -123,6 +123,7 @@ API:
 ### Auth
 
 - Reads `Authorization: Bearer <token>`.
+- Or reads `X-Telegram-Init-Data` / `X-Init-Data`.
 - Loads player from DB by token.
 - Rejects missing, invalid, or expired token with `401`.
 

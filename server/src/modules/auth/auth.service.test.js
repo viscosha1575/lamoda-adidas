@@ -14,20 +14,36 @@ function createAuthServiceForTest(authRepository) {
   });
 }
 
-test("createSession marks anonymous player with referredByCode when referralCode is provided", async () => {
+function createInitData(overrides = {}) {
+  return new URLSearchParams({
+    query_id: "AAExample",
+    user: JSON.stringify({
+      id: 123456789,
+      username: "lamoda_player",
+      first_name: "Mila",
+      last_name: "Test",
+      ...overrides,
+    }),
+    auth_date: "1710000000",
+  }).toString();
+}
+
+test("createSession marks Telegram player with referredByCode when referralCode is provided", async () => {
   const authRepository = {
-    async findPlayerByAnonymousId() {
+    async findPlayerByTelegramUserId(telegramUserId) {
+      assert.equal(telegramUserId, 123456789);
       return null;
     },
-    async upsertAnonymousPlayer(player) {
+    async upsertTelegramPlayer(player) {
+      assert.equal(player.telegramUserId, 123456789);
       assert.equal(player.referredByCode, "PLAYER42");
       assert.equal(player.hasReferral, true);
+      assert.equal(player.authProvider, "telegram_unverified");
       assert.match(player.referralCode, /^[A-Z0-9]{12}$/);
 
       return {
         id: 7,
-        anonymous_id: player.anonymousId,
-        telegram_user_id: null,
+        telegram_user_id: player.telegramUserId,
         username: player.username,
         first_name: player.firstName,
         last_name: player.lastName,
@@ -45,7 +61,7 @@ test("createSession marks anonymous player with referredByCode when referralCode
   const authService = createAuthServiceForTest(authRepository);
 
   const result = await authService.createSession({
-    anonymousId: "anon-user-001",
+    initData: createInitData(),
     referralCode: "https://t.me/lamoda_games_bot/search?startapp=player42",
   });
 
@@ -54,22 +70,23 @@ test("createSession marks anonymous player with referredByCode when referralCode
   assert.match(result.referralCode, /^[A-Z0-9]{12}$/);
   assert.equal(result.referralLink, `https://t.me/lamoda_games_bot/search?startapp=${result.referralCode}`);
   assert.equal(result.isExisting, false);
+  assert.equal(result.telegramUserId, 123456789);
 });
 
 test("createSession keeps hasReferral false when referralCode is missing", async () => {
   const authRepository = {
-    async findPlayerByAnonymousId() {
+    async findPlayerByTelegramUserId() {
       return null;
     },
-    async upsertAnonymousPlayer(player) {
+    async upsertTelegramPlayer(player) {
       assert.equal(player.referredByCode, null);
       assert.equal(player.hasReferral, false);
+      assert.equal(player.authProvider, "telegram_unverified");
       assert.match(player.referralCode, /^[A-Z0-9]{12}$/);
 
       return {
         id: 8,
-        anonymous_id: player.anonymousId,
-        telegram_user_id: null,
+        telegram_user_id: player.telegramUserId,
         username: player.username,
         first_name: player.firstName,
         last_name: player.lastName,
@@ -87,7 +104,7 @@ test("createSession keeps hasReferral false when referralCode is missing", async
   const authService = createAuthServiceForTest(authRepository);
 
   const result = await authService.createSession({
-    anonymousId: "anon-user-002",
+    initData: createInitData(),
   });
 
   assert.equal(result.hasReferral, false);
@@ -113,7 +130,6 @@ test("createSession accepts raw Telegram initData without hash validation", asyn
 
       return {
         id: 9,
-        anonymous_id: null,
         telegram_user_id: player.telegramUserId,
         username: player.username,
         first_name: player.firstName,
@@ -130,18 +146,7 @@ test("createSession accepts raw Telegram initData without hash validation", asyn
   };
 
   const authService = createAuthServiceForTest(authRepository);
-  const initData = new URLSearchParams({
-    query_id: "AAExample",
-    user: JSON.stringify({
-      id: 123456789,
-      username: "lamoda_player",
-      first_name: "Mila",
-      last_name: "Test",
-    }),
-    auth_date: "1710000000",
-  }).toString();
-
-  const result = await authService.createSession({ initData });
+  const result = await authService.createSession({ initData: createInitData() });
 
   assert.equal(result.telegramUserId, 123456789);
   assert.equal(result.username, "lamoda_player");
@@ -149,4 +154,15 @@ test("createSession accepts raw Telegram initData without hash validation", asyn
   assert.equal(result.lastName, "Test");
   assert.equal(result.hasReferral, false);
   assert.equal(result.isExisting, false);
+});
+
+test("createSession rejects requests without Telegram initData", async () => {
+  const authService = createAuthServiceForTest({});
+
+  await assert.rejects(
+    () => authService.createSession({ referralCode: "PLAYER42" }),
+    {
+      message: "Telegram initData is required",
+    },
+  );
 });

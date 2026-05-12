@@ -13,6 +13,7 @@ http://localhost:3001/api
 - Сначала нужно создать auth-сессию.
 - После этого сохранить `token`, который вернул сервер.
 - Во все запросы `/api/game/*` передавать bearer token или `initData`.
+- `initData` можно передавать только в заголовках.
 - Реферал отправляется только при создании auth-сессии.
 - Источник истины по игре на сервере: фронт должен опираться на `session`, `lifecycle` и `remainingSeconds` из ответа API.
 
@@ -66,19 +67,13 @@ Authorization: Bearer <token>
 
 ```http
 POST /api/auth/session
+X-Telegram-Init-Data: <initData>
 Content-Type: application/json
 ```
 
 ```json
 {
-  "initData": "query_id=AA...&user=%7B...%7D&auth_date=1710000000&hash=...",
-  "referralCode": "https://t.me/lamoda_games_bot/search?startapp=PLAYER42",
-  "profile": {
-    "id": 123456789,
-    "username": "player_one",
-    "first_name": "Alex",
-    "last_name": "Player"
-  }
+  "referralCode": "https://t.me/lamoda_games_bot/search?startapp=PLAYER42"
 }
 ```
 
@@ -92,10 +87,9 @@ Content-Type: application/json
     "player": {
       "id": 7,
       "telegramUserId": 123456789,
-      "anonymousId": null,
       "username": "player_one",
       "displayName": "Alex Player",
-      "authProvider": "telegram_verified",
+      "authProvider": "telegram_unverified",
       "referralCode": "A1B2C3D4E5F6",
       "referredByCode": "PLAYER42",
       "referralLink": "https://t.me/lamoda_games_bot/search?startapp=A1B2C3D4E5F6",
@@ -108,49 +102,11 @@ Content-Type: application/json
 }
 ```
 
-### 5.2 Анонимный пользователь
+Важно:
 
-Используется вне Telegram.
-
-Запрос:
-
-```http
-POST /api/auth/session
-Content-Type: application/json
-```
-
-```json
-{
-  "anonymousId": "anon-user-001",
-  "referralCode": "PLAYER42"
-}
-```
-
-Ответ:
-
-```json
-{
-  "data": {
-    "token": "0d4d0c1f-7d3b-4f35-bc4e-6e1a0bb3fd2c",
-    "expiresAt": "2026-06-11T12:00:00.000Z",
-    "player": {
-      "id": 8,
-      "telegramUserId": null,
-      "anonymousId": "anon-user-001",
-      "username": null,
-      "displayName": "Игрок",
-      "authProvider": "anonymous",
-      "referralCode": "A1B2C3D4E5F6",
-      "referredByCode": "PLAYER42",
-      "referralLink": "https://t.me/lamoda_games_bot/search?startapp=A1B2C3D4E5F6",
-      "hasReferral": true,
-      "isOnline": true,
-      "lastSeenAt": "2026-05-12T12:00:00.000Z",
-      "isExisting": false
-    }
-  }
-}
-```
+- анонимный режим больше не поддерживается;
+- `POST /api/auth/session` работает только с Telegram `initData`;
+- если `initData` положить в body или query, сервер вернёт `400`.
 
 ## 6. Жизненный цикл игры
 
@@ -395,7 +351,6 @@ type FrontendAuthState = {
   player: {
     id: number
     telegramUserId: number | null
-    anonymousId: string | null
     username: string | null
     displayName: string
     authProvider: string

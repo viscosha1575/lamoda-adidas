@@ -1,7 +1,13 @@
+import { getTelegramInitDataFromHeadersOnly } from "./init-data.js";
+
 export function createAuthController({ authService }) {
   return {
     async createSession(request, response) {
-      const player = await authService.createSession(request.body);
+      const initData = getTelegramInitDataFromHeadersOnly(request);
+      const payload = initData
+        ? { ...request.body, initData }
+        : request.body;
+      const player = await authService.createSession(payload);
 
       response.status(201).json({
         data: {
@@ -10,7 +16,6 @@ export function createAuthController({ authService }) {
           player: {
             id: player.id,
             telegramUserId: player.telegramUserId,
-            anonymousId: player.anonymousId,
             username: player.username,
             displayName: player.displayName,
             authProvider: player.authProvider,

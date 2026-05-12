@@ -76,7 +76,6 @@ function normalizePlayer(player, { onlineWindowSeconds, telegramAppUrl }) {
   return {
     id: Number(player.id),
     telegramUserId: player.telegram_user_id ? Number(player.telegram_user_id) : null,
-    anonymousId: player.anonymous_id ?? null,
     username: player.username ?? null,
     firstName: player.first_name ?? null,
     lastName: player.last_name ?? null,
@@ -131,52 +130,26 @@ export function createAuthService({
       const hasReferral = Boolean(referredByCode);
       const lastSeenAt = new Date();
 
-      if (input.initData) {
-        const telegramUser = verifyAndExtractTelegramUser({
-          initData: input.initData,
-          telegramBotToken,
-          trustTelegramClientUser,
-        });
-
-        const existingPlayer = await authRepository.findPlayerByTelegramUserId(
-          telegramUser.id,
-        );
-
-        const player = await authRepository.upsertTelegramPlayer({
-          telegramUserId: telegramUser.id,
-          username: telegramUser.username,
-          firstName: telegramUser.first_name,
-          lastName: telegramUser.last_name,
-          authProvider: "telegram_unverified",
-          referralCode: existingPlayer?.referral_code ?? createPersonalReferralCode(),
-          referredByCode,
-          hasReferral,
-          authToken,
-          authTokenExpiresAt,
-          lastSeenAt,
-        });
-
-        return withPlayerStatus(player, {
-          isExisting: Boolean(existingPlayer),
-          onlineWindowSeconds: playerOnlineWindowSeconds,
-          telegramAppUrl,
-        });
+      if (!input.initData) {
+        throw new HttpError(400, "Telegram initData is required");
       }
 
-      if (!input.anonymousId) {
-        throw new HttpError(400, "anonymousId is required outside Telegram");
-      }
+      const telegramUser = verifyAndExtractTelegramUser({
+        initData: input.initData,
+        telegramBotToken,
+        trustTelegramClientUser,
+      });
 
-      const existingPlayer = await authRepository.findPlayerByAnonymousId(
-        input.anonymousId,
+      const existingPlayer = await authRepository.findPlayerByTelegramUserId(
+        telegramUser.id,
       );
 
-      const player = await authRepository.upsertAnonymousPlayer({
-        anonymousId: input.anonymousId,
-        username: input.profile?.username ?? null,
-        firstName: input.profile?.first_name ?? null,
-        lastName: input.profile?.last_name ?? null,
-        authProvider: "anonymous",
+      const player = await authRepository.upsertTelegramPlayer({
+        telegramUserId: telegramUser.id,
+        username: telegramUser.username,
+        firstName: telegramUser.first_name,
+        lastName: telegramUser.last_name,
+        authProvider: "telegram_unverified",
         referralCode: existingPlayer?.referral_code ?? createPersonalReferralCode(),
         referredByCode,
         hasReferral,
@@ -234,7 +207,7 @@ export function createAuthService({
         username: telegramUser.username,
         firstName: telegramUser.first_name,
         lastName: telegramUser.last_name,
-        authProvider: telegramBotToken ? "telegram_verified" : "telegram_unverified",
+        authProvider: "telegram_unverified",
         referralCode: createPersonalReferralCode(),
         referredByCode: null,
         hasReferral: false,

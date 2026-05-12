@@ -19,7 +19,7 @@ sequenceDiagram
     Node->>App: listen(PORT)
 ```
 
-## 2. Anonymous Auth With Referral
+## 2. Telegram Auth With Referral
 
 ```mermaid
 sequenceDiagram
@@ -28,30 +28,9 @@ sequenceDiagram
     participant Auth as Auth Service
     participant DB as players
 
-    Client->>API: POST anonymousId + referralCode
+    Client->>API: POST referralCode + X-Telegram-Init-Data
     API->>Auth: createSession(payload)
-    Auth->>Auth: normalizeReferralCode()
-    Auth->>DB: findPlayerByAnonymousId()
-    Auth->>DB: upsertAnonymousPlayer()
-    DB-->>Auth: player row
-    Auth-->>API: token + player.hasReferral=true
-    API-->>Client: 201 Created
-```
-
-## 3. Telegram Auth With Referral
-
-```mermaid
-sequenceDiagram
-    participant Client
-    participant API as /api/auth/session
-    participant Auth as Auth Service
-    participant TG as Telegram Validator
-    participant DB as players
-
-    Client->>API: POST initData + profile + referralCode
-    API->>Auth: createSession(payload)
-    Auth->>TG: extractTelegramUserFromInitData()
-    Auth->>TG: validateTelegramInitData()
+    Auth->>Auth: extractTelegramUserFromInitData()
     Auth->>Auth: normalizeReferralCode()
     Auth->>DB: findPlayerByTelegramUserId()
     Auth->>DB: upsertTelegramPlayer()
@@ -60,7 +39,7 @@ sequenceDiagram
     API-->>Client: 201 Created
 ```
 
-## 4. Gameplay Bootstrap
+## 3. Gameplay Bootstrap
 
 ```mermaid
 sequenceDiagram
@@ -74,7 +53,7 @@ sequenceDiagram
     GameAPI-->>Client: lifecycle + session or idle
 ```
 
-## 5. Start New Game
+## 4. Start New Game
 
 ```mermaid
 sequenceDiagram
@@ -98,7 +77,7 @@ sequenceDiagram
     API-->>Client: current game state
 ```
 
-## 6. Heartbeat Loop
+## 5. Heartbeat Loop
 
 ```mermaid
 sequenceDiagram
@@ -115,7 +94,7 @@ sequenceDiagram
     end
 ```
 
-## 7. Pause And Resume
+## 6. Pause And Resume
 
 ```mermaid
 sequenceDiagram
@@ -136,7 +115,7 @@ sequenceDiagram
     ResumeAPI-->>Client: active session
 ```
 
-## 8. Collect Sneaker
+## 7. Collect Sneaker
 
 ```mermaid
 sequenceDiagram
@@ -159,7 +138,7 @@ sequenceDiagram
     end
 ```
 
-## 9. Finish Game
+## 8. Finish Game
 
 ```mermaid
 sequenceDiagram
@@ -178,7 +157,7 @@ sequenceDiagram
     API-->>Client: lifecycle=finished
 ```
 
-## 10. Products Read Flow
+## 9. Products Read Flow
 
 ```mermaid
 sequenceDiagram
@@ -195,7 +174,7 @@ sequenceDiagram
     API-->>Client: data[]
 ```
 
-## 11. Products Create Flow
+## 10. Products Create Flow
 
 ```mermaid
 sequenceDiagram
