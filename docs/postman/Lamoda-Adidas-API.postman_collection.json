@@ -131,8 +131,8 @@
             "method": "DELETE",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
+                "key": "X-Telegram-Init-Data",
+                "value": "{{init_data}}"
               }
             ],
             "url": {
@@ -146,7 +146,7 @@
                 "current"
               ]
             },
-            "description": "Удаляет текущего игрока по bearer token."
+            "description": "Удаляет текущего игрока по Telegram initData."
           },
           "response": []
         }
@@ -161,8 +161,8 @@
             "method": "GET",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
+                "key": "X-Telegram-Init-Data",
+                "value": "{{init_data}}"
               }
             ],
             "url": {
@@ -186,8 +186,8 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
+                "key": "X-Telegram-Init-Data",
+                "value": "{{init_data}}"
               },
               {
                 "key": "Content-Type",
@@ -219,8 +219,8 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
+                "key": "X-Telegram-Init-Data",
+                "value": "{{init_data}}"
               },
               {
                 "key": "Content-Type",
@@ -252,8 +252,8 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
+                "key": "X-Telegram-Init-Data",
+                "value": "{{init_data}}"
               }
             ],
             "url": {
@@ -277,8 +277,8 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
+                "key": "X-Telegram-Init-Data",
+                "value": "{{init_data}}"
               }
             ],
             "url": {
@@ -302,8 +302,8 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
+                "key": "X-Telegram-Init-Data",
+                "value": "{{init_data}}"
               }
             ],
             "url": {
@@ -327,8 +327,8 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
+                "key": "X-Telegram-Init-Data",
+                "value": "{{init_data}}"
               },
               {
                 "key": "Content-Type",
@@ -360,8 +360,8 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
+                "key": "X-Telegram-Init-Data",
+                "value": "{{init_data}}"
               },
               {
                 "key": "Content-Type",
@@ -393,8 +393,8 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
+                "key": "X-Telegram-Init-Data",
+                "value": "{{init_data}}"
               }
             ],
             "url": {

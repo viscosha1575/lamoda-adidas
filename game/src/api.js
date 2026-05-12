@@ -3,6 +3,10 @@ import { getTelegramStartParam, getTelegramWebApp } from './telegram.js'
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001/api'
 const ENTERED_GAME_STORAGE_KEY = 'lamoda-adidas-entered-game'
 
+function getTelegramInitData() {
+  return getTelegramWebApp()?.initData?.trim() ?? null
+}
+
 async function request(pathname, {
   method = 'GET',
   token = null,
@@ -10,11 +14,12 @@ async function request(pathname, {
   keepalive = false,
   headers = {},
 } = {}) {
+  const initData = getTelegramInitData()
   const response = await fetch(`${API_BASE_URL}${pathname}`, {
     method,
     headers: {
       ...(body ? { 'Content-Type': 'application/json' } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(initData ? { 'X-Telegram-Init-Data': initData } : {}),
       ...headers,
     },
     body: body ? JSON.stringify(body) : undefined,
@@ -35,7 +40,7 @@ async function request(pathname, {
 
 export async function createAuthSession() {
   const webApp = getTelegramWebApp()
-  const initData = webApp?.initData?.trim()
+  const initData = getTelegramInitData()
   const referralCode = getTelegramStartParam()
 
   console.log('Telegram initData before auth session:', initData ?? null)

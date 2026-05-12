@@ -138,3 +138,27 @@ test("auth middleware rejects initData in query string", async () => {
   assert.equal(response.statusCode, 400);
   assert.equal(response.body.error.message, "Telegram initData must be sent only in headers");
 });
+
+test("auth middleware rejects bearer-only requests without Telegram initData", async () => {
+  const authService = {
+    async getPlayerByInitData() {
+      throw new Error("should not be called");
+    },
+  };
+
+  const app = express();
+  app.use(express.json());
+  app.get(
+    "/protected",
+    createAuthMiddleware({ authService }),
+    (_request, response) => response.json({ ok: true }),
+  );
+  app.use(errorHandler);
+
+  const response = await request(app)
+    .get("/protected")
+    .set("Authorization", "Bearer token-123");
+
+  assert.equal(response.statusCode, 401);
+  assert.equal(response.body.error.message, "Telegram initData header is required");
+});
