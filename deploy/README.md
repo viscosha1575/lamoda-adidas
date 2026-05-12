@@ -12,6 +12,7 @@ Files in this folder are intended for production deployment of the project on `l
 
 - `https://lamoda-specials.ru` -> frontend
 - `https://lamoda-specials.ru/api/*` -> backend
+- `http://lamoda-specials.ru` -> redirects to `https://lamoda-specials.ru`
 - TLS certificate is issued automatically by Traefik via Let's Encrypt
 
 ## Server Preparation
