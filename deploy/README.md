@@ -30,6 +30,19 @@ cp /opt/lamoda-adidas/deploy/.env.example /opt/lamoda-adidas/deploy/.env
 docker compose --env-file /opt/lamoda-adidas/deploy/.env -f /opt/lamoda-adidas/deploy/docker-compose.prod.yml up -d --build
 ```
 
+## GitHub Actions
+
+Automatic deploy is configured in `.github/workflows/deploy.yml`.
+
+Add these repository secrets in GitHub:
+
+- `PROD_HOST` - server IP or hostname, for example `185.125.46.86`
+- `PROD_PORT` - SSH port, usually `22`
+- `PROD_USER` - SSH user, for example `root`
+- `PROD_PASSWORD` - SSH password for the server user
+
+Deploy runs automatically on every push to `main` and can also be started manually from the Actions tab.
+
 ## DNS
 
 Before the certificate is issued, the A record for `lamoda-specials.ru` must point to the server IP.
