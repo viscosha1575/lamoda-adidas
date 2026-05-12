@@ -12,7 +12,7 @@ http://localhost:3001/api
 
 - Сначала нужно создать auth-сессию.
 - После этого сохранить `token`, который вернул сервер.
-- Во все запросы `/api/game/*` передавать bearer token или `initData`.
+- Во все запросы `/api/game/*` передавать `initData` в заголовках.
 - `initData` можно передавать только в заголовках.
 - Реферал отправляется только при создании auth-сессии.
 - Источник истины по игре на сервере: фронт должен опираться на `session`, `lifecycle` и `remainingSeconds` из ответа API.
@@ -22,7 +22,7 @@ http://localhost:3001/api
 Для защищённых запросов:
 
 ```http
-Authorization: Bearer <token>
+X-Telegram-Init-Data: <initData>
 ```
 
 ## 3. Последовательность при запуске приложения
@@ -133,7 +133,7 @@ Content-Type: application/json
 
 - `idle` -> показать стартовый экран
 - `active` -> показать экран игры
-- `paused` -> показать возврат в игру или автоматически резюмировать
+- `paused` -> при следующем `start-session` сервер вернёт игрока в текущую сессию
 - `finished` -> показать экран успешного завершения
 - `expired` -> показать экран завершения по таймеру
 
@@ -149,22 +149,7 @@ POST /api/game/start-session
 
 ```http
 POST /api/game/start-session
-Authorization: Bearer <token>
-```
-
-или:
-
-```http
-POST /api/game/start-session
 X-Telegram-Init-Data: <initData>
-```
-
-Тело:
-
-```json
-{
-  "foundSneakerNumbers": [1, 4, 7]
-}
 ```
 
 Ответ:
@@ -196,19 +181,12 @@ X-Telegram-Init-Data: <initData>
 
 - Всего кроссовков `10`.
 - Сервер всегда гарантирует, что первый кроссовок открыт по умолчанию.
-- `start-session` может принять `foundSneakerNumbers` от Unity и запустить таймер на `10 минут`.
+- новая сессия всегда стартует только с первого открытого кроссовка;
 - Фронт не должен перетирать это значение своей локальной инициализацией.
 
 ### 7.3 Activity-логи во время игры
 
 Во время игры Unity должен слать логи действий игрока:
-
-```http
-POST /api/game/activity-log
-Authorization: Bearer <token>
-```
-
-или:
 
 ```http
 POST /api/game/activity-log
@@ -238,35 +216,13 @@ Content-Type: application/json
 
 Если сервер не получает activity-логи дольше `15 секунд`, игрок считается не онлайн.
 
-### 7.4 Heartbeat
-
-`POST /api/game/heartbeat` можно оставить как резервный legacy-вызов, но основной сигнал онлайна теперь лучше слать через `activity-log`.
-
-### 7.5 Поставить игру на паузу
-
-Использовать, когда приложение скрыто, свёрнуто или пользователь уходит с игрового экрана.
-
-```http
-POST /api/game/pause
-Authorization: Bearer <token>
-```
-
-### 7.6 Возобновить игру
-
-Использовать, когда пользователь вернулся в игру.
-
-```http
-POST /api/game/resume
-Authorization: Bearer <token>
-```
-
-### 7.7 Отметить найденный кроссовок
+### 7.4 Отметить найденный кроссовок
 
 Запрос:
 
 ```http
 POST /api/game/found-sneaker
-Authorization: Bearer <token>
+X-Telegram-Init-Data: <initData>
 Content-Type: application/json
 ```
 
@@ -306,13 +262,13 @@ Content-Type: application/json
 - если такой кроссовок уже был найден, сервер вернёт `accepted: false`;
 - фронт всегда должен синхронизировать найденные элементы из `session.foundSneakerNumbers`.
 
-### 7.8 Завершить игру
+### 7.5 Завершить игру
 
 Когда все нужные кроссовки собраны:
 
 ```http
 POST /api/game/finish
-Authorization: Bearer <token>
+X-Telegram-Init-Data: <initData>
 ```
 
 Ответ:

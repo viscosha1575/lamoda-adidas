@@ -4,16 +4,10 @@ import {
   createAuthSession,
   finishGame,
   getGameState,
-  pauseGame,
-  resumeGame,
-  sendHeartbeat,
-  startGame,
+  logActivity,
+  startGameSession,
 } from './api.js'
 import { logGameDebug } from './debug.js'
-
-function isTerminalLifecycle(lifecycle) {
-  return lifecycle === 'finished' || lifecycle === 'expired'
-}
 
 export function useBackendBootstrap() {
   const [state, setState] = useState({
@@ -138,19 +132,7 @@ export function useServerGameSession({ token, initialGameState = null, autoStart
   ), [runAction, token])
 
   const startSession = useCallback(async () => (
-    runAction('start-session', () => startGame(token))
-  ), [runAction, token])
-
-  const resumeSession = useCallback(async () => (
-    runAction('resume-session', () => resumeGame(token))
-  ), [runAction, token])
-
-  const pauseSession = useCallback(async ({ keepalive = false } = {}) => (
-    runAction('pause-session', () => pauseGame(token, { keepalive }), { silent: keepalive })
-  ), [runAction, token])
-
-  const heartbeatSession = useCallback(async () => (
-    runAction('heartbeat-session', () => sendHeartbeat(token), { silent: true })
+    runAction('start-session', () => startGameSession(token))
   ), [runAction, token])
 
   const collectSessionSneaker = useCallback(async (sneakerNumber) => {
@@ -180,6 +162,14 @@ export function useServerGameSession({ token, initialGameState = null, autoStart
 
   const finishSession = useCallback(async () => (
     runAction('finish-session', () => finishGame(token))
+  ), [runAction, token])
+
+  const logSessionActivity = useCallback(async (payload, { silent = true } = {}) => (
+    runAction(
+      `activity-log:${payload?.action ?? 'unknown'}`,
+      () => logActivity(token, payload),
+      { silent },
+    )
   ), [runAction, token])
 
   useEffect(() => {
@@ -221,70 +211,27 @@ export function useServerGameSession({ token, initialGameState = null, autoStart
   }, [autoStart, initialGameState?.lifecycle, initialGameState?.session, startSession])
 
   useEffect(() => {
-    if (initialGameState?.session?.status !== 'paused') {
-      return undefined
-    }
-
-    logGameDebug('server-game:auto-resume-triggered', {
-      sessionId: initialGameState?.session?.id ?? null,
-    })
-    void resumeSession()
-
-    return undefined
-  }, [initialGameState?.session?.status, resumeSession])
-
-  useEffect(() => {
     if (gameState?.session?.status !== 'active') {
       return undefined
     }
 
     const intervalId = window.setInterval(() => {
-      void heartbeatSession()
+      void logSessionActivity(
+        {
+          source: 'webapp',
+          action: 'presence-ping',
+          details: {
+            visibilityState: document.visibilityState,
+          },
+        },
+        { silent: true },
+      )
     }, 5_000)
 
     return () => {
       window.clearInterval(intervalId)
     }
-  }, [gameState?.session?.status, heartbeatSession])
-
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      const session = sessionRef.current
-
-      if (!session || isTerminalLifecycle(lifecycleRef.current)) {
-        return
-      }
-
-      if (document.visibilityState === 'hidden' && session.status === 'active') {
-        void pauseSession({ keepalive: true })
-        return
-      }
-
-      if (document.visibilityState === 'visible' && session.status === 'paused') {
-        void resumeSession()
-      }
-    }
-
-    const handlePageHide = () => {
-      const session = sessionRef.current
-
-      if (session?.status === 'active') {
-        void pauseSession({ keepalive: true })
-      }
-    }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('pagehide', handlePageHide)
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('pagehide', handlePageHide)
-
-      if (sessionRef.current?.status === 'active') {
-        void pauseSession({ keepalive: true })
-      }
-    }
-  }, [pauseSession, resumeSession])
+  }, [gameState?.session?.status, logSessionActivity])
 
   const clientRemainingSeconds = useMemo(() => {
     if (!gameState?.session) {
@@ -328,9 +275,7 @@ export function useServerGameSession({ token, initialGameState = null, autoStart
     error,
     displayRemainingSeconds,
     startSession,
-    resumeSession,
-    pauseSession,
-    heartbeatSession,
+    logSessionActivity,
     collectSessionSneaker,
     finishSession,
     refreshState,

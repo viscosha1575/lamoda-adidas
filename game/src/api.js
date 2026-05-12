@@ -96,30 +96,8 @@ export async function deleteCurrentPlayer(token) {
   })
 }
 
-export async function startGame(token) {
-  return request('/game/start', {
-    method: 'POST',
-    token,
-  })
-}
-
-export async function resumeGame(token) {
-  return request('/game/resume', {
-    method: 'POST',
-    token,
-  })
-}
-
-export async function pauseGame(token, { keepalive = false } = {}) {
-  return request('/game/pause', {
-    method: 'POST',
-    token,
-    keepalive,
-  })
-}
-
-export async function sendHeartbeat(token) {
-  return request('/game/heartbeat', {
+export async function startGameSession(token) {
+  return request('/game/start-session', {
     method: 'POST',
     token,
   })
@@ -139,5 +117,13 @@ export async function finishGame(token) {
   return request('/game/finish', {
     method: 'POST',
     token,
+  })
+}
+
+export async function logActivity(token, payload) {
+  return request('/game/activity-log', {
+    method: 'POST',
+    token,
+    body: payload,
   })
 }

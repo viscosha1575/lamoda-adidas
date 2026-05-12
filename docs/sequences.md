@@ -58,11 +58,11 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant Client
-    participant API as /api/game/start
+    participant API as /api/game/start-session
     participant Game as Game Service
     participant DB as game_sessions
 
-    Client->>API: POST start
+    Client->>API: POST start-session
     API->>Game: startSession(playerId)
     Game->>DB: findLatestOpenSessionByPlayerId()
     alt active session exists
@@ -77,45 +77,24 @@ sequenceDiagram
     API-->>Client: current game state
 ```
 
-## 5. Heartbeat Loop
+## 5. Activity Log Loop
 
 ```mermaid
 sequenceDiagram
     participant Client
-    participant API as /api/game/heartbeat
+    participant API as /api/game/activity-log
     participant Game as Game Service
-    participant DB as game_sessions
+    participant DB as game_sessions/game_activity_logs
 
     loop every few seconds while active
-        Client->>API: POST heartbeat
-        API->>Game: recordHeartbeat(playerId)
-        Game->>DB: update last_heartbeat_at
+        Client->>API: POST activity-log
+        API->>Game: logActivity(playerId, payload)
+        Game->>DB: insert log + update last_heartbeat_at
         API-->>Client: active session snapshot
     end
 ```
 
-## 6. Pause And Resume
-
-```mermaid
-sequenceDiagram
-    participant Client
-    participant PauseAPI as /api/game/pause
-    participant ResumeAPI as /api/game/resume
-    participant Game as Game Service
-    participant DB as game_sessions
-
-    Client->>PauseAPI: POST pause
-    PauseAPI->>Game: pauseSession(playerId)
-    Game->>DB: update status=paused
-    PauseAPI-->>Client: paused session
-
-    Client->>ResumeAPI: POST resume
-    ResumeAPI->>Game: resumeSession(playerId)
-    Game->>DB: update status=active
-    ResumeAPI-->>Client: active session
-```
-
-## 7. Collect Sneaker
+## 6. Collect Sneaker
 
 ```mermaid
 sequenceDiagram
@@ -138,7 +117,7 @@ sequenceDiagram
     end
 ```
 
-## 8. Finish Game
+## 7. Finish Game
 
 ```mermaid
 sequenceDiagram
@@ -157,7 +136,7 @@ sequenceDiagram
     API-->>Client: lifecycle=finished
 ```
 
-## 9. Products Read Flow
+## 8. Products Read Flow
 
 ```mermaid
 sequenceDiagram
@@ -174,7 +153,7 @@ sequenceDiagram
     API-->>Client: data[]
 ```
 
-## 10. Products Create Flow
+## 9. Products Create Flow
 
 ```mermaid
 sequenceDiagram

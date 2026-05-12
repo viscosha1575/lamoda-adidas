@@ -104,12 +104,10 @@ API:
 - `POST /api/auth/session`
 - `DELETE /api/auth/current`
 - `GET /api/game/state`
-- `POST /api/game/start`
-- `POST /api/game/pause`
-- `POST /api/game/resume`
-- `POST /api/game/heartbeat`
+- `POST /api/game/start-session`
 - `POST /api/game/found-sneaker`
 - `POST /api/game/finish`
+- `POST /api/game/activity-log`
 - `GET /api/products`
 - `GET /api/products/:id`
 - `POST /api/products`
@@ -122,10 +120,9 @@ API:
 
 ### Auth
 
-- Reads `Authorization: Bearer <token>`.
-- Or reads `X-Telegram-Init-Data` / `X-Init-Data`.
-- Loads player from DB by token.
-- Rejects missing, invalid, or expired token with `401`.
+- Reads `X-Telegram-Init-Data` / `X-Init-Data`.
+- Loads player from DB by Telegram user extracted from `initData`.
+- Rejects missing or invalid auth headers with `401`.
 
 ### Error Handler
 

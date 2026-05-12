@@ -56,7 +56,7 @@ On startup the server runs SQL migrations automatically and then listens on `htt
 
 ## Auth Conventions
 
-- Protected routes require `Authorization: Bearer <token>`.
+- Protected routes require `X-Telegram-Init-Data`.
 - Auth token is created by `POST /api/auth/session`.
 - Player model returned by auth includes `hasReferral`.
 

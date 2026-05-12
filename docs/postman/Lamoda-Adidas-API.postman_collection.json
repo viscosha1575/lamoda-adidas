@@ -181,39 +181,6 @@
           "response": []
         },
         {
-          "name": "POST /api/game/start",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "X-Telegram-Init-Data",
-                "value": "{{init_data}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"foundSneakerNumbers\": [4, 7]\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/game/start",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "game",
-                "start"
-              ]
-            },
-            "description": "Старт игровой сессии. Сервер автоматически добавит первый кроссовок как уже открытый."
-          },
-          "response": []
-        },
-        {
           "name": "POST /api/game/start-session",
           "request": {
             "method": "POST",
@@ -229,7 +196,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"foundSneakerNumbers\": [1, 4, 7]\n}"
+              "raw": "{}"
             },
             "url": {
               "raw": "{{base_url}}/api/game/start-session",
@@ -242,82 +209,7 @@
                 "start-session"
               ]
             },
-            "description": "Alias для Unity-flow. Поведение такое же, как у `/api/game/start`."
-          },
-          "response": []
-        },
-        {
-          "name": "POST /api/game/pause",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "X-Telegram-Init-Data",
-                "value": "{{init_data}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/game/pause",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "game",
-                "pause"
-              ]
-            },
-            "description": "Ставит активную игровую сессию на паузу."
-          },
-          "response": []
-        },
-        {
-          "name": "POST /api/game/resume",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "X-Telegram-Init-Data",
-                "value": "{{init_data}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/game/resume",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "game",
-                "resume"
-              ]
-            },
-            "description": "Снимает активную игровую сессию с паузы."
-          },
-          "response": []
-        },
-        {
-          "name": "POST /api/game/heartbeat",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "X-Telegram-Init-Data",
-                "value": "{{init_data}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/game/heartbeat",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "game",
-                "heartbeat"
-              ]
-            },
-            "description": "Обновляет last heartbeat игрока и активной сессии."
+            "description": "Стартует новую игровую сессию. Новая сессия всегда начинается только с первого открытого кроссовка."
           },
           "response": []
         },
@@ -409,31 +301,6 @@
               ]
             },
             "description": "Завершает текущую игровую сессию."
-          },
-          "response": []
-        },
-        {
-          "name": "GET /api/game/state - by initData",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "X-Telegram-Init-Data",
-                "value": "{{init_data}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/game/state",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "game",
-                "state"
-              ]
-            },
-            "description": "Альтернативная авторизация: без bearer token, только через `X-Telegram-Init-Data`."
           },
           "response": []
         }

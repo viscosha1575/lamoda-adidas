@@ -12,13 +12,13 @@ function createGameServiceForTest(gameRepository) {
   });
 }
 
-test("startSession accepts collected sneakers from unity and keeps sneaker 1 opened by default", async () => {
+test("startSession always starts with sneaker 1 opened by default", async () => {
   const gameRepository = {
     async findLatestOpenSessionByPlayerId() {
       return null;
     },
     async createSession(session) {
-      assert.deepEqual(session.foundSneakerNumbers, [1, 4, 7]);
+      assert.deepEqual(session.foundSneakerNumbers, [1]);
 
       return {
         id: 15,
@@ -43,7 +43,7 @@ test("startSession accepts collected sneakers from unity and keeps sneaker 1 ope
   });
 
   assert.equal(result.lifecycle, "active");
-  assert.deepEqual(result.session.foundSneakerNumbers, [1, 4, 7]);
+  assert.deepEqual(result.session.foundSneakerNumbers, [1]);
   assert.equal(result.session.remainingSeconds, 600);
 });
 

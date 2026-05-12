@@ -152,16 +152,10 @@ export function createGameService({
     async startSession(playerId, payload = {}) {
       const now = new Date();
       const openSession = await getOpenSession(playerId);
-      const parsedPayload = startSessionSchema.parse(payload);
-      const requestedSneakers = normalizeCollectedSneakers(parsedPayload.foundSneakerNumbers);
+      startSessionSchema.parse(payload);
 
       if (openSession?.status === "active") {
-        const mergedSneakers = sortUniqueSneakers([
-          ...openSession.foundSneakerNumbers,
-          ...requestedSneakers,
-        ]);
         const touchedSession = await gameRepository.updateSession(openSession.id, {
-          found_sneaker_numbers: mergedSneakers,
           last_heartbeat_at: now,
         });
 
@@ -180,10 +174,6 @@ export function createGameService({
       if (openSession?.status === "paused") {
         const resumedSession = await gameRepository.updateSession(openSession.id, {
           status: "active",
-          found_sneaker_numbers: sortUniqueSneakers([
-            ...openSession.foundSneakerNumbers,
-            ...requestedSneakers,
-          ]),
           last_resumed_at: now,
           last_heartbeat_at: now,
         });
@@ -204,7 +194,7 @@ export function createGameService({
         playerId,
         status: "active",
         remainingSeconds: gameDurationSeconds,
-        foundSneakerNumbers: requestedSneakers,
+        foundSneakerNumbers: [DEFAULT_OPEN_SNEAKER],
         pauseCount: 0,
         startedAt: now,
         lastResumedAt: now,
@@ -220,160 +210,6 @@ export function createGameService({
         ),
         lifecycle: "active",
         reason: "new-session",
-      };
-    },
-
-    async pauseSession(playerId) {
-      const openSession = await getOpenSession(playerId);
-      const now = new Date();
-
-      if (!openSession) {
-        return createLifecycleResponse("idle");
-      }
-
-      if (openSession.status === "paused") {
-        return {
-          session: serializeSession(
-            openSession,
-            now,
-            heartbeatGraceSeconds,
-            playerOnlineWindowSeconds,
-          ),
-          lifecycle: "paused",
-          reason: "already-paused",
-        };
-      }
-
-      if (openSession.status !== "active") {
-        return createLifecycleResponse(openSession.status);
-      }
-
-      const runningState = calculateRunningState(openSession, now, heartbeatGraceSeconds);
-
-      if (runningState.isExpired) {
-        const expiredSession = await gameRepository.updateSession(openSession.id, {
-          status: "expired",
-          remaining_seconds: 0,
-          last_paused_at: now,
-          last_resumed_at: null,
-          expired_at: now,
-        });
-
-        return createLifecycleResponse(expiredSession.status);
-      }
-
-      const pausedSession = await gameRepository.updateSession(openSession.id, {
-        status: "paused",
-        remaining_seconds: runningState.remainingSeconds,
-        last_paused_at: now,
-        last_resumed_at: null,
-        last_heartbeat_at: now,
-        pause_count: openSession.pauseCount + 1,
-      });
-
-      return {
-        session: serializeSession(
-          pausedSession,
-          now,
-          heartbeatGraceSeconds,
-          playerOnlineWindowSeconds,
-        ),
-        lifecycle: "paused",
-        reason: "paused",
-      };
-    },
-
-    async resumeSession(playerId) {
-      const openSession = await getOpenSession(playerId);
-      const now = new Date();
-
-      if (!openSession) {
-        return createLifecycleResponse("idle");
-      }
-
-      if (openSession.status === "active") {
-        const touchedSession = await gameRepository.updateSession(openSession.id, {
-          last_heartbeat_at: now,
-        });
-
-        return {
-          session: serializeSession(
-            touchedSession,
-            now,
-            heartbeatGraceSeconds,
-            playerOnlineWindowSeconds,
-          ),
-          lifecycle: "active",
-          reason: "already-active",
-        };
-      }
-
-      if (openSession.status !== "paused") {
-        return createLifecycleResponse(openSession.status);
-      }
-
-      if (openSession.remainingSeconds <= 0) {
-        const expiredSession = await gameRepository.updateSession(openSession.id, {
-          status: "expired",
-          remaining_seconds: 0,
-          expired_at: now,
-        });
-
-        return createLifecycleResponse(expiredSession.status);
-      }
-
-      const resumedSession = await gameRepository.updateSession(openSession.id, {
-        status: "active",
-        last_resumed_at: now,
-        last_heartbeat_at: now,
-      });
-
-      return {
-        session: serializeSession(
-          resumedSession,
-          now,
-          heartbeatGraceSeconds,
-          playerOnlineWindowSeconds,
-        ),
-        lifecycle: "active",
-        reason: "resumed",
-      };
-    },
-
-    async recordHeartbeat(playerId) {
-      const openSession = await getOpenSession(playerId);
-      const now = new Date();
-
-      if (!openSession) {
-        return createLifecycleResponse("idle");
-      }
-
-      if (openSession.status !== "active") {
-        return {
-          session: serializeSession(
-            openSession,
-            now,
-            heartbeatGraceSeconds,
-            playerOnlineWindowSeconds,
-          ),
-          lifecycle: openSession.status,
-          reason: "not-active",
-        };
-      }
-
-      const heartbeatSession = await gameRepository.updateSession(openSession.id, {
-        last_heartbeat_at: now,
-      });
-
-      return {
-        session: serializeSession(
-          heartbeatSession,
-          now,
-          heartbeatGraceSeconds,
-          playerOnlineWindowSeconds,
-        ),
-        lifecycle: "active",
-        reason: "heartbeat",
       };
     },
 

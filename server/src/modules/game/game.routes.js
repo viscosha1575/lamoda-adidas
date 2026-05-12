@@ -9,11 +9,7 @@ export function createGameRouter({ authMiddleware, gameController }) {
 
   router.use(authMiddleware);
   router.get("/state", asyncHandler(gameController.getState));
-  router.post("/start", asyncHandler(gameController.start));
-  router.post("/start-session", asyncHandler(gameController.start));
-  router.post("/pause", asyncHandler(gameController.pause));
-  router.post("/resume", asyncHandler(gameController.resume));
-  router.post("/heartbeat", asyncHandler(gameController.heartbeat));
+  router.post("/start-session", asyncHandler(gameController.startSession));
   router.post("/found-sneaker", asyncHandler(gameController.collectSneaker));
   router.post("/finish", asyncHandler(gameController.finish));
   router.post("/activity-log", asyncHandler(gameController.logActivity));

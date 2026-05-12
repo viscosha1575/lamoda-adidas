@@ -100,12 +100,12 @@ curl -X POST http://localhost:3001/api/auth/session \
 
 ### `DELETE /api/auth/current`
 
-Deletes current player by bearer token.
+Deletes current player by Telegram initData.
 
 Headers:
 
 ```text
-Authorization: Bearer <token>
+X-Telegram-Init-Data: <initData>
 ```
 
 Example response:
@@ -120,21 +120,13 @@ Example response:
 
 ## Game
 
-All `/api/game/*` endpoints require bearer token.
-
-Unity can also authenticate with:
+All `/api/game/*` endpoints require Telegram initData in headers:
 
 ```text
 X-Telegram-Init-Data: <initData>
 ```
 
 `initData` in body or query string is rejected.
-
-Header:
-
-```text
-Authorization: Bearer <token>
-```
 
 ### Session payload shape
 
@@ -204,10 +196,6 @@ Example response with no session:
 }
 ```
 
-### `POST /api/game/start`
-
-Alias for Unity:
-
 ### `POST /api/game/start-session`
 
 Creates new session or resumes paused one.
@@ -221,15 +209,7 @@ Behavior:
 Important:
 
 - New session starts with `foundSneakerNumbers: [1]`.
-- Unity can pass `foundSneakerNumbers` in request body.
-
-Request example:
-
-```json
-{
-  "foundSneakerNumbers": [1, 4, 7]
-}
-```
+- Extra sneakers are not preloaded at start.
 
 Example response:
 
@@ -256,32 +236,6 @@ Example response:
 }
 ```
 
-### `POST /api/game/pause`
-
-Pauses current session.
-
-Possible `reason`:
-
-- `paused`
-- `already-paused`
-
-### `POST /api/game/resume`
-
-Resumes paused session or refreshes heartbeat if already active.
-
-Possible `reason`:
-
-- `resumed`
-- `already-active`
-
-### `POST /api/game/heartbeat`
-
-Touches active session to keep it running.
-
-Expected usage:
-
-- frontend sends heartbeat every few seconds during gameplay
-
 ### `POST /api/game/activity-log`
 
 Logs game activity and refreshes player online state.
@@ -306,7 +260,7 @@ Request example:
 
 ```bash
 curl -X POST http://localhost:3001/api/game/found-sneaker \
-  -H "Authorization: Bearer <token>" \
+  -H "X-Telegram-Init-Data: <initData>" \
   -H "Content-Type: application/json" \
   -d '{
     "sneakerNumber": 4

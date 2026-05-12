@@ -5,24 +5,9 @@ export function createGameController({ gameService }) {
       response.json({ data: state });
     },
 
-    async start(request, response) {
+    async startSession(request, response) {
       const state = await gameService.startSession(request.player.id, request.body);
       response.status(201).json({ data: state });
-    },
-
-    async pause(request, response) {
-      const state = await gameService.pauseSession(request.player.id);
-      response.json({ data: state });
-    },
-
-    async resume(request, response) {
-      const state = await gameService.resumeSession(request.player.id);
-      response.json({ data: state });
-    },
-
-    async heartbeat(request, response) {
-      const state = await gameService.recordHeartbeat(request.player.id);
-      response.json({ data: state });
     },
 
     async collectSneaker(request, response) {
