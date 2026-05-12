@@ -2,10 +2,7 @@ import crypto from "node:crypto";
 
 import { HttpError } from "../../lib/http-error.js";
 import { authSessionSchema } from "./auth.schema.js";
-import {
-  extractTelegramUserFromInitData,
-  validateTelegramInitData,
-} from "./telegram.js";
+import { extractTelegramUserFromInitData } from "./telegram.js";
 
 function buildTokenExpiry(ttlDays) {
   return new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000);
@@ -105,21 +102,13 @@ function withPlayerStatus(player, { isExisting, onlineWindowSeconds, telegramApp
 
 function verifyAndExtractTelegramUser({
   initData,
-  telegramBotToken,
-  trustTelegramClientUser,
+  telegramBotToken: _telegramBotToken,
+  trustTelegramClientUser: _trustTelegramClientUser,
 }) {
   const telegramUser = extractTelegramUserFromInitData(initData);
 
   if (!telegramUser?.id) {
     throw new HttpError(400, "Telegram initData does not contain user information");
-  }
-
-  const isVerified = telegramBotToken
-    ? validateTelegramInitData(initData, telegramBotToken)
-    : trustTelegramClientUser;
-
-  if (!isVerified) {
-    throw new HttpError(401, "Telegram initData validation failed");
   }
 
   return telegramUser;
@@ -158,7 +147,7 @@ export function createAuthService({
           username: telegramUser.username,
           firstName: telegramUser.first_name,
           lastName: telegramUser.last_name,
-          authProvider: telegramBotToken ? "telegram_verified" : "telegram_unverified",
+          authProvider: "telegram_unverified",
           referralCode: existingPlayer?.referral_code ?? createPersonalReferralCode(),
           referredByCode,
           hasReferral,

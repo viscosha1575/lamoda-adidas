@@ -95,3 +95,58 @@ test("createSession keeps hasReferral false when referralCode is missing", async
   assert.match(result.referralCode, /^[A-Z0-9]{12}$/);
   assert.equal(result.isExisting, false);
 });
+
+test("createSession accepts raw Telegram initData without hash validation", async () => {
+  const authRepository = {
+    async findPlayerByTelegramUserId(telegramUserId) {
+      assert.equal(telegramUserId, 123456789);
+      return null;
+    },
+    async upsertTelegramPlayer(player) {
+      assert.equal(player.telegramUserId, 123456789);
+      assert.equal(player.username, "lamoda_player");
+      assert.equal(player.firstName, "Mila");
+      assert.equal(player.lastName, "Test");
+      assert.equal(player.authProvider, "telegram_unverified");
+      assert.equal(player.hasReferral, false);
+      assert.match(player.referralCode, /^[A-Z0-9]{12}$/);
+
+      return {
+        id: 9,
+        anonymous_id: null,
+        telegram_user_id: player.telegramUserId,
+        username: player.username,
+        first_name: player.firstName,
+        last_name: player.lastName,
+        auth_provider: player.authProvider,
+        referral_code: player.referralCode,
+        referred_by_code: player.referredByCode,
+        has_referral: player.hasReferral,
+        auth_token: player.authToken,
+        auth_token_expires_at: player.authTokenExpiresAt,
+        last_seen_at: player.lastSeenAt,
+      };
+    },
+  };
+
+  const authService = createAuthServiceForTest(authRepository);
+  const initData = new URLSearchParams({
+    query_id: "AAExample",
+    user: JSON.stringify({
+      id: 123456789,
+      username: "lamoda_player",
+      first_name: "Mila",
+      last_name: "Test",
+    }),
+    auth_date: "1710000000",
+  }).toString();
+
+  const result = await authService.createSession({ initData });
+
+  assert.equal(result.telegramUserId, 123456789);
+  assert.equal(result.username, "lamoda_player");
+  assert.equal(result.firstName, "Mila");
+  assert.equal(result.lastName, "Test");
+  assert.equal(result.hasReferral, false);
+  assert.equal(result.isExisting, false);
+});
