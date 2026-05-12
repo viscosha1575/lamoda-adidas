@@ -58,7 +58,7 @@ export function createAuthRepository({ pool }) {
            referral_code, referred_by_code, has_referral, auth_token,
            auth_token_expires_at, last_seen_at
          )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          ON CONFLICT (telegram_user_id)
          DO UPDATE SET
            username = EXCLUDED.username,
