@@ -1,0 +1,676 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "VCR OSD Mono [NolivantNT Edit]";
+  src: url("/font/VCROSDMONO[NOLIVANTNTEDIT]-REGULAR.TTF") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-body: "VCR OSD Mono [NolivantNT Edit]", monospace;
+  --font-display: "VCR OSD Mono [NolivantNT Edit]", monospace;
+}
+
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-body);
+  background: #1b2533;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  min-height: 100svh;
+  overflow: hidden;
+}
+
+::selection {
+  background: rgba(216, 248, 129, 0.3);
+}
+
+@keyframes ribbon-fade-in {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes sneaker-pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+
+  70% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes attention-pulse {
+  0% {
+    text-shadow:
+      0 0 0 rgba(255, 255, 255, 0),
+      0 0 0 rgba(217, 252, 171, 0);
+    transform: translateY(0);
+  }
+
+  50% {
+    text-shadow:
+      0 0 14px rgba(255, 255, 255, 0.28),
+      0 0 30px rgba(217, 252, 171, 0.2);
+    transform: translateY(-2px) scale(1.015);
+  }
+
+  100% {
+    text-shadow:
+      0 0 0 rgba(255, 255, 255, 0),
+      0 0 0 rgba(217, 252, 171, 0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes lamoda-glow-breath {
+  0% {
+    opacity: 0.46;
+    filter: blur(37px);
+  }
+
+  50% {
+    opacity: 0.66;
+    filter: blur(37px);
+  }
+
+  100% {
+    opacity: 0.46;
+    filter: blur(37px);
+  }
+}
+
+@keyframes art-idle-sway {
+  0% {
+    transform: translateY(0) rotate(0deg) scale(1);
+  }
+
+  25% {
+    transform: translateY(-6px) rotate(-3.4deg) scale(1.03);
+  }
+
+  50% {
+    transform: translateY(0) rotate(0deg) scale(1.015);
+  }
+
+  75% {
+    transform: translateY(6px) rotate(3.6deg) scale(1.035);
+  }
+
+  100% {
+    transform: translateY(0) rotate(0deg) scale(1);
+  }
+}
+
+@keyframes attention-rgb-left {
+  0% {
+    opacity: 0.14;
+    transform: translate(0, 0);
+  }
+
+  20% {
+    opacity: 0.2;
+    transform: translate(-1px, 0);
+  }
+
+  40% {
+    opacity: 0.1;
+    transform: translate(0, 1px);
+  }
+
+  60% {
+    opacity: 0.18;
+    transform: translate(-1px, -1px);
+  }
+
+  100% {
+    opacity: 0.14;
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes attention-rgb-right {
+  0% {
+    opacity: 0.12;
+    transform: translate(0, 0);
+  }
+
+  25% {
+    opacity: 0.18;
+    transform: translate(1px, 0);
+  }
+
+  55% {
+    opacity: 0.08;
+    transform: translate(0, -1px);
+  }
+
+  75% {
+    opacity: 0.16;
+    transform: translate(1px, 1px);
+  }
+
+  100% {
+    opacity: 0.12;
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes attention-flicker {
+  0% {
+    opacity: 1;
+  }
+
+  18% {
+    opacity: 0.96;
+  }
+
+  22% {
+    opacity: 1;
+  }
+
+  64% {
+    opacity: 0.98;
+  }
+
+  68% {
+    opacity: 0.93;
+  }
+
+  72% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes intro-grid-pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.78);
+  }
+
+  70% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes background-breathe {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.02);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes loading-bar-glint {
+  0% {
+    transform: translateX(-130%);
+    opacity: 0;
+  }
+
+  15% {
+    opacity: 0.22;
+  }
+
+  55% {
+    opacity: 0.28;
+  }
+
+  100% {
+    transform: translateX(260%);
+    opacity: 0;
+  }
+}
+
+@keyframes sneaker-wiggle {
+  0% {
+    transform: rotate(0deg) translateY(0);
+  }
+
+  25% {
+    transform: rotate(-2deg) translateY(-1px);
+  }
+
+  50% {
+    transform: rotate(0deg) translateY(0);
+  }
+
+  75% {
+    transform: rotate(2deg) translateY(1px);
+  }
+
+  100% {
+    transform: rotate(0deg) translateY(0);
+  }
+}
+
+@keyframes end-ribbon-tilt {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  50% {
+    transform: rotate(-4deg);
+  }
+
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes search-art-tilt {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  18% {
+    transform: rotate(4deg);
+  }
+
+  42% {
+    transform: rotate(-5deg);
+  }
+
+  68% {
+    transform: rotate(3.5deg);
+  }
+
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes start-ribbon-tilt {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  50% {
+    transform: rotate(-7deg);
+  }
+
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@layer components {
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .screen-grain {
+    background-image: none;
+    isolation: isolate;
+  }
+
+  .screen-grain::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: url("/assets/background.webp") center / cover no-repeat;
+    transform-origin: center center;
+    animation: background-breathe 12s ease-in-out infinite;
+    will-change: transform;
+  }
+
+  .loading-title {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1;
+  }
+
+  .loading-title-top {
+    display: block;
+    width: min(20.25rem, 82vw);
+    color: #fff;
+    text-align: center;
+    text-shadow: 0 min(5.581px, 1.431vw) min(5.581px, 1.431vw) rgba(0, 0, 0, 0.34);
+    font-family: "VCR OSD Mono [NolivantNT Edit]", monospace;
+    font-size: min(62px, 15.9vw);
+    font-style: normal;
+    font-weight: 400;
+    line-height: normal;
+  }
+
+  .loading-title-bottom {
+    display: block;
+    width: min(20.25rem, 82vw);
+    color: #fff;
+    text-align: center;
+    text-shadow: 0 min(6.47px, 1.659vw) min(6.47px, 1.659vw) rgba(0, 0, 0, 0.34);
+    font-family: "VCR OSD Mono [NolivantNT Edit]", monospace;
+    font-size: min(112.528px, 28.853vw);
+    font-style: normal;
+    font-weight: 400;
+    line-height: normal;
+  }
+
+  .loading-progress-frame {
+    box-shadow:
+      0 14px 32px rgba(0, 0, 0, 0.24),
+      inset 0 2px 0 rgba(255, 255, 255, 0.28),
+      inset 0 -2px 0 rgba(83, 66, 41, 0.24),
+      inset 2px 0 0 rgba(255, 255, 255, 0.1),
+      inset -2px 0 0 rgba(83, 66, 41, 0.12);
+  }
+
+  .loading-progress-frame > div {
+    box-shadow:
+      inset 0 2px 0 rgba(255, 255, 255, 0.22),
+      inset 0 -2px 0 rgba(137, 118, 88, 0.24),
+      inset 2px 0 0 rgba(255, 255, 255, 0.08),
+      inset -2px 0 0 rgba(137, 118, 88, 0.14);
+  }
+
+  .loading-progress-fill {
+    position: relative;
+    box-shadow:
+      inset 0 2px 0 rgba(255, 255, 255, 0.26),
+      inset 0 -2px 0 rgba(49, 89, 24, 0.36);
+    will-change: width;
+  }
+
+  .loading-progress-fill::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 28%;
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.24) 48%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    animation: loading-bar-glint 1.9s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  .loading-caption {
+    text-shadow: 0 6px 18px rgba(0, 0, 0, 0.34);
+  }
+
+  .phaser-map-canvas {
+    background: #000;
+  }
+
+  .phaser-map-canvas canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+
+  .map-instruction-title {
+    text-shadow:
+      0 6px 16px rgba(0, 0, 0, 0.34),
+      0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .map-hand {
+    image-rendering: pixelated;
+    filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.28));
+  }
+
+  .attention-badge {
+    position: relative;
+    display: inline-block;
+    animation:
+      attention-pulse 1.35s ease-in-out infinite,
+      attention-flicker 1.7s steps(1, end) infinite;
+    will-change: transform, opacity, text-shadow;
+  }
+
+  .attention-badge::before,
+  .attention-badge::after {
+    content: attr(data-text);
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .attention-badge::before {
+    color: rgba(217, 252, 171, 0.7);
+    mix-blend-mode: screen;
+    animation: attention-rgb-left 0.95s steps(2, end) infinite;
+  }
+
+  .attention-badge::after {
+    color: rgba(143, 194, 255, 0.65);
+    mix-blend-mode: screen;
+    animation: attention-rgb-right 1.05s steps(2, end) infinite;
+  }
+
+  .intro-grid-item {
+    opacity: 0;
+    transform: scale(0.78);
+    animation: intro-grid-pop-in 460ms ease-out both;
+    will-change: transform, opacity;
+  }
+
+  .intro-grid-item-1 {
+    animation-delay: 120ms;
+  }
+
+  .intro-grid-item-2 {
+    animation-delay: 260ms;
+  }
+
+  .intro-grid-item-3 {
+    animation-delay: 400ms;
+  }
+
+  .intro-grid-item-4 {
+    animation-delay: 540ms;
+  }
+
+  .intro-art-entrance {
+    transform-origin: center center;
+    animation:
+      sneaker-pop-in 520ms ease-out 100ms both,
+      art-idle-sway 1.55s ease-in-out 760ms infinite;
+    will-change: transform, opacity;
+  }
+
+  .lamoda-glow-loop {
+    animation: lamoda-glow-breath 2.4s ease-in-out infinite;
+    will-change: opacity;
+  }
+
+  .search-art-tilt {
+    transform-origin: 77% 90%;
+    animation:
+      sneaker-pop-in 520ms ease-out 100ms both,
+      search-art-tilt 1.35s ease-in-out 760ms infinite;
+    will-change: transform, opacity;
+  }
+
+  .pixel-button {
+    @apply inline-flex w-full items-center justify-center rounded-[1rem] border-4 border-black px-4 py-4 text-center font-display text-[0.8rem] leading-none tracking-[-0.08em] transition duration-200 ease-out sm:text-[1rem];
+    box-shadow: 0 8px 0 rgba(0, 0, 0, 0.22);
+  }
+
+  .pixel-button-intro {
+    @apply relative isolate mx-auto flex h-[47px] w-[188.811px] items-center justify-center px-0 text-center transition duration-200 ease-out;
+  }
+
+  .pixel-button-svg {
+    @apply relative flex h-[47px] w-full items-center justify-center px-0 text-center transition duration-200 ease-out;
+  }
+
+  .pixel-button-svg-light {
+    @apply relative flex h-[47px] w-full items-center justify-center px-0 text-center transition duration-200 ease-out;
+  }
+
+  .pixel-button-intro:hover {
+    transform: translateY(1px);
+    filter: brightness(1.08) drop-shadow(0 0 10px rgba(255, 255, 255, 0.16));
+  }
+
+  .pixel-button-intro:active {
+    transform: translateY(2px);
+  }
+
+  .pixel-button-svg:hover {
+    transform: translateY(1px);
+    filter: brightness(1.08) drop-shadow(0 0 10px rgba(255, 255, 255, 0.16));
+  }
+
+  .pixel-button-svg:active {
+    transform: translateY(2px);
+  }
+
+  .pixel-button-svg-light:hover {
+    transform: translateY(1px);
+    filter: brightness(1.08) drop-shadow(0 0 10px rgba(255, 255, 255, 0.16));
+  }
+
+  .pixel-button-svg-light:active {
+    transform: translateY(2px);
+  }
+
+  .button-text-dark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #d9fcab;
+    text-align: center;
+    leading-trim: both;
+    text-edge: cap;
+    -webkit-text-stroke-width: 3px;
+    -webkit-text-stroke-color: #000;
+    font-family: "VCR OSD Mono [NolivantNT Edit]", monospace;
+    font-size: 26px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1;
+    paint-order: stroke fill;
+    transform: translateY(-2px);
+  }
+
+  .button-text-light {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #000;
+    text-align: center;
+    leading-trim: both;
+    text-edge: cap;
+    font-family: "VCR OSD Mono [NolivantNT Edit]", monospace;
+    font-size: 26px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1;
+    transform: translateY(-1px);
+  }
+
+  .ribbon-reveal-inner {
+    width: 100%;
+    height: 100%;
+  }
+
+  .ribbon-fade-sync {
+    opacity: 0;
+    animation-name: ribbon-fade-in;
+    animation-fill-mode: both;
+    animation-timing-function: ease-out;
+    animation-delay: 220ms;
+    animation-duration: 420ms;
+  }
+
+  .start-ribbon-bob {
+    opacity: 0;
+    transform-origin: 84% 36%;
+    animation:
+      ribbon-fade-in 420ms ease-out 220ms both,
+      start-ribbon-tilt 1.9s ease-in-out 720ms infinite;
+    will-change: transform, opacity;
+  }
+
+  .end-ribbon-wiggle {
+    opacity: 0;
+    transform-origin: 14% 54%;
+    animation:
+      ribbon-fade-in 420ms ease-out 220ms both,
+      end-ribbon-tilt 1.9s ease-in-out 760ms infinite;
+    will-change: transform, opacity;
+  }
+
+  .pixel-button:hover {
+    transform: translateY(2px);
+    box-shadow: 0 6px 0 rgba(0, 0, 0, 0.24);
+  }
+
+  .pixel-button:active {
+    transform: translateY(4px);
+    box-shadow: 0 3px 0 rgba(0, 0, 0, 0.26);
+  }
+
+}

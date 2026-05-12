@@ -1,0 +1,38 @@
+# macOS / editor noise
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Local env files
+.env
+*.local
+server/.env
+
+# Dependencies
+node_modules/
+game/node_modules/
+server/node_modules/
+
+# Build artifacts
+dist/
+game/dist/
+server/dist/
+dist-ssr/
+
+# Local certificates / uploads
+game/certs/
+server/uploads/
+
+# Misc
+*.swp
+*.swo
