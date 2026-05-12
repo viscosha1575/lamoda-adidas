@@ -38,6 +38,9 @@ export async function createAuthSession() {
   const initData = webApp?.initData?.trim()
   const referralCode = getTelegramStartParam()
 
+  console.log('Telegram initData before auth session:', initData ?? null)
+  console.log('Telegram initDataUnsafe before auth session:', webApp?.initDataUnsafe ?? null)
+
   if (!initData) {
     throw new Error('Telegram initData is required')
   }

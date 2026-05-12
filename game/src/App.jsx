@@ -4505,6 +4505,14 @@ function App() {
     })
   }, [activeIndex, slide?.id])
 
+  useEffect(() => {
+    const webApp = getTelegramWebApp()
+    const initData = webApp?.initData?.trim() ?? null
+
+    console.log('Telegram initData on app intro:', initData)
+    console.log('Telegram initDataUnsafe on app intro:', webApp?.initDataUnsafe ?? null)
+  }, [])
+
   const navigateTo = useCallback((nextIndex) => {
     if (typeof nextIndex !== 'number') {
       logGameDebug('app:intro-navigation-blocked', {
