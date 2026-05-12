@@ -135,37 +135,3 @@ sequenceDiagram
     Game->>Results: insert result row
     API-->>Client: lifecycle=finished
 ```
-
-## 8. Products Read Flow
-
-```mermaid
-sequenceDiagram
-    participant Client
-    participant API as /api/products
-    participant Service as Products Service
-    participant DB as products
-
-    Client->>API: GET /api/products
-    API->>Service: getAllProducts()
-    Service->>DB: SELECT products
-    DB-->>Service: rows
-    Service-->>API: product list
-    API-->>Client: data[]
-```
-
-## 9. Products Create Flow
-
-```mermaid
-sequenceDiagram
-    participant Client
-    participant API as /api/products
-    participant Service as Products Service
-    participant DB as products
-
-    Client->>API: POST product payload
-    API->>Service: createProduct(payload)
-    Service->>Service: validate with Zod
-    Service->>DB: INSERT product
-    DB-->>Service: created row
-    API-->>Client: 201 data
-```

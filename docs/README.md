@@ -8,7 +8,7 @@ This folder contains practical documentation for the backend in `server/`.
 - `api-reference.md` - all HTTP endpoints with request and response examples.
 - `data-model.md` - PostgreSQL tables and how server entities are stored.
 - `frontend-integration.md` - инструкция для фронтенда: порядок запросов, примеры и состояния.
-- `sequences.md` - end-to-end flows for auth, referral, gameplay, and products.
+- `sequences.md` - end-to-end flows for auth, referral, and gameplay.
 
 ## Quick Start
 
@@ -64,4 +64,3 @@ On startup the server runs SQL migrations automatically and then listens on `htt
 
 - Game session state is server-driven.
 - Referral is detected during auth session creation.
-- Products API is public.

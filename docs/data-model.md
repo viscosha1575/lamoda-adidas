@@ -86,21 +86,6 @@ Columns:
 - `details`
 - `created_at`
 
-## `products`
-
-Simple product catalog.
-
-Columns:
-
-- `id`
-- `name`
-- `brand`
-- `price`
-- `currency`
-- `stock`
-- `created_at`
-- `updated_at`
-
 ## `schema_migrations`
 
 Tracks applied SQL migration files.

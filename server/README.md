@@ -14,6 +14,3 @@ Node.js backend on Express with PostgreSQL, modular architecture, SQL migrations
 
 - `GET /`
 - `GET /api/health`
-- `GET /api/products`
-- `GET /api/products/:id`
-- `POST /api/products`

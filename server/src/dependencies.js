@@ -6,9 +6,6 @@ import { createGameController } from "./modules/game/game.controller.js";
 import { createGameRepository } from "./modules/game/game.repository.js";
 import { createGameRouter } from "./modules/game/game.routes.js";
 import { createGameService } from "./modules/game/game.service.js";
-import { createProductsController } from "./modules/products/products.controller.js";
-import { createProductsRepository } from "./modules/products/products.repository.js";
-import { createProductsService } from "./modules/products/products.service.js";
 import { createAuthMiddleware } from "./middlewares/auth.js";
 
 export function buildDependencies({ pool, config }) {
@@ -33,10 +30,6 @@ export function buildDependencies({ pool, config }) {
   });
   const gameController = createGameController({ gameService });
 
-  const productsRepository = createProductsRepository({ pool });
-  const productsService = createProductsService({ productsRepository });
-  const productsController = createProductsController({ productsService });
-
   return {
     pool,
     authController,
@@ -45,6 +38,5 @@ export function buildDependencies({ pool, config }) {
     authRouter: createAuthRouter({ authController, authMiddleware }),
     gameController,
     gameRouter: createGameRouter({ authMiddleware, gameController }),
-    productsController,
   };
 }

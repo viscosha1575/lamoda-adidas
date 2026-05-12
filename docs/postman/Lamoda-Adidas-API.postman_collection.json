@@ -21,10 +21,6 @@
     {
       "key": "referral_code",
       "value": "https://t.me/lamoda_games_bot/search?startapp=PLAYER42"
-    },
-    {
-      "key": "product_id",
-      "value": "1"
     }
   ],
   "item": [
@@ -301,78 +297,6 @@
               ]
             },
             "description": "Завершает текущую игровую сессию."
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Products",
-      "item": [
-        {
-          "name": "GET /api/products",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/products",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "products"
-              ]
-            },
-            "description": "Список товаров."
-          },
-          "response": []
-        },
-        {
-          "name": "GET /api/products/:id",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/products/{{product_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "products",
-                "{{product_id}}"
-              ]
-            },
-            "description": "Получение товара по ID."
-          },
-          "response": []
-        },
-        {
-          "name": "POST /api/products",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Campus 00s\",\n  \"brand\": \"adidas\",\n  \"price\": 12999,\n  \"currency\": \"RUB\",\n  \"stock\": 25\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/products",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "products"
-              ]
-            },
-            "description": "Создание товара."
           },
           "response": []
         }

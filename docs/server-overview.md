@@ -36,7 +36,6 @@ server/
       auth/
       game/
       health/
-      products/
 ```
 
 ## Modules
@@ -57,13 +56,8 @@ server/
 ### Game
 
 - Tracks one player game session lifecycle.
-- Supports state polling, start, pause, resume, heartbeat, item collection, finish.
+- Supports state polling, start-session, activity-log, item collection, finish.
 - Stores final result in `game_results`.
-
-### Products
-
-- Public catalog endpoints for adidas products.
-- Supports list, details, and creation.
 
 ## Environment Variables
 
@@ -108,9 +102,6 @@ API:
 - `POST /api/game/found-sneaker`
 - `POST /api/game/finish`
 - `POST /api/game/activity-log`
-- `GET /api/products`
-- `GET /api/products/:id`
-- `POST /api/products`
 
 ## Middleware
 
