@@ -58,11 +58,31 @@ test("POST /api/auth/session reads Telegram initData only from headers", async (
       return null;
     },
   };
+  const gameService = {
+    async getState(playerId) {
+      assert.equal(playerId, 1);
+
+      return {
+        session: {
+          id: 15,
+          status: "active",
+          remainingSeconds: 587,
+          foundSneakers: [
+            { sneakerNumber: 1, found: true },
+            { sneakerNumber: 2, found: true },
+            { sneakerNumber: 3, found: false },
+          ],
+        },
+        lifecycle: "active",
+        reason: null,
+      };
+    },
+  };
 
   const app = express();
   app.use(express.json());
   app.use("/api/auth", createAuthRouter({
-    authController: createAuthController({ authService }),
+    authController: createAuthController({ authService, gameService }),
     authMiddleware: createAuthMiddleware({ authService }),
   }));
   app.use(errorHandler);
@@ -77,6 +97,12 @@ test("POST /api/auth/session reads Telegram initData only from headers", async (
   assert.equal(response.statusCode, 201);
   assert.equal(response.body.data.token, "token-123");
   assert.equal(response.body.data.player.telegramUserId, 123456789);
+  assert.equal(response.body.data.lifecycle, "active");
+  assert.deepEqual(response.body.data.session.foundSneakers, [
+    { sneakerNumber: 1, found: true },
+    { sneakerNumber: 2, found: true },
+    { sneakerNumber: 3, found: false },
+  ]);
 });
 
 test("POST /api/auth/session rejects initData in body", async () => {
@@ -94,11 +120,16 @@ test("POST /api/auth/session rejects initData in body", async () => {
       return null;
     },
   };
+  const gameService = {
+    async getState() {
+      throw new Error("should not be called");
+    },
+  };
 
   const app = express();
   app.use(express.json());
   app.use("/api/auth", createAuthRouter({
-    authController: createAuthController({ authService }),
+    authController: createAuthController({ authService, gameService }),
     authMiddleware: createAuthMiddleware({ authService }),
   }));
   app.use(errorHandler);

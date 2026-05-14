@@ -40,7 +40,7 @@ Example response:
 
 ### `POST /api/auth/session`
 
-Creates or refreshes player session and returns bearer token.
+Creates or refreshes player session, returns bearer token, and includes current game state snapshot.
 
 Telegram Mini App auth only.
 
@@ -84,7 +84,28 @@ curl -X POST http://localhost:3001/api/auth/session \
       "isOnline": true,
       "lastSeenAt": "2026-05-12T12:00:00.000Z",
       "isExisting": false
-    }
+    },
+    "session": {
+      "id": 15,
+      "status": "active",
+      "remainingSeconds": 587,
+      "foundSneakers": [
+        { "sneakerNumber": 1, "found": true },
+        { "sneakerNumber": 2, "found": true },
+        { "sneakerNumber": 3, "found": false }
+      ],
+      "pauseCount": 0,
+      "startedAt": "2026-05-12T10:00:00.000Z",
+      "lastResumedAt": "2026-05-12T10:00:00.000Z",
+      "lastPausedAt": null,
+      "lastHeartbeatAt": "2026-05-12T10:00:10.000Z",
+      "finishedAt": null,
+      "expiredAt": null,
+      "canCollect": true,
+      "isOnline": true
+    },
+    "lifecycle": "active",
+    "reason": null
   }
 }
 ```
@@ -135,7 +156,11 @@ X-Telegram-Init-Data: <initData>
   "id": 15,
   "status": "active",
   "remainingSeconds": 587,
-  "foundSneakerNumbers": [1, 2, 3],
+  "foundSneakers": [
+    { "sneakerNumber": 1, "found": true },
+    { "sneakerNumber": 2, "found": true },
+    { "sneakerNumber": 3, "found": true }
+  ],
   "pauseCount": 0,
   "startedAt": "2026-05-12T10:00:00.000Z",
   "lastResumedAt": "2026-05-12T10:00:00.000Z",
@@ -168,7 +193,11 @@ Example response with active session:
       "id": 15,
       "status": "active",
       "remainingSeconds": 587,
-      "foundSneakerNumbers": [1, 2],
+      "foundSneakers": [
+        { "sneakerNumber": 1, "found": true },
+        { "sneakerNumber": 2, "found": true },
+        { "sneakerNumber": 3, "found": false }
+      ],
       "pauseCount": 0,
       "startedAt": "2026-05-12T10:00:00.000Z",
       "lastResumedAt": "2026-05-12T10:00:00.000Z",
@@ -208,7 +237,7 @@ Behavior:
 
 Important:
 
-- New session starts with `foundSneakerNumbers: [1]`.
+- New session starts with sneaker `1` already marked as found in `foundSneakers`.
 - Extra sneakers are not preloaded at start.
 
 Example response:
@@ -220,7 +249,11 @@ Example response:
       "id": 15,
       "status": "active",
       "remainingSeconds": 600,
-      "foundSneakerNumbers": [1],
+      "foundSneakers": [
+        { "sneakerNumber": 1, "found": true },
+        { "sneakerNumber": 2, "found": false },
+        { "sneakerNumber": 3, "found": false }
+      ],
       "pauseCount": 0,
       "startedAt": "2026-05-12T10:00:00.000Z",
       "lastResumedAt": "2026-05-12T10:00:00.000Z",
@@ -282,7 +315,12 @@ Response example:
       "id": 15,
       "status": "active",
       "remainingSeconds": 540,
-      "foundSneakerNumbers": [1, 4],
+      "foundSneakers": [
+        { "sneakerNumber": 1, "found": true },
+        { "sneakerNumber": 2, "found": false },
+        { "sneakerNumber": 3, "found": false },
+        { "sneakerNumber": 4, "found": true }
+      ],
       "pauseCount": 0,
       "startedAt": "2026-05-12T10:00:00.000Z",
       "lastResumedAt": "2026-05-12T10:00:00.000Z",
@@ -305,7 +343,7 @@ Rules:
 
 - session must be active
 - timer must not be expired
-- `foundSneakerNumbers.length` must be at least `10`
+- all 10 entries in `foundSneakers` must be marked with `found: true`
 
 Response example:
 
@@ -316,7 +354,18 @@ Response example:
       "id": 15,
       "status": "finished",
       "remainingSeconds": 120,
-      "foundSneakerNumbers": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      "foundSneakers": [
+        { "sneakerNumber": 1, "found": true },
+        { "sneakerNumber": 2, "found": true },
+        { "sneakerNumber": 3, "found": true },
+        { "sneakerNumber": 4, "found": true },
+        { "sneakerNumber": 5, "found": true },
+        { "sneakerNumber": 6, "found": true },
+        { "sneakerNumber": 7, "found": true },
+        { "sneakerNumber": 8, "found": true },
+        { "sneakerNumber": 9, "found": true },
+        { "sneakerNumber": 10, "found": true }
+      ],
       "pauseCount": 0,
       "startedAt": "2026-05-12T10:00:00.000Z",
       "lastResumedAt": null,

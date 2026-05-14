@@ -1,6 +1,6 @@
 import { getTelegramInitDataFromHeadersOnly } from "./init-data.js";
 
-export function createAuthController({ authService }) {
+export function createAuthController({ authService, gameService }) {
   return {
     async createSession(request, response) {
       const initData = getTelegramInitDataFromHeadersOnly(request);
@@ -8,6 +8,7 @@ export function createAuthController({ authService }) {
         ? { ...request.body, initData }
         : request.body;
       const player = await authService.createSession(payload);
+      const gameState = await gameService.getState(player.id);
 
       response.status(201).json({
         data: {
@@ -27,6 +28,9 @@ export function createAuthController({ authService }) {
             lastSeenAt: player.lastSeenAt,
             isExisting: player.isExisting,
           },
+          session: gameState.session,
+          lifecycle: gameState.lifecycle,
+          reason: gameState.reason,
         },
       });
     },

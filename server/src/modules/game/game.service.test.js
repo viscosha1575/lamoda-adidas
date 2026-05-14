@@ -43,7 +43,18 @@ test("startSession always starts with sneaker 1 opened by default", async () => 
   });
 
   assert.equal(result.lifecycle, "active");
-  assert.deepEqual(result.session.foundSneakerNumbers, [1]);
+  assert.deepEqual(result.session.foundSneakers, [
+    { sneakerNumber: 1, found: true },
+    { sneakerNumber: 2, found: false },
+    { sneakerNumber: 3, found: false },
+    { sneakerNumber: 4, found: false },
+    { sneakerNumber: 5, found: false },
+    { sneakerNumber: 6, found: false },
+    { sneakerNumber: 7, found: false },
+    { sneakerNumber: 8, found: false },
+    { sneakerNumber: 9, found: false },
+    { sneakerNumber: 10, found: false },
+  ]);
   assert.equal(result.session.remainingSeconds, 600);
 });
 
@@ -100,4 +111,183 @@ test("logActivity stores source and action and refreshes online activity", async
   assert.equal(result.activityLog.source, "unity");
   assert.equal(result.activityLog.action, "swipe");
   assert.equal(result.session.isOnline, true);
+});
+
+test("logActivity resumes paused session back to active", async () => {
+  const session = {
+    id: 31,
+    playerId: 5,
+    status: "paused",
+    remainingSeconds: 553,
+    foundSneakerNumbers: [1],
+    pauseCount: 2,
+    startedAt: new Date("2026-05-12T10:00:00.000Z"),
+    lastResumedAt: null,
+    lastPausedAt: new Date("2026-05-14T09:22:57.436Z"),
+    lastHeartbeatAt: new Date("2026-05-14T09:36:34.267Z"),
+    finishedAt: null,
+    expiredAt: null,
+  };
+
+  const gameRepository = {
+    async findLatestOpenSessionByPlayerId() {
+      return session;
+    },
+    async updateSession(_sessionId, valuesToUpdate) {
+      assert.equal(valuesToUpdate.status, "active");
+      assert.ok(valuesToUpdate.last_resumed_at instanceof Date);
+      assert.ok(valuesToUpdate.last_heartbeat_at instanceof Date);
+
+      return {
+        ...session,
+        status: "active",
+        lastResumedAt: valuesToUpdate.last_resumed_at,
+        lastHeartbeatAt: valuesToUpdate.last_heartbeat_at,
+      };
+    },
+    async createActivityLog(activityLog) {
+      assert.equal(activityLog.gameSessionId, 31);
+
+      return {
+        id: 100,
+        ...activityLog,
+        createdAt: new Date(),
+      };
+    },
+  };
+
+  const gameService = createGameServiceForTest(gameRepository);
+  const result = await gameService.logActivity(5, {
+    source: "unity",
+    action: "swipe",
+    details: { direction: "left" },
+  });
+
+  assert.equal(result.logged, true);
+  assert.equal(result.lifecycle, "active");
+  assert.equal(result.session.status, "active");
+  assert.equal(result.session.canCollect, true);
+});
+
+test("collectSneaker auto-finishes session when the tenth sneaker is found", async () => {
+  const now = new Date();
+  const openSession = {
+    id: 41,
+    playerId: 7,
+    status: "active",
+    remainingSeconds: 540,
+    foundSneakerNumbers: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+    pauseCount: 0,
+    startedAt: new Date(now.getTime() - 60_000),
+    lastResumedAt: new Date(now.getTime() - 5_000),
+    lastPausedAt: null,
+    lastHeartbeatAt: new Date(now.getTime() - 1_000),
+    finishedAt: null,
+    expiredAt: null,
+  };
+
+  let updateCallCount = 0;
+
+  const gameRepository = {
+    async findLatestOpenSessionByPlayerId() {
+      return openSession;
+    },
+    async updateSession(_sessionId, valuesToUpdate) {
+      updateCallCount += 1;
+
+      if (updateCallCount === 1) {
+        assert.deepEqual(valuesToUpdate.found_sneaker_numbers, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+
+        return {
+          ...openSession,
+          foundSneakerNumbers: valuesToUpdate.found_sneaker_numbers,
+          lastHeartbeatAt: valuesToUpdate.last_heartbeat_at,
+        };
+      }
+
+      assert.equal(valuesToUpdate.status, "finished");
+      assert.equal(valuesToUpdate.remaining_seconds >= 0, true);
+
+      return {
+        ...openSession,
+        status: "finished",
+        remainingSeconds: valuesToUpdate.remaining_seconds,
+        foundSneakerNumbers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+        lastResumedAt: null,
+        lastPausedAt: valuesToUpdate.last_paused_at,
+        lastHeartbeatAt: openSession.lastHeartbeatAt,
+        finishedAt: valuesToUpdate.finished_at,
+      };
+    },
+    async createGameResult(resultPayload) {
+      assert.equal(resultPayload.playerId, 7);
+      assert.equal(resultPayload.gameSessionId, 41);
+      assert.deepEqual(resultPayload.foundSneakerNumbers, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+      assert.equal(resultPayload.eligibleForRaffle, true);
+
+      return { id: 201 };
+    },
+  };
+
+  const gameService = createGameServiceForTest(gameRepository);
+  const result = await gameService.collectSneaker(7, { sneakerNumber: 10 });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.lifecycle, "finished");
+  assert.equal(result.reason, "completed");
+  assert.equal(result.session.status, "finished");
+  assert.equal(result.session.canCollect, false);
+});
+
+test("finishSession marks session as finished with zero remaining seconds", async () => {
+  const openSession = {
+    id: 52,
+    playerId: 9,
+    status: "paused",
+    remainingSeconds: 553,
+    foundSneakerNumbers: [1, 4],
+    pauseCount: 2,
+    startedAt: new Date("2026-05-12T10:00:00.000Z"),
+    lastResumedAt: null,
+    lastPausedAt: new Date("2026-05-14T09:22:57.436Z"),
+    lastHeartbeatAt: new Date("2026-05-14T09:36:34.267Z"),
+    finishedAt: null,
+    expiredAt: null,
+  };
+
+  const gameRepository = {
+    async findLatestOpenSessionByPlayerId() {
+      return openSession;
+    },
+    async updateSession(_sessionId, valuesToUpdate) {
+      assert.equal(valuesToUpdate.status, "finished");
+      assert.equal(valuesToUpdate.remaining_seconds, 0);
+
+      return {
+        ...openSession,
+        status: "finished",
+        remainingSeconds: 0,
+        lastPausedAt: valuesToUpdate.last_paused_at,
+        lastResumedAt: null,
+        finishedAt: valuesToUpdate.finished_at,
+      };
+    },
+    async createGameResult(resultPayload) {
+      assert.equal(resultPayload.playerId, 9);
+      assert.equal(resultPayload.remainingSeconds, 0);
+      assert.equal(resultPayload.completedInSeconds, 600);
+      assert.equal(resultPayload.eligibleForRaffle, false);
+
+      return { id: 202 };
+    },
+  };
+
+  const gameService = createGameServiceForTest(gameRepository);
+  const result = await gameService.finishSession(9);
+
+  assert.equal(result.lifecycle, "finished");
+  assert.equal(result.reason, "time-ended");
+  assert.equal(result.session.status, "finished");
+  assert.equal(result.session.remainingSeconds, 0);
+  assert.equal(result.session.canCollect, false);
 });

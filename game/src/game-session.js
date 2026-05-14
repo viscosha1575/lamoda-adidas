@@ -9,6 +9,51 @@ import {
 } from './api.js'
 import { logGameDebug } from './debug.js'
 
+function getFoundSneakerNumbers(session) {
+  if (Array.isArray(session?.foundSneakerNumbers)) {
+    return session.foundSneakerNumbers
+  }
+
+  if (!Array.isArray(session?.foundSneakers)) {
+    return [1]
+  }
+
+  return session.foundSneakers
+    .filter((entry) => entry?.found && Number.isInteger(entry?.sneakerNumber))
+    .map((entry) => entry.sneakerNumber)
+    .sort((left, right) => left - right)
+}
+
+function normalizeGameState(gameState) {
+  if (!gameState?.session) {
+    return gameState
+  }
+
+  return {
+    ...gameState,
+    session: {
+      ...gameState.session,
+      foundSneakerNumbers: getFoundSneakerNumbers(gameState.session),
+    },
+  }
+}
+
+function extractGameStateFromAuthSession(authSession) {
+  if (!authSession) {
+    return null
+  }
+
+  if (!('session' in authSession) && !('lifecycle' in authSession) && !('reason' in authSession)) {
+    return null
+  }
+
+  return normalizeGameState({
+    session: authSession.session ?? null,
+    lifecycle: authSession.lifecycle ?? 'idle',
+    reason: authSession.reason ?? null,
+  })
+}
+
 export function useBackendBootstrap() {
   const [state, setState] = useState({
     status: 'loading',
@@ -25,7 +70,8 @@ export function useBackendBootstrap() {
     const bootstrap = async () => {
       try {
         const authSession = await createAuthSession()
-        const gameState = await getGameState(authSession.token)
+        const gameStateFromAuth = extractGameStateFromAuthSession(authSession)
+        const gameState = gameStateFromAuth ?? normalizeGameState(await getGameState(authSession.token))
 
         if (cancelled) {
           return
@@ -75,16 +121,18 @@ export function useBackendBootstrap() {
 }
 
 export function useServerGameSession({ token, initialGameState = null, autoStart = false }) {
-  const [gameState, setGameState] = useState(initialGameState)
+  const [gameState, setGameState] = useState(() => normalizeGameState(initialGameState))
   const [requestState, setRequestState] = useState('idle')
   const [error, setError] = useState(null)
-  const sessionRef = useRef(initialGameState?.session ?? null)
-  const lifecycleRef = useRef(initialGameState?.lifecycle ?? 'idle')
+  const sessionRef = useRef(normalizeGameState(initialGameState)?.session ?? null)
+  const lifecycleRef = useRef(normalizeGameState(initialGameState)?.lifecycle ?? 'idle')
 
   const applyState = useCallback((nextState) => {
-    sessionRef.current = nextState?.session ?? null
-    lifecycleRef.current = nextState?.lifecycle ?? 'idle'
-    setGameState(nextState)
+    const normalizedState = normalizeGameState(nextState)
+
+    sessionRef.current = normalizedState?.session ?? null
+    lifecycleRef.current = normalizedState?.lifecycle ?? 'idle'
+    setGameState(normalizedState)
   }, [])
 
   const runAction = useCallback(async (actionName, requestFactory, options = {}) => {
@@ -101,7 +149,7 @@ export function useServerGameSession({ token, initialGameState = null, autoStart
     }
 
     try {
-      const nextState = await requestFactory()
+      const nextState = normalizeGameState(await requestFactory())
       applyState(nextState)
       setRequestState('idle')
       if (!silent) {

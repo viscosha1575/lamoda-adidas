@@ -1,6 +1,6 @@
-# Интеграция Фронтенда
+# Инструкция Для Фронтенда
 
-Эта инструкция предназначена для фронтенд-разработчика, который подключает клиент к бэкенду из `server/`.
+Эта инструкция описывает только актуальные роуты, которые фронтенд должен использовать для игры.
 
 Базовый URL API:
 
@@ -8,68 +8,80 @@
 http://localhost:3001/api
 ```
 
-## 1. Основные правила
+## 1. Главное правило авторизации
 
-- Сначала нужно создать auth-сессию.
-- После этого сохранить `token`, который вернул сервер.
-- Во все запросы `/api/game/*` передавать `initData` в заголовках.
-- `initData` можно передавать только в заголовках.
-- Реферал отправляется только при создании auth-сессии.
-- Источник истины по игре на сервере: фронт должен опираться на `session`, `lifecycle` и `remainingSeconds` из ответа API.
-
-## 2. Заголовок авторизации
-
-Для защищённых запросов:
+Для всех защищённых запросов нужно передавать Telegram `initData` только в заголовке:
 
 ```http
 X-Telegram-Init-Data: <initData>
 ```
 
-## 3. Последовательность при запуске приложения
+Важно:
 
-Порядок действий на фронте:
+- `initData` нельзя передавать в `body`
+- `initData` нельзя передавать в `query`
+- сервер читает игрока именно из `initData`
+- bearer token сейчас не используется как основной способ доступа к игровым методам
 
-1. Определить, есть ли реферальный параметр в Telegram или в URL.
-2. Вызвать `POST /api/auth/session`.
-3. Сохранить `token` из ответа.
-4. Прочитать `player.hasReferral`.
-5. Вызвать `GET /api/game/state`.
-6. По `lifecycle` решить, какой экран показать.
+## 2. Какие роуты использовать
 
-## 4. Логика реферала
+Фронту нужны только эти методы:
 
-Реферал нужно передавать в `POST /api/auth/session` в поле `referralCode`.
+### Auth
 
-Поддерживаемые примеры:
+- `POST /api/auth/session`
+- `DELETE /api/auth/current`
 
-- `PLAYER42`
-- `player42`
-- `https://t.me/lamoda_games_bot/search?startapp=PLAYER42`
+### Game
 
-Что делает сервер:
+- `GET /api/game/state`
+- `POST /api/game/start-session`
+- `POST /api/game/activity-log`
+- `POST /api/game/found-sneaker`
+- `POST /api/game/finish`
 
-- нормализует значение;
-- если пришла ссылка `https://t.me/lamoda_games_bot/search?startapp=PLAYER42`, сохранит входящий код как `referredByCode = PLAYER42`;
-- дополнительно создаст игроку его собственный `referralCode`;
-- вернёт готовую `referralLink` для шаринга;
-- если реферал был, у игрока станет `hasReferral: true`;
-- если пользователь потом зайдёт без реферала, `hasReferral` останется `true`.
+## 3. Общая последовательность работы
 
-Фронту не нужно вычислять `hasReferral` самостоятельно. Нужно использовать значение, которое вернул сервер.
+При открытии миниаппа:
 
-## 5. Методы авторизации
+1. Получить `initData` из Telegram WebApp
+2. Если есть реферальный параметр, подготовить `referralCode`
+3. Вызвать `POST /api/auth/session`
+4. Сохранить ответ `player`
+5. Взять `session`, `lifecycle`, `reason` из ответа `POST /api/auth/session`
+6. По `lifecycle` решить, какой экран показывать
 
-### 5.1 Пользователь из Telegram
+Во время игры:
 
-Используется, если приложение открыто как Telegram Mini App.
+1. Один раз вызвать `POST /api/game/start-session`
+2. Регулярно слать `POST /api/game/activity-log`
+3. При нахождении пары слать `POST /api/game/found-sneaker`
+4. Когда все 10 пар собраны, вызвать `POST /api/game/finish`
 
-Запрос:
+## 4. Детально по каждому роуту
+
+### 4.1 `POST /api/auth/session`
+
+Зачем нужен:
+
+- создаёт или обновляет игрока в базе
+- определяет, новый это игрок или уже существующий
+- сохраняет реферальный входящий код
+- возвращает данные игрока для интерфейса
+- сразу возвращает текущее состояние игры
+
+Когда вызывать:
+
+- всегда при старте миниаппа
+
+Заголовки:
 
 ```http
-POST /api/auth/session
 X-Telegram-Init-Data: <initData>
 Content-Type: application/json
 ```
+
+Тело запроса:
 
 ```json
 {
@@ -77,7 +89,22 @@ Content-Type: application/json
 }
 ```
 
-Ответ:
+Что можно передать в `referralCode`:
+
+- `PLAYER42`
+- `player42`
+- полную ссылку вида `https://t.me/lamoda_games_bot/search?startapp=PLAYER42`
+
+Что делает сервер:
+
+- достаёт пользователя из `initData`
+- создаёт игрока, если это первый вход
+- обновляет игрока, если он уже есть
+- генерирует личный `referralCode`
+- собирает `referralLink`
+- если был входящий реферал, ставит `hasReferral: true`
+
+Пример ответа:
 
 ```json
 {
@@ -97,62 +124,202 @@ Content-Type: application/json
       "isOnline": true,
       "lastSeenAt": "2026-05-12T12:00:00.000Z",
       "isExisting": false
-    }
+    },
+    "session": {
+      "id": 15,
+      "status": "active",
+      "remainingSeconds": 587,
+      "foundSneakers": [
+        { "sneakerNumber": 1, "found": true },
+        { "sneakerNumber": 2, "found": true },
+        { "sneakerNumber": 3, "found": false }
+      ],
+      "pauseCount": 0,
+      "startedAt": "2026-05-12T10:00:00.000Z",
+      "lastResumedAt": "2026-05-12T10:00:00.000Z",
+      "lastPausedAt": null,
+      "lastHeartbeatAt": "2026-05-12T10:00:10.000Z",
+      "finishedAt": null,
+      "expiredAt": null,
+      "canCollect": true,
+      "isOnline": true
+    },
+    "lifecycle": "active",
+    "reason": null
   }
 }
 ```
 
-Важно:
+Что фронту важно взять из ответа:
 
-- анонимный режим больше не поддерживается;
-- `POST /api/auth/session` работает только с Telegram `initData`;
-- если `initData` положить в body или query, сервер вернёт `400`.
+- `player.id`
+- `player.displayName`
+- `player.hasReferral`
+- `player.referralCode`
+- `player.referralLink`
+- `player.isExisting`
+- `session`
+- `lifecycle`
+- `reason`
 
-## 6. Жизненный цикл игры
+Примечание:
 
-Сервер возвращает одно из состояний:
+- `token` сервер всё ещё возвращает, но игровая авторизация дальше идёт по `initData`
 
-- `idle`
-- `active`
-- `paused`
-- `finished`
-- `expired`
+### 4.2 `DELETE /api/auth/current`
 
-Именно по этим значениям фронт должен управлять UI.
+Зачем нужен:
 
-## 7. Последовательность работы с игрой
+- удаляет текущего игрока из базы
+- полезен для отладки и ручного сброса
 
-### 7.1 При открытии приложения
+Когда вызывать:
 
-Вызывать в таком порядке:
+- только если нужен полный сброс игрока
+- в обычном игровом flow обычно не нужен
 
-1. `POST /api/auth/session`
-2. `GET /api/game/state`
-
-Как интерпретировать ответ:
-
-- `idle` -> показать стартовый экран
-- `active` -> показать экран игры
-- `paused` -> при следующем `start-session` сервер вернёт игрока в текущую сессию
-- `finished` -> показать экран успешного завершения
-- `expired` -> показать экран завершения по таймеру
-
-### 7.2 Начать новую игру
-
-Основной метод для Unity:
+Заголовки:
 
 ```http
-POST /api/game/start-session
-```
-
-Запрос:
-
-```http
-POST /api/game/start-session
 X-Telegram-Init-Data: <initData>
 ```
 
-Ответ:
+Тело запроса:
+
+- не нужно
+
+Пример ответа:
+
+```json
+{
+  "data": {
+    "deleted": true
+  }
+}
+```
+
+### 4.3 `GET /api/game/state`
+
+Зачем нужен:
+
+- возвращает текущее состояние игры для игрока
+- нужен, чтобы понять, есть ли активная сессия, завершена ли она, истекло ли время
+
+Когда вызывать:
+
+- когда нужно принудительно пересинхронизировать состояние с сервером
+- при необходимости синхронизировать состояние с сервером
+
+Заголовки:
+
+```http
+X-Telegram-Init-Data: <initData>
+```
+
+Тело запроса:
+
+- не нужно
+
+Пример ответа без активной сессии:
+
+```json
+{
+  "data": {
+    "session": null,
+    "lifecycle": "idle",
+    "reason": null
+  }
+}
+```
+
+Пример ответа с активной сессией:
+
+```json
+{
+  "data": {
+    "session": {
+      "id": 15,
+      "status": "active",
+      "remainingSeconds": 587,
+      "foundSneakers": [
+        { "sneakerNumber": 1, "found": true },
+        { "sneakerNumber": 2, "found": true },
+        { "sneakerNumber": 3, "found": false }
+      ],
+      "pauseCount": 0,
+      "startedAt": "2026-05-12T10:00:00.000Z",
+      "lastResumedAt": "2026-05-12T10:00:00.000Z",
+      "lastPausedAt": null,
+      "lastHeartbeatAt": "2026-05-12T10:00:10.000Z",
+      "finishedAt": null,
+      "expiredAt": null,
+      "canCollect": true,
+      "isOnline": true
+    },
+    "lifecycle": "active",
+    "reason": null
+  }
+}
+```
+
+Что означает `lifecycle`:
+
+- `idle` — игры ещё нет
+- `active` — игра идёт
+- `paused` — сервер поставил игру на паузу из-за отсутствия активности
+- `finished` — игра завершена успешно
+- `expired` — время закончилось
+
+Что фронту важно взять из ответа:
+
+- `lifecycle`
+- `session.remainingSeconds`
+- `session.foundSneakers`
+- `session.canCollect`
+- `session.isOnline`
+
+### 4.4 `POST /api/game/start-session`
+
+Зачем нужен:
+
+- запускает новую игровую сессию
+- если у игрока уже есть открытая сессия, сервер вернёт её
+- если сессия была `paused`, сервер активирует её обратно
+
+Когда вызывать:
+
+- когда игрок нажал кнопку старта
+- когда нужно войти в текущую паузную сессию
+
+Заголовки:
+
+```http
+X-Telegram-Init-Data: <initData>
+Content-Type: application/json
+```
+
+Тело запроса:
+
+```json
+{}
+```
+
+Важно:
+
+- новую сессию нельзя стартовать с заранее найденными кроссовками
+- сервер всегда начинает новую игру только с:
+
+```json
+[1]
+```
+
+То есть:
+
+- всего кроссовок `10`
+- первый кроссовок открыт по умолчанию
+- остальные находятся только через `found-sneaker`
+
+Пример ответа:
 
 ```json
 {
@@ -161,7 +328,11 @@ X-Telegram-Init-Data: <initData>
       "id": 15,
       "status": "active",
       "remainingSeconds": 600,
-      "foundSneakerNumbers": [1],
+      "foundSneakers": [
+        { "sneakerNumber": 1, "found": true },
+        { "sneakerNumber": 2, "found": false },
+        { "sneakerNumber": 3, "found": false }
+      ],
       "pauseCount": 0,
       "startedAt": "2026-05-12T10:00:00.000Z",
       "lastResumedAt": "2026-05-12T10:00:00.000Z",
@@ -169,7 +340,8 @@ X-Telegram-Init-Data: <initData>
       "lastHeartbeatAt": "2026-05-12T10:00:00.000Z",
       "finishedAt": null,
       "expiredAt": null,
-      "canCollect": true
+      "canCollect": true,
+      "isOnline": true
     },
     "lifecycle": "active",
     "reason": "new-session"
@@ -177,24 +349,35 @@ X-Telegram-Init-Data: <initData>
 }
 ```
 
-Важно:
+Возможные `reason`:
 
-- Всего кроссовков `10`.
-- Сервер всегда гарантирует, что первый кроссовок открыт по умолчанию.
-- новая сессия всегда стартует только с первого открытого кроссовка;
-- Фронт не должен перетирать это значение своей локальной инициализацией.
+- `new-session` — создана новая сессия
+- `existing-session` — уже была активная сессия
+- `resumed-session` — была паузная сессия, сервер вернул её в активное состояние
 
-### 7.3 Activity-логи во время игры
+### 4.5 `POST /api/game/activity-log`
 
-Во время игры Unity должен слать логи действий игрока:
+Зачем нужен:
+
+- сообщает серверу, что игрок онлайн и активен
+- пишет игровой лог
+- обновляет `lastHeartbeatAt`
+- помогает серверу не переводить игру в `paused`
+
+Когда вызывать:
+
+- регулярно во время игры
+- на любые заметные игровые действия
+- можно слать heartbeat-подобный ping через этот же метод
+
+Заголовки:
 
 ```http
-POST /api/game/activity-log
 X-Telegram-Init-Data: <initData>
 Content-Type: application/json
 ```
 
-Тело:
+Тело запроса:
 
 ```json
 {
@@ -206,25 +389,92 @@ Content-Type: application/json
 }
 ```
 
-Что слать в `action`:
+Что означают поля:
+
+- `source` — откуда пришло событие
+- `action` — какое именно действие произошло
+- `details` — любые дополнительные данные
+
+Примеры `source`:
+
+- `unity`
+- `webapp`
+- `client`
+
+Примеры `action`:
 
 - `click`
 - `swipe`
 - `open-screen`
+- `close-screen`
+- `presence-ping`
 - `collect-sneaker`
-- любые другие игровые события
 
-Если сервер не получает activity-логи дольше `15 секунд`, игрок считается не онлайн.
+Пример ответа:
 
-### 7.4 Отметить найденный кроссовок
+```json
+{
+  "data": {
+    "logged": true,
+    "activityLog": {
+      "id": 99,
+      "playerId": 5,
+      "gameSessionId": 25,
+      "source": "unity",
+      "action": "swipe",
+      "details": {
+        "direction": "left"
+      },
+      "createdAt": "2026-05-12T10:00:05.000Z"
+    },
+    "session": {
+      "id": 25,
+      "status": "active",
+      "remainingSeconds": 540,
+      "foundSneakers": [
+        { "sneakerNumber": 1, "found": true },
+        { "sneakerNumber": 2, "found": true },
+        { "sneakerNumber": 3, "found": false }
+      ],
+      "pauseCount": 0,
+      "startedAt": "2026-05-12T10:00:00.000Z",
+      "lastResumedAt": "2026-05-12T10:00:00.000Z",
+      "lastPausedAt": null,
+      "lastHeartbeatAt": "2026-05-12T10:00:05.000Z",
+      "finishedAt": null,
+      "expiredAt": null,
+      "canCollect": true,
+      "isOnline": true
+    },
+    "lifecycle": "active"
+  }
+}
+```
 
-Запрос:
+Важно:
+
+- если activity-логов нет дольше `15 секунд`, игрок считается не онлайн
+- если долго нет активности, сервер может перевести сессию в `paused`
+
+### 4.6 `POST /api/game/found-sneaker`
+
+Зачем нужен:
+
+- отмечает найденный кроссовок
+- обновляет серверный список найденных пар
+
+Когда вызывать:
+
+- каждый раз, когда игрок реально находит кроссовок
+
+Заголовки:
 
 ```http
-POST /api/game/found-sneaker
 X-Telegram-Init-Data: <initData>
 Content-Type: application/json
 ```
+
+Тело запроса:
 
 ```json
 {
@@ -232,7 +482,11 @@ Content-Type: application/json
 }
 ```
 
-Ответ:
+Ограничения:
+
+- `sneakerNumber` должен быть числом от `1` до `10`
+
+Пример ответа при успешном добавлении:
 
 ```json
 {
@@ -242,7 +496,12 @@ Content-Type: application/json
       "id": 15,
       "status": "active",
       "remainingSeconds": 540,
-      "foundSneakerNumbers": [1, 4],
+      "foundSneakers": [
+        { "sneakerNumber": 1, "found": true },
+        { "sneakerNumber": 2, "found": false },
+        { "sneakerNumber": 3, "found": false },
+        { "sneakerNumber": 4, "found": true }
+      ],
       "pauseCount": 0,
       "startedAt": "2026-05-12T10:00:00.000Z",
       "lastResumedAt": "2026-05-12T10:00:00.000Z",
@@ -250,28 +509,78 @@ Content-Type: application/json
       "lastHeartbeatAt": "2026-05-12T10:01:00.000Z",
       "finishedAt": null,
       "expiredAt": null,
-      "canCollect": true
+      "canCollect": true,
+      "isOnline": true
     },
     "lifecycle": "active"
   }
 }
 ```
 
-Поведение:
+Пример ответа, если этот кроссовок уже был найден:
 
-- если такой кроссовок уже был найден, сервер вернёт `accepted: false`;
-- фронт всегда должен синхронизировать найденные элементы из `session.foundSneakerNumbers`.
+```json
+{
+  "data": {
+    "accepted": false,
+    "session": {
+      "id": 15,
+      "status": "active",
+      "remainingSeconds": 540,
+      "foundSneakers": [
+        { "sneakerNumber": 1, "found": true },
+        { "sneakerNumber": 2, "found": false },
+        { "sneakerNumber": 3, "found": false },
+        { "sneakerNumber": 4, "found": true }
+      ],
+      "pauseCount": 0,
+      "startedAt": "2026-05-12T10:00:00.000Z",
+      "lastResumedAt": "2026-05-12T10:00:00.000Z",
+      "lastPausedAt": null,
+      "lastHeartbeatAt": "2026-05-12T10:01:00.000Z",
+      "finishedAt": null,
+      "expiredAt": null,
+      "canCollect": true,
+      "isOnline": true
+    },
+    "lifecycle": "active"
+  }
+}
+```
 
-### 7.5 Завершить игру
+Что важно фронту:
 
-Когда все нужные кроссовки собраны:
+- всегда брать актуальный список из `session.foundSneakers`
+- не пытаться доверять только локальному состоянию
+
+### 4.7 `POST /api/game/finish`
+
+Зачем нужен:
+
+- завершает игру
+- фиксирует итоговую попытку
+
+Когда вызывать:
+
+- когда собраны все 10 кроссовок
+
+Заголовки:
 
 ```http
-POST /api/game/finish
 X-Telegram-Init-Data: <initData>
 ```
 
-Ответ:
+Тело запроса:
+
+- не нужно
+
+Условия успешного завершения:
+
+- сессия должна быть `active`
+- время не должно истечь
+- должно быть найдено `10` кроссовок
+
+Пример ответа:
 
 ```json
 {
@@ -280,7 +589,18 @@ X-Telegram-Init-Data: <initData>
       "id": 15,
       "status": "finished",
       "remainingSeconds": 120,
-      "foundSneakerNumbers": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      "foundSneakers": [
+        { "sneakerNumber": 1, "found": true },
+        { "sneakerNumber": 2, "found": true },
+        { "sneakerNumber": 3, "found": true },
+        { "sneakerNumber": 4, "found": true },
+        { "sneakerNumber": 5, "found": true },
+        { "sneakerNumber": 6, "found": true },
+        { "sneakerNumber": 7, "found": true },
+        { "sneakerNumber": 8, "found": true },
+        { "sneakerNumber": 9, "found": true },
+        { "sneakerNumber": 10, "found": true }
+      ],
       "pauseCount": 0,
       "startedAt": "2026-05-12T10:00:00.000Z",
       "lastResumedAt": null,
@@ -288,7 +608,8 @@ X-Telegram-Init-Data: <initData>
       "lastHeartbeatAt": "2026-05-12T10:07:55.000Z",
       "finishedAt": "2026-05-12T10:08:00.000Z",
       "expiredAt": null,
-      "canCollect": false
+      "canCollect": false,
+      "isOnline": true
     },
     "lifecycle": "finished",
     "reason": "completed"
@@ -296,120 +617,80 @@ X-Telegram-Init-Data: <initData>
 }
 ```
 
-## 8. Рекомендуемая форма состояния на фронте
+Что делать на фронте после ответа:
 
-Пример:
+- показать финальный экран
+- зафиксировать, что попытка завершена
+- не давать собирать новые кроссовки в этой сессии
 
-```ts
-type FrontendAuthState = {
-  token: string | null
-  expiresAt: string | null
-  player: {
-    id: number
-    telegramUserId: number | null
-    username: string | null
-    displayName: string
-    authProvider: string
-    referralCode: string | null
-    referredByCode: string | null
-    referralLink: string | null
-    hasReferral: boolean
-    isOnline: boolean
-    lastSeenAt: string | null
-    isExisting: boolean
-  } | null
-}
+## 5. Типичные ошибки
 
-type FrontendGameState = {
-  lifecycle: 'idle' | 'active' | 'paused' | 'finished' | 'expired'
-  reason: string | null
-  session: {
-    id: number
-    status: 'active' | 'paused' | 'finished' | 'expired'
-    remainingSeconds: number
-    foundSneakerNumbers: number[]
-    pauseCount: number
-    startedAt: string | null
-    lastResumedAt: string | null
-    lastPausedAt: string | null
-    lastHeartbeatAt: string | null
-    finishedAt: string | null
-    expiredAt: string | null
-    canCollect: boolean
-  } | null
-}
-```
+### Нет `initData` в заголовке
 
-## 9. Минимальный пример последовательности на фронте
-
-```ts
-async function bootstrapGame() {
-  const auth = await api.post('/auth/session', {
-    initData: getTelegramInitData(),
-    referralCode: getReferralCodeFromTelegramOrUrl(),
-  })
-
-  const token = auth.data.token
-
-  const gameState = await api.get('/game/state', {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  })
-
-  return {
-    auth: auth.data,
-    gameState: gameState.data,
-  }
-}
-```
-
-## 10. Обработка ошибок
-
-Общий формат ошибки:
+Пример ответа:
 
 ```json
 {
   "error": {
-    "message": "Some message",
+    "message": "Telegram initData header is required",
     "details": null
   }
 }
 ```
 
-Основные случаи:
+### `initData` передали в body или query
 
-- `401` -> токен отсутствует, невалиден или истёк
-- `409` -> неверное состояние игры, например попытка завершить игру слишком рано
-- `400` -> ошибка валидации
-
-Пример ошибки валидации:
+Пример ответа:
 
 ```json
 {
   "error": {
-    "message": "Validation error",
-    "details": {
-      "fieldErrors": {
-        "sneakerNumber": [
-          "Too small: expected number to be >=1"
-        ]
-      }
-    }
+    "message": "Telegram initData must be sent only in headers",
+    "details": null
   }
 }
 ```
 
-## 11. Короткий чеклист для фронта
+### Попытка завершить игру раньше времени
 
-- Прочитать referral при открытии приложения.
-- Отправить referral только в `POST /api/auth/session`.
-- Сохранить bearer token.
-- После auth всегда вызвать `/api/game/state`.
-- Во время активной игры слать `activity-log` на действия игрока.
-- При необходимости дополнительно использовать heartbeat как запасной сигнал.
-- При скрытии экрана ставить игру на паузу.
-- При возврате вызывать resume.
-- Синхронизировать найденные кроссовки по ответу сервера.
-- Использовать `player.hasReferral` из сервера, а не локальную догадку.
-- Считать `lifecycle` и `session.status` источником истины.
+Пример ответа:
+
+```json
+{
+  "error": {
+    "message": "Collect all sneakers before finishing the game",
+    "details": null
+  }
+}
+```
+
+### Время закончилось
+
+Пример ответа:
+
+```json
+{
+  "error": {
+    "message": "Time is over",
+    "details": null
+  }
+}
+```
+
+## 6. Что фронту лучше не делать
+
+- не хранить найденные кроссовки как единственный источник истины только на клиенте
+- не стартовать игру с предзаполненными найденными парами
+- не передавать `initData` в `body`
+- не использовать старые методы `pause`, `resume`, `heartbeat`, `start`
+
+## 7. Короткий рабочий сценарий
+
+Минимальный сценарий для фронта:
+
+1. `POST /api/auth/session`
+2. `GET /api/game/state`
+3. если `lifecycle = idle` -> `POST /api/game/start-session`
+4. во время игры слать `POST /api/game/activity-log`
+5. при находке пары слать `POST /api/game/found-sneaker`
+6. после 10 из 10 слать `POST /api/game/finish`

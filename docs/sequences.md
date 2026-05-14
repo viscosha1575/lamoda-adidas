@@ -72,7 +72,7 @@ sequenceDiagram
         Game-->>API: resumed session
     else no open session
         Game->>DB: insert new active session
-        Game-->>API: new session with foundSneakerNumbers=[1]
+        Game-->>API: new session with foundSneakers=[{ sneakerNumber: 1, found: true }, ...]
     end
     API-->>Client: current game state
 ```

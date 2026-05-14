@@ -18,8 +18,6 @@ export function buildDependencies({ pool, config }) {
     authTokenTtlDays: config.authTokenTtlDays,
     playerOnlineWindowSeconds: config.playerOnlineWindowSeconds,
   });
-  const authController = createAuthController({ authService });
-  const authMiddleware = createAuthMiddleware({ authService });
 
   const gameRepository = createGameRepository({ pool });
   const gameService = createGameService({
@@ -29,6 +27,8 @@ export function buildDependencies({ pool, config }) {
     playerOnlineWindowSeconds: config.playerOnlineWindowSeconds,
   });
   const gameController = createGameController({ gameService });
+  const authController = createAuthController({ authService, gameService });
+  const authMiddleware = createAuthMiddleware({ authService });
 
   return {
     pool,
