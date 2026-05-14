@@ -667,10 +667,11 @@ export default function PlayersPage() {
             borderRadius={{ base: "20px", md: "30px" }}
             overflow="hidden"
             mx={{ base: "8px", md: "20px" }}
-            my={{ base: "8px", md: "16px" }}
+            mt={{ base: "calc(20px + var(--admin-safe-area-top, 0px))", md: "16px" }}
+            mb={{ base: "calc(12px + var(--admin-safe-area-bottom, 0px))", md: "16px" }}
             maxW={{ base: "calc(100vw - 16px)", md: "calc(100vw - 40px)", xl: "1120px" }}
             maxH={{
-              base: "calc(100vh - 16px - var(--admin-safe-area-top, 0px) - var(--admin-safe-area-bottom, 0px))",
+              base: "calc(100vh - 32px - var(--admin-safe-area-top, 0px) - var(--admin-safe-area-bottom, 0px))",
               md: "calc(100vh - 32px)"
             }}
           >
