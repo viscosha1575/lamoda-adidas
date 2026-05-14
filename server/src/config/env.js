@@ -10,7 +10,12 @@ const booleanFromEnv = z
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(3001),
-  DATABASE_URL: z.string().min(1),
+  DATABASE_URL: z.string().min(1).optional(),
+  PGHOST: z.string().min(1).optional(),
+  PGPORT: z.coerce.number().int().positive().optional(),
+  PGDATABASE: z.string().min(1).optional(),
+  PGUSER: z.string().min(1).optional(),
+  PGPASSWORD: z.string().optional(),
   CORS_ORIGINS: z
     .string()
     .default("http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173"),
@@ -26,11 +31,29 @@ const envSchema = z.object({
 
 export function loadConfig() {
   const env = envSchema.parse(process.env);
+  const database = env.DATABASE_URL
+    ? { connectionString: env.DATABASE_URL }
+    : {
+        host: env.PGHOST,
+        port: env.PGPORT ?? 5432,
+        database: env.PGDATABASE,
+        user: env.PGUSER,
+        password: env.PGPASSWORD ?? "",
+      };
+
+  if (
+    !env.DATABASE_URL
+    && (!database.host || !database.database || !database.user)
+  ) {
+    throw new Error(
+      "Database configuration is required: set DATABASE_URL or PGHOST/PGDATABASE/PGUSER",
+    );
+  }
 
   return {
     environment: env.NODE_ENV,
     port: env.PORT,
-    databaseUrl: env.DATABASE_URL,
+    database,
     corsOrigins: env.CORS_ORIGINS.split(",").map((origin) => origin.trim()).filter(Boolean),
     telegramBotToken: env.TELEGRAM_BOT_TOKEN ?? null,
     trustTelegramClientUser: env.TELEGRAM_TRUST_CLIENT_USER,

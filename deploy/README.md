@@ -44,6 +44,7 @@ Set these values in `deploy/.env`:
 - `POSTGRES_DB=...`
 - `POSTGRES_USER=...`
 - `POSTGRES_PASSWORD=...`
+- пароль `POSTGRES_PASSWORD` теперь можно использовать как есть, без URL-экранирования
 - `TELEGRAM_BOT_TOKEN=...`
 - `TELEGRAM_TRUST_CLIENT_USER=false` or your desired mode
 - `TELEGRAM_APP_URL=...`

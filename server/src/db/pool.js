@@ -2,9 +2,19 @@ import pg from "pg";
 
 const { Pool } = pg;
 
-export function createPool(connectionString) {
+export function createPool(databaseConfig) {
+  if (databaseConfig?.connectionString) {
+    return new Pool({
+      connectionString: databaseConfig.connectionString,
+    });
+  }
+
   return new Pool({
-    connectionString,
+    host: databaseConfig.host,
+    port: databaseConfig.port,
+    database: databaseConfig.database,
+    user: databaseConfig.user,
+    password: databaseConfig.password,
   });
 }
 

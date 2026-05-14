@@ -5,7 +5,7 @@ import { runMigrations } from "./db/run-migrations.js";
 import { buildDependencies } from "./dependencies.js";
 
 const config = loadConfig();
-const pool = createPool(config.databaseUrl);
+const pool = createPool(config.database);
 
 async function bootstrap() {
   await runMigrations(pool);
