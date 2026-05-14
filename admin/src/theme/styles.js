@@ -79,19 +79,32 @@ export const globalStyles = {
     },
   },
   styles: {
-    global: (props) => ({
-      body: {
-        overflowX: "hidden",
-        bg: mode("secondaryGray.300", "navy.900")(props),
-        fontFamily: '"Google Sans", sans-serif',
-        letterSpacing: "-0.5px",
-      },
-      input: {
-        color: "gray.700",
-      },
-      html: {
-        fontFamily: '"Google Sans", sans-serif',
-      },
-    }),
+    global: (props) => {
+      const appBackground = mode("secondaryGray.300", "navy.900")(props);
+
+      return {
+        html: {
+          fontFamily: '"Google Sans", sans-serif',
+          bg: appBackground,
+          backgroundColor: appBackground,
+          minH: "100%",
+        },
+        body: {
+          overflowX: "hidden",
+          bg: appBackground,
+          backgroundColor: appBackground,
+          fontFamily: '"Google Sans", sans-serif',
+          letterSpacing: "-0.5px",
+          minH: "100%",
+        },
+        "#root": {
+          backgroundColor: appBackground,
+          minHeight: "100vh",
+        },
+        input: {
+          color: "gray.700",
+        },
+      };
+    },
   },
 };

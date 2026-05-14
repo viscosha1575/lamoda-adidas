@@ -558,12 +558,12 @@ export default function PlayersPage() {
                     }}
                   >
                     <Flex
-                      align={{ base: "start", lg: "center" }}
-                      direction={{ base: "column", lg: "row" }}
+                      align={{ base: "start", md: "center" }}
+                      direction={{ base: "column", md: "row" }}
                       justify="space-between"
                       gap={{ base: "12px", md: "18px" }}
                     >
-                      <Box minW={{ lg: "260px" }} w="100%">
+                      <Box minW={{ md: "220px", xl: "260px" }} w={{ base: "100%", md: "auto" }}>
                         <Text color={textColor} fontSize={{ base: "lg", md: "2xl" }} fontWeight="700" lineHeight="1.15">
                           {player.displayName || player.username || `Игрок #${player.id}`}
                         </Text>
