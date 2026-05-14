@@ -4606,7 +4606,7 @@ function App() {
         >
           <div className="pointer-events-none absolute inset-x-0 top-0 h-[134px] bg-[linear-gradient(180deg,_#000000_0%,_rgba(0,0,0,0)_100%)]" />
 
-          {slide.badge ? (
+          {slide.badge && !isAlertSlide ? (
             <div className="intro-grid-item intro-grid-item-1 relative flex w-full justify-center">
               <span
                 data-text={slide.badge}
@@ -4618,30 +4618,45 @@ function App() {
           ) : null}
 
           <div
-            className={`relative flex flex-col items-center justify-center ${
-              isAlertSlide ? 'gap-8' : 'gap-6'
-            }`}
+            className="relative flex flex-1 w-full items-center justify-center"
           >
             <div
-              className={`intro-grid-item ${isAlertSlide ? 'intro-grid-item-2' : 'intro-grid-item-1'} relative flex w-full items-center justify-center`}
-            >
-              {slide.art}
-            </div>
-
-            <div
-              className={`intro-grid-item ${isAlertSlide ? 'intro-grid-item-3' : 'intro-grid-item-2'} relative flex w-full justify-center text-center ${
-                isAlertSlide ? 'max-w-sm self-center -mt-5 md:-mt-8' : 'pt-[clamp(0.75rem,4vh,2rem)]'
+              className={`relative flex w-full flex-col items-center justify-center ${
+                isAlertSlide ? 'gap-8' : 'gap-6'
               }`}
             >
-              {slide.body}
+              {slide.badge && isAlertSlide ? (
+                <div className="intro-grid-item intro-grid-item-1 relative flex w-full justify-center">
+                  <span
+                    data-text={slide.badge}
+                    className="attention-badge font-display text-center text-[36px] font-normal leading-normal tracking-normal text-white"
+                  >
+                    {slide.badge}
+                  </span>
+                </div>
+              ) : null}
+
+              <div
+                className={`intro-grid-item ${isAlertSlide ? 'intro-grid-item-2' : 'intro-grid-item-1'} relative flex w-full items-center justify-center`}
+              >
+                {slide.art}
+              </div>
+
+              <div
+                className={`intro-grid-item ${isAlertSlide ? 'intro-grid-item-3' : 'intro-grid-item-2'} relative flex w-full justify-center text-center ${
+                  isAlertSlide ? 'max-w-sm self-center -mt-5 md:-mt-8' : 'pt-[clamp(0.75rem,4vh,2rem)]'
+                }`}
+              >
+                {slide.body}
+              </div>
             </div>
           </div>
 
           <div
-            className={`intro-grid-item ${isAlertSlide ? 'intro-grid-item-4' : 'intro-grid-item-3'} relative mt-auto ${
+            className={`intro-grid-item ${isAlertSlide ? 'intro-grid-item-4' : 'intro-grid-item-3'} relative mt-auto h-[106px] ${
               isAlertSlide
-                ? 'grid w-full grid-rows-[47px_47px] gap-y-3 px-2'
-                : 'grid w-full gap-y-3 px-2'
+                ? 'grid w-full grid-rows-[47px_47px] content-end gap-y-3 px-2'
+                : 'grid w-full content-end gap-y-3 px-2'
             }`}
           >
             {slide.actions.map((action) => {
