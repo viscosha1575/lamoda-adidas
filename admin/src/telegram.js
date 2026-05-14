@@ -212,6 +212,7 @@ export async function bootstrapTelegram() {
 
       webApp.ready?.();
       webApp.expand?.();
+      webApp.disableVerticalSwipes?.();
       syncState();
 
       return webApp;
@@ -255,6 +256,7 @@ export async function getTelegramWebApp() {
 
   telegramWebApp?.ready?.();
   telegramWebApp?.expand?.();
+  telegramWebApp?.disableVerticalSwipes?.();
 
   return {
     webApp: telegramWebApp || null,

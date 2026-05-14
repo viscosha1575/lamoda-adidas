@@ -7,7 +7,6 @@ import AdminNavbarLinks from 'components/navbar/NavbarLinksAdmin';
 export default function AdminNavbar(props) {
 	const [ scrolled, setScrolled ] = useState(false);
 	const mobileSafeTop = 'var(--admin-safe-area-top, 0px)';
-	const mobileSafeRight = 'var(--admin-safe-area-right, 0px)';
 
 	useEffect(() => {
 		window.addEventListener('scroll', changeNavbar);
@@ -44,8 +43,8 @@ export default function AdminNavbar(props) {
 			<Box
 				display={{ base: 'block', md: 'none' }}
 				position='fixed'
-				top={`calc(${mobileSafeTop} + 8px)`}
-				right={`calc(${mobileSafeRight} + 8px)`}
+				top={`calc(${mobileSafeTop} + 20px)`}
+				right='8px'
 				zIndex='1200'>
 				<AdminNavbarLinks
 					onOpen={props.onOpen}

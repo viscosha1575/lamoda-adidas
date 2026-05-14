@@ -164,7 +164,7 @@ export default function Dashboard(props) {
                 }}
                 minH="100vh"
                 pt={{
-                  base: `calc(72px + ${ADMIN_SAFE_AREA_TOP})`,
+                  base: `calc(104px + ${ADMIN_SAFE_AREA_TOP})`,
                   md: '92px',
                   xl: '50px'
                 }}
