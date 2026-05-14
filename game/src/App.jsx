@@ -4598,7 +4598,7 @@ function App() {
         <section className="relative z-40 flex w-full flex-col items-center">
         <article
           key={slide.id}
-          className="screen-grain relative flex h-svh w-full flex-col overflow-hidden rounded-none bg-[#3d5064] px-6 sm:px-8 md:justify-center md:gap-8"
+          className="screen-grain relative flex h-svh w-full flex-col overflow-hidden rounded-none bg-[#3d5064] px-6 sm:px-8"
           style={{
             paddingTop: TG_SAFE_UI_TOP,
             paddingBottom: `calc(${TG_SAFE_CONTENT_BOTTOM} + 2rem)`,
@@ -4618,7 +4618,7 @@ function App() {
           ) : null}
 
           <div
-            className="relative flex flex-1 w-full items-center justify-center md:flex-none"
+            className="relative flex flex-1 w-full items-center justify-center"
           >
             <div
               className={`relative flex w-full flex-col items-center justify-center ${
@@ -4653,10 +4653,10 @@ function App() {
           </div>
 
           <div
-            className={`intro-grid-item ${isAlertSlide ? 'intro-grid-item-4' : 'intro-grid-item-3'} relative mt-auto h-[106px] md:mt-0 md:h-auto ${
+            className={`intro-grid-item ${isAlertSlide ? 'intro-grid-item-4' : 'intro-grid-item-3'} relative mt-auto h-[106px] ${
               isAlertSlide
-                ? 'grid w-full grid-rows-[47px_47px] content-end gap-y-3 px-2 md:content-start'
-                : 'grid w-full content-end gap-y-3 px-2 md:content-start'
+                ? 'grid w-full grid-rows-[47px_47px] content-end gap-y-3 px-2 md:grid-rows-[47px]'
+                : 'grid w-full content-end gap-y-3 px-2'
             }`}
           >
             {slide.actions.map((action) => {
@@ -4732,7 +4732,7 @@ function App() {
                 </button>
               )
             })}
-            {isAlertSlide ? <div aria-hidden="true" /> : null}
+            {isAlertSlide ? <div aria-hidden="true" className="md:hidden" /> : null}
           </div>
         </article>
         </section>
