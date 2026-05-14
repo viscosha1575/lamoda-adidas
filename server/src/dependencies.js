@@ -1,3 +1,7 @@
+import { createAdminController } from "./modules/admin/admin.controller.js";
+import { createAdminRepository } from "./modules/admin/admin.repository.js";
+import { createAdminRouter } from "./modules/admin/admin.routes.js";
+import { createAdminService } from "./modules/admin/admin.service.js";
 import { createAuthController } from "./modules/auth/auth.controller.js";
 import { createAuthRepository } from "./modules/auth/auth.repository.js";
 import { createAuthRouter } from "./modules/auth/auth.routes.js";
@@ -9,6 +13,13 @@ import { createGameService } from "./modules/game/game.service.js";
 import { createAuthMiddleware } from "./middlewares/auth.js";
 
 export function buildDependencies({ pool, config }) {
+  const adminRepository = createAdminRepository({ pool });
+  const adminService = createAdminService({
+    adminRepository,
+    config,
+  });
+  const adminController = createAdminController({ adminService });
+
   const authRepository = createAuthRepository({ pool });
   const authService = createAuthService({
     authRepository,
@@ -32,6 +43,9 @@ export function buildDependencies({ pool, config }) {
 
   return {
     pool,
+    adminController,
+    adminRouter: createAdminRouter({ adminController, config }),
+    adminService,
     authController,
     authService,
     authMiddleware,

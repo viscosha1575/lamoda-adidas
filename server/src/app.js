@@ -25,6 +25,7 @@ export function createApp(dependencies) {
   app.use("/api/health", createHealthRouter(dependencies));
   app.use("/api/auth", dependencies.authRouter);
   app.use("/api/game", dependencies.gameRouter);
+  app.use("/api/admin", dependencies.adminRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

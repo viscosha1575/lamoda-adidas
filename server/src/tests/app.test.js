@@ -16,6 +16,7 @@ function createTestApp() {
         return { rows: [{ "?column?": 1 }] };
       },
     },
+    adminRouter: Router(),
     authRouter: Router(),
     gameRouter: Router(),
   });

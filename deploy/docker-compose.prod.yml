@@ -53,10 +53,11 @@ services:
       NODE_ENV: production
       PORT: 3001
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      CORS_ORIGINS: https://${DOMAIN}
+      CORS_ORIGINS: https://${DOMAIN},https://${ADMIN_DOMAIN}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       TELEGRAM_TRUST_CLIENT_USER: ${TELEGRAM_TRUST_CLIENT_USER}
       TELEGRAM_APP_URL: ${TELEGRAM_APP_URL}
+      REQUEST_BODY_SECRET: ${REQUEST_BODY_SECRET}
       AUTH_TOKEN_TTL_DAYS: ${AUTH_TOKEN_TTL_DAYS}
       GAME_DURATION_SECONDS: ${GAME_DURATION_SECONDS}
       HEARTBEAT_GRACE_SECONDS: ${HEARTBEAT_GRACE_SECONDS}
@@ -67,7 +68,7 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=lamoda_web
-      - traefik.http.routers.lamoda-api.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)
+      - traefik.http.routers.lamoda-api.rule=(Host(`${DOMAIN}`) || Host(`${ADMIN_DOMAIN}`)) && PathPrefix(`/api`)
       - traefik.http.routers.lamoda-api.entrypoints=websecure
       - traefik.http.routers.lamoda-api.tls=true
       - traefik.http.routers.lamoda-api.tls.certresolver=letsencrypt
@@ -92,6 +93,24 @@ services:
       - traefik.http.routers.lamoda-web.tls=true
       - traefik.http.routers.lamoda-web.tls.certresolver=letsencrypt
       - traefik.http.services.lamoda-web.loadbalancer.server.port=80
+    networks:
+      - web
+
+  admin:
+    build:
+      context: ../admin
+      args:
+        REQUEST_BODY_SECRET: ${REQUEST_BODY_SECRET}
+    container_name: lamoda-admin
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=lamoda_web
+      - traefik.http.routers.lamoda-admin.rule=Host(`${ADMIN_DOMAIN}`)
+      - traefik.http.routers.lamoda-admin.entrypoints=websecure
+      - traefik.http.routers.lamoda-admin.tls=true
+      - traefik.http.routers.lamoda-admin.tls.certresolver=letsencrypt
+      - traefik.http.services.lamoda-admin.loadbalancer.server.port=80
     networks:
       - web
 
