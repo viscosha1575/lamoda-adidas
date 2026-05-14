@@ -2,11 +2,17 @@
 import { Portal, Box, useDisclosure } from '@chakra-ui/react';
 // Layout components
 import Navbar from 'components/navbar/NavbarAdmin.js';
+import MobileBottomNav from 'components/navigation/MobileBottomNav.js';
 import Sidebar from 'components/sidebar/Sidebar.js';
 import { SidebarContext } from 'contexts/SidebarContext';
 import React, { useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import routes from 'routes.js';
+
+const ADMIN_SAFE_AREA_TOP = 'var(--admin-safe-area-top, 0px)';
+const ADMIN_SAFE_AREA_RIGHT = 'var(--admin-safe-area-right, 0px)';
+const ADMIN_SAFE_AREA_BOTTOM = 'var(--admin-safe-area-bottom, 0px)';
+const ADMIN_SAFE_AREA_LEFT = 'var(--admin-safe-area-left, 0px)';
 
 // Custom Chakra theme
 export default function Dashboard(props) {
@@ -141,10 +147,27 @@ export default function Dashboard(props) {
             {getRoute() ? (
               <Box
                 mx="auto"
-                p={{ base: '20px', md: '30px' }}
-                pe="20px"
+                pl={{
+                  base: `calc(14px + ${ADMIN_SAFE_AREA_LEFT})`,
+                  md: '24px',
+                  xl: '30px'
+                }}
+                pr={{
+                  base: `calc(14px + ${ADMIN_SAFE_AREA_RIGHT})`,
+                  md: '24px',
+                  xl: '20px'
+                }}
+                pb={{
+                  base: `calc(96px + ${ADMIN_SAFE_AREA_BOTTOM})`,
+                  md: '24px',
+                  xl: '30px'
+                }}
                 minH="100vh"
-                pt="50px"
+                pt={{
+                  base: `calc(14px + ${ADMIN_SAFE_AREA_TOP})`,
+                  md: '92px',
+                  xl: '50px'
+                }}
               >
                 <Routes>
                   {getRoutes(routes)}
@@ -155,6 +178,7 @@ export default function Dashboard(props) {
                 </Routes>
               </Box>
             ) : null}
+            <MobileBottomNav routes={routes} />
           </Box>
         </SidebarContext.Provider>
       </Box>

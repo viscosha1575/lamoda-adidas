@@ -5,6 +5,7 @@ import {
   Flex,
   HStack,
   Icon,
+  Select,
   SimpleGrid,
   Skeleton,
   Stack,
@@ -195,6 +196,27 @@ function buildLineChartOptions(categories, color, gridColor, labelColor) {
     legend: {
       show: false,
     },
+    responsive: [
+      {
+        breakpoint: 480,
+        options: {
+          xaxis: {
+            labels: {
+              style: {
+                fontSize: "9px",
+              },
+            },
+          },
+          yaxis: {
+            labels: {
+              style: {
+                fontSize: "10px",
+              },
+            },
+          },
+        },
+      },
+    ],
   };
 }
 
@@ -262,6 +284,27 @@ function buildBarChartOptions(categories, colors, gridColor, labelColor) {
     legend: {
       show: false,
     },
+    responsive: [
+      {
+        breakpoint: 480,
+        options: {
+          xaxis: {
+            labels: {
+              style: {
+                fontSize: "9px",
+              },
+            },
+          },
+          yaxis: {
+            labels: {
+              style: {
+                fontSize: "10px",
+              },
+            },
+          },
+        },
+      },
+    ],
   };
 }
 
@@ -271,8 +314,8 @@ function AnalyticsMetricList({ title, rows }) {
   const valueColor = useColorModeValue("navy.700", "white");
 
   return (
-    <Card p="24px">
-      <Text color={valueColor} fontSize="xl" fontWeight="700" mb="18px">
+    <Card p={{ base: "18px", md: "24px" }}>
+      <Text color={valueColor} fontSize={{ base: "lg", md: "xl" }} fontWeight="700" mb="18px">
         {title}
       </Text>
       <Stack spacing="14px">
@@ -296,7 +339,7 @@ function AnalyticsMetricList({ title, rows }) {
                 </Text>
               ) : null}
             </Box>
-            <Text color={valueColor} fontSize="lg" fontWeight="700" textAlign="right">
+            <Text color={valueColor} fontSize={{ base: "md", md: "lg" }} fontWeight="700" textAlign="right">
               {row.value}
             </Text>
           </Flex>
@@ -354,10 +397,10 @@ function AnalyticsChartCard({
   }, [barColors, categories, chartType, gridColor, labelColor, lineColor]);
 
   return (
-    <Card p="24px">
-      <Flex align="start" justify="space-between" mb="18px" gap="16px">
+    <Card p={{ base: "18px", md: "24px" }}>
+      <Flex align="start" justify="space-between" mb="18px" gap="16px" direction={{ base: "column", sm: "row" }}>
         <Box>
-          <Text color={titleColor} fontSize="xl" fontWeight="700">
+          <Text color={titleColor} fontSize={{ base: "lg", md: "xl" }} fontWeight="700">
             {title}
           </Text>
           <Text color={labelColor} fontSize="sm" mt="4px">
@@ -375,7 +418,7 @@ function AnalyticsChartCard({
           {value}
         </Badge>
       </Flex>
-      <Box h="260px">
+      <Box h={{ base: "220px", md: "260px" }}>
         {chartType === "bar" ? (
           <BarChart chartData={chartData} chartOptions={chartOptions} />
         ) : (
@@ -401,6 +444,10 @@ export default function AnalyticsPage() {
   const toolbarControlBg = useColorModeValue("white", "rgba(255, 255, 255, 0.94)");
   const toolbarControlText = useColorModeValue("navy.700", "navy.700");
   const toolbarControlHoverBg = useColorModeValue("secondaryGray.300", "rgba(255, 255, 255, 0.88)");
+  const toolbarControlShadow = useColorModeValue(
+    "0px 16px 36px rgba(112, 144, 176, 0.12)",
+    "0px 16px 36px rgba(17, 28, 68, 0.32)"
+  );
   const chartOrange = useColorModeValue("orange.500", "orange.500");
   const chartGreen = useColorModeValue("green.500", "green.500");
   const chartBlue = useColorModeValue("blue.500", "blue.500");
@@ -582,9 +629,35 @@ export default function AnalyticsPage() {
     : "—";
 
   return (
-    <Box pt={{ base: "130px", md: "80px", xl: "80px" }}>
+    <Box pt={{ base: "0px", md: "80px", xl: "80px" }}>
       <Flex justify="space-between" align={{ base: "start", lg: "center" }} direction={{ base: "column", lg: "row" }} gap="16px" mb="20px">
-        <HStack spacing="12px" flexWrap="wrap">
+        <Box display={{ base: "block", md: "none" }} w="100%">
+          <Select
+            h="56px"
+            bg={toolbarControlBg}
+            color={toolbarControlText}
+            borderColor="transparent"
+            borderRadius="20px"
+            boxShadow={toolbarControlShadow}
+            fontSize="sm"
+            fontWeight="700"
+            value={selectedRange}
+            onChange={(event) => setSelectedRange(event.target.value)}
+            _hover={{ borderColor: "transparent" }}
+            _focusVisible={{
+              borderColor: "brand.200",
+              boxShadow: `0 0 0 1px var(--chakra-colors-brand-200), ${toolbarControlShadow}`,
+            }}
+          >
+            {RANGE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+        </Box>
+
+        <HStack spacing="12px" flexWrap="wrap" w={{ base: "100%", lg: "auto" }} display={{ base: "none", md: "flex" }}>
           {RANGE_OPTIONS.map((option) => (
             <Button
               key={option.value}
@@ -595,6 +668,8 @@ export default function AnalyticsPage() {
               fontSize="sm"
               fontWeight="700"
               px="18px"
+              flex={{ base: "1 1 calc(50% - 12px)", md: "0 0 auto" }}
+              minW={{ base: "calc(50% - 12px)", md: "unset" }}
               _hover={{
                 bg: selectedRange === option.value ? "brand.600" : toolbarControlHoverBg,
               }}
@@ -605,8 +680,21 @@ export default function AnalyticsPage() {
           ))}
         </HStack>
 
-        <HStack spacing="12px">
-          <Badge bg={toolbarControlBg} borderRadius="999px" color={toolbarControlText} px="12px" py="8px">
+        <Stack spacing="12px" direction={{ base: "column", sm: "row" }} w={{ base: "100%", lg: "auto" }}>
+          <Badge
+            bg={toolbarControlBg}
+            borderRadius="999px"
+            color={toolbarControlText}
+            px="12px"
+            py="8px"
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            minH="42px"
+            lineHeight="1.2"
+            textAlign="center"
+            whiteSpace="normal"
+          >
             Обновлено: {updatedAtLabel}
           </Badge>
           <Button
@@ -618,12 +706,13 @@ export default function AnalyticsPage() {
             leftIcon={<Icon as={MdBarChart} />}
             isLoading={refreshing}
             loadingText="Обновляем"
+            w={{ base: "100%", sm: "auto" }}
             onClick={handleRefresh}
             _hover={{ bg: toolbarControlHoverBg }}
           >
             Обновить
           </Button>
-        </HStack>
+        </Stack>
       </Flex>
 
       {error ? (
@@ -711,7 +800,7 @@ export default function AnalyticsPage() {
             <AnalyticsMetricList title="Игровые метрики" rows={gameRows} />
           </SimpleGrid>
 
-          <Card p="24px">
+          <Card p={{ base: "18px", md: "24px" }}>
             <Flex justify="space-between" align={{ base: "start", md: "center" }} direction={{ base: "column", md: "row" }} gap="12px" mb="18px">
               <Box>
                 <Text color={textColor} fontSize="xl" fontWeight="700">
@@ -723,7 +812,7 @@ export default function AnalyticsPage() {
               </Box>
             </Flex>
             <Box overflowX="auto">
-              <Table variant="simple">
+              <Table variant="simple" minW="640px">
                 <Thead>
                   <Tr>
                     <Th borderColor={borderColor}>Игрок</Th>

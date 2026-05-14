@@ -14,6 +14,11 @@ import { postJson, setTelegramInitData } from './api';
 import { getTelegramWebApp } from './telegram';
 // Chakra imports
 
+const ADMIN_SAFE_AREA_TOP = 'var(--admin-safe-area-top, 0px)';
+const ADMIN_SAFE_AREA_RIGHT = 'var(--admin-safe-area-right, 0px)';
+const ADMIN_SAFE_AREA_BOTTOM = 'var(--admin-safe-area-bottom, 0px)';
+const ADMIN_SAFE_AREA_LEFT = 'var(--admin-safe-area-left, 0px)';
+
 export default function Main() {
   const [currentTheme, setCurrentTheme] = useState(initialTheme);
   const [authState, setAuthState] = useState({
@@ -81,14 +86,26 @@ export default function Main() {
   return (
     <ChakraProvider theme={currentTheme}>
       {authState.loading ? (
-        <Center minH="100vh" flexDirection="column" gap="16px">
+        <Center
+          minH="100vh"
+          flexDirection="column"
+          gap="16px"
+          px={`calc(24px + ${ADMIN_SAFE_AREA_LEFT} + ${ADMIN_SAFE_AREA_RIGHT})`}
+          pt={`calc(24px + ${ADMIN_SAFE_AREA_TOP})`}
+          pb={`calc(24px + ${ADMIN_SAFE_AREA_BOTTOM})`}
+        >
           <Spinner color="brand.500" thickness="4px" size="xl" />
           <Text color="secondaryGray.700" fontSize="lg" fontWeight="600">
             Проверяем доступ к админке...
           </Text>
         </Center>
       ) : authState.error ? (
-        <Center minH="100vh" px="24px">
+        <Center
+          minH="100vh"
+          px={`calc(24px + ${ADMIN_SAFE_AREA_LEFT} + ${ADMIN_SAFE_AREA_RIGHT})`}
+          pt={`calc(24px + ${ADMIN_SAFE_AREA_TOP})`}
+          pb={`calc(24px + ${ADMIN_SAFE_AREA_BOTTOM})`}
+        >
           <Box
             bg="white"
             borderRadius="24px"

@@ -8,6 +8,7 @@ function mapPlayerRow(row) {
     referralCode: row.referral_code ?? null,
     referredByCode: row.referred_by_code ?? null,
     hasReferral: Boolean(row.has_referral),
+    subscribedToChannel: Boolean(row.subscribed_to_channel),
     completedGame: Boolean(row.completed_game),
     timeExpired: Boolean(row.time_expired),
     promoCode: row.promo_code ?? null,
@@ -210,7 +211,8 @@ export function createAdminRepository({ pool }) {
          )
          SELECT p.id, p.telegram_user_id, p.username, p.first_name, p.last_name,
                 p.referral_code, p.referred_by_code, p.has_referral,
-                p.completed_game, p.time_expired, pc.code AS promo_code, p.auth_provider,
+                p.subscribed_to_channel, p.completed_game, p.time_expired,
+                pc.code AS promo_code, p.auth_provider,
                 p.last_seen_at, p.created_at, p.updated_at,
                 ss.latest_heartbeat_at,
                 COALESCE(ss.total_sessions, 0) AS total_sessions,
@@ -247,7 +249,8 @@ export function createAdminRepository({ pool }) {
       const result = await pool.query(
         `SELECT p.id, p.telegram_user_id, p.username, p.first_name, p.last_name,
                 p.referral_code, p.referred_by_code, p.has_referral,
-                p.completed_game, p.time_expired, pc.code AS promo_code, p.auth_provider,
+                p.subscribed_to_channel, p.completed_game, p.time_expired,
+                pc.code AS promo_code, p.auth_provider,
                 p.last_seen_at, p.created_at, p.updated_at,
                 (SELECT MAX(last_heartbeat_at) FROM game_sessions WHERE player_id = p.id) AS latest_heartbeat_at,
                 (SELECT COUNT(*)::int FROM game_sessions WHERE player_id = p.id) AS total_sessions,

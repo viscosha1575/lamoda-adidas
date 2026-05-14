@@ -150,6 +150,7 @@ function normalizePlayerDetails(row, onlineWindowSeconds) {
       referralCode: row.referral_code ?? null,
       referredByCode: row.referred_by_code ?? null,
       hasReferral: Boolean(row.has_referral),
+      subscribedToChannel: Boolean(row.subscribed_to_channel),
       completedGame: Boolean(row.completed_game),
       timeExpired: Boolean(row.time_expired),
       promoCode: row.promo_code ?? null,

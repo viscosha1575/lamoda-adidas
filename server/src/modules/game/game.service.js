@@ -484,6 +484,18 @@ export function createGameService({
         ...(session.status === "active" ? { last_heartbeat_at: now } : {}),
       });
 
+      await gameRepository.createActivityLog({
+        playerId,
+        gameSessionId: updatedSession.id,
+        source: "server",
+        action: "found-sneaker",
+        details: {
+          sneakerNumber,
+          foundSneakerNumbers: updatedSession.foundSneakerNumbers,
+          sessionStatus: updatedSession.status,
+        },
+      });
+
       if (session.status === "active" && hasCollectedAllSneakers(updatedSession.foundSneakerNumbers)) {
         const finishedResult = await finalizeSession(updatedSession, {
           playerId,
@@ -529,6 +541,17 @@ export function createGameService({
       const now = new Date();
 
       if (!openSession) {
+        const latestSession = await gameRepository.findLatestSessionByPlayerId(playerId);
+
+        if (latestSession && FINISHED_STATUSES.has(latestSession.status)) {
+          return buildSessionResponse(
+            latestSession,
+            now,
+            latestSession.status,
+            resolveCompletionReason(latestSession),
+          );
+        }
+
         throw new HttpError(409, "No active game session to finish");
       }
 

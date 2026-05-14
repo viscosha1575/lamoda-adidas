@@ -13,7 +13,7 @@ export default function AdminNavbar(props) {
 		return () => {
 			window.removeEventListener('scroll', changeNavbar);
 		};
-	});
+	}, []);
 
 	const { secondary, message, brandText } = props;
 
@@ -39,6 +39,7 @@ export default function AdminNavbar(props) {
 
 	return (
 		<Box
+			display={{ base: 'none', md: secondary ? 'block' : 'flex' }}
 			position={navbarPosition}
 			boxShadow={navbarShadow}
 			bg={navbarBg}
@@ -55,15 +56,15 @@ export default function AdminNavbar(props) {
 			transition-property='box-shadow, background-color, filter, border'
 			transitionTimingFunction='linear, linear, linear, linear'
 			alignItems={{ xl: 'center' }}
-			display={secondary ? 'block' : 'flex'}
 			minH='75px'
 			justifyContent={{ xl: 'center' }}
 			lineHeight='25.6px'
 			mx='auto'
 			mt={secondaryMargin}
 			pb='8px'
-			right={{ base: '12px', md: '30px', lg: '30px', xl: '30px' }}
+			right={{ base: '8px', md: '20px', lg: '24px', xl: '30px' }}
 			px={{
+				base: '12px',
 				sm: paddingX,
 				md: '10px'
 			}}
@@ -71,10 +72,11 @@ export default function AdminNavbar(props) {
 				xl: '12px'
 			}}
 			pt='8px'
-			top={{ base: '12px', md: '16px', lg: '20px', xl: '20px' }}
+			top={{ base: '8px', md: '16px', lg: '20px', xl: '20px' }}
 			w={{
-				base: 'calc(100vw - 6%)',
-				md: 'calc(100vw - 8%)',
+				base: 'calc(100vw - 16px)',
+				sm: 'calc(100vw - 24px)',
+				md: 'calc(100vw - 40px)',
 				lg: 'calc(100vw - 6%)',
 				xl: 'calc(100vw - 350px)',
 				'2xl': 'calc(100vw - 365px)'
@@ -82,19 +84,21 @@ export default function AdminNavbar(props) {
 			<Flex
 				w='100%'
 				flexDirection={{
-					sm: 'column',
+					base: 'column',
 					md: 'row'
 				}}
-				alignItems={{ xl: 'center' }}
+				alignItems={{ base: 'stretch', xl: 'center' }}
 				mb={gap}>
-				<Box mb={{ sm: '8px', md: '0px' }}>
+				<Box mb={{ base: '8px', md: '0px' }} minW='0'>
 					<Link
 						color={mainText}
 						href='#'
 						bg='inherit'
 						borderRadius='inherit'
 						fontWeight='bold'
-						fontSize='34px'
+						fontSize={{ base: '22px', sm: '26px', md: '30px', xl: '34px' }}
+						lineHeight={{ base: '1.15', md: '1.2' }}
+						wordBreak='break-word'
 						_hover={{ color: { mainText } }}
 						_active={{
 							bg: 'inherit',
@@ -107,7 +111,7 @@ export default function AdminNavbar(props) {
 						{brandText}
 					</Link>
 				</Box>
-				<Box ms='auto' w={{ sm: '100%', md: 'unset' }}>
+				<Box ms='auto' w={{ base: '100%', md: 'unset' }}>
 					<AdminNavbarLinks
 						onOpen={props.onOpen}
 						logoText={props.logoText}

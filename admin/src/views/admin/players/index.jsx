@@ -391,7 +391,7 @@ export default function PlayersPage() {
   }
 
   return (
-    <Box pt={{ base: "130px", md: "80px", xl: "80px" }}>
+    <Box pt={{ base: "0px", md: "80px", xl: "80px" }}>
       <Stack spacing="20px">
         <Card p="24px">
           <Flex
@@ -540,7 +540,7 @@ export default function PlayersPage() {
                     key={player.id}
                     as="button"
                     type="button"
-                    p="22px"
+                    p={{ base: "14px", md: "22px" }}
                     textAlign="left"
                     width="100%"
                     onClick={() => handleOpenPlayer(player.id)}
@@ -561,57 +561,57 @@ export default function PlayersPage() {
                       align={{ base: "start", lg: "center" }}
                       direction={{ base: "column", lg: "row" }}
                       justify="space-between"
-                      gap="18px"
+                      gap={{ base: "12px", md: "18px" }}
                     >
-                      <Box minW={{ lg: "260px" }}>
-                        <Text color={textColor} fontSize="2xl" fontWeight="700" lineHeight="1.15">
+                      <Box minW={{ lg: "260px" }} w="100%">
+                        <Text color={textColor} fontSize={{ base: "lg", md: "2xl" }} fontWeight="700" lineHeight="1.15">
                           {player.displayName || player.username || `Игрок #${player.id}`}
                         </Text>
-                        <Text color={textColorSecondary} fontSize="sm" mt="6px">
+                        <Text color={textColorSecondary} fontSize={{ base: "xs", md: "sm" }} mt={{ base: "4px", md: "6px" }}>
                           {player.username ? `@${player.username}` : "Без username"}
                         </Text>
                       </Box>
 
-                      <SimpleGrid columns={{ base: 1, md: 4, xl: 5 }} spacing="14px" flex="1" w="100%">
+                      <SimpleGrid columns={{ base: 2, md: 4, xl: 5 }} spacing={{ base: "10px", md: "14px" }} flex="1" w="100%">
                         <Box>
-                          <Text color={textColorSecondary} fontSize="xs" fontWeight="600" textTransform="uppercase" mb="4px">
+                          <Text color={textColorSecondary} fontSize={{ base: "10px", md: "xs" }} fontWeight="600" textTransform="uppercase" mb={{ base: "2px", md: "4px" }}>
                             Telegram ID
                           </Text>
-                          <Text color={textColor} fontSize="lg" fontWeight="700">
+                          <Text color={textColor} fontSize={{ base: "sm", md: "lg" }} fontWeight="700" lineHeight="1.25">
                             {player.telegramUserId || "—"}
                           </Text>
                         </Box>
                         <Box>
-                          <Text color={textColorSecondary} fontSize="xs" fontWeight="600" textTransform="uppercase" mb="4px">
+                          <Text color={textColorSecondary} fontSize={{ base: "10px", md: "xs" }} fontWeight="600" textTransform="uppercase" mb={{ base: "2px", md: "4px" }}>
                             Сессии
                           </Text>
-                          <Text color={textColor} fontSize="lg" fontWeight="700">
+                          <Text color={textColor} fontSize={{ base: "sm", md: "lg" }} fontWeight="700" lineHeight="1.25">
                             {formatNumber(player.totalSessions)}
                           </Text>
                         </Box>
                         <Box>
-                          <Text color={textColorSecondary} fontSize="xs" fontWeight="600" textTransform="uppercase" mb="4px">
+                          <Text color={textColorSecondary} fontSize={{ base: "10px", md: "xs" }} fontWeight="600" textTransform="uppercase" mb={{ base: "2px", md: "4px" }}>
                             Лучшее время
                           </Text>
-                          <Text color={textColor} fontSize="lg" fontWeight="700">
+                          <Text color={textColor} fontSize={{ base: "sm", md: "lg" }} fontWeight="700" lineHeight="1.25">
                             {formatDuration(player.bestDurationSeconds)}
                           </Text>
                         </Box>
-                        <Box>
-                          <Text color={textColorSecondary} fontSize="xs" fontWeight="600" textTransform="uppercase" mb="4px">
+                        <Box gridColumn={{ base: "1 / -1", md: "auto" }}>
+                          <Text color={textColorSecondary} fontSize={{ base: "10px", md: "xs" }} fontWeight="600" textTransform="uppercase" mb={{ base: "2px", md: "4px" }}>
                             Последний визит
                           </Text>
-                          <Text color={textColor} fontSize="lg" fontWeight="700">
+                          <Text color={textColor} fontSize={{ base: "sm", md: "lg" }} fontWeight="700" lineHeight="1.25">
                             {formatDateTime(player.lastSeenAt)}
                           </Text>
                         </Box>
                         <Flex align="start" justify="start">
-                          <Stack direction="row" spacing="8px" flexWrap="wrap" justify="start">
-                            <Badge colorScheme={player.isOnline ? "green" : "gray"} borderRadius="999px" px="10px" py="6px">
+                          <Stack direction="row" spacing={{ base: "6px", md: "8px" }} flexWrap="wrap" justify="start">
+                            <Badge colorScheme={player.isOnline ? "green" : "gray"} borderRadius="999px" px={{ base: "8px", md: "10px" }} py={{ base: "4px", md: "6px" }} fontSize={{ base: "10px", md: "xs" }}>
                               {player.isOnline ? "Онлайн" : "Не в сети"}
                             </Badge>
                             {player.completedGame ? (
-                              <Badge colorScheme="green" borderRadius="999px" px="10px" py="6px">
+                              <Badge colorScheme="green" borderRadius="999px" px={{ base: "8px", md: "10px" }} py={{ base: "4px", md: "6px" }} fontSize={{ base: "10px", md: "xs" }}>
                                 Финиш
                               </Badge>
                             ) : null}
@@ -664,9 +664,12 @@ export default function PlayersPage() {
             bg={modalBg}
             border="1px solid"
             borderColor={modalBorderColor}
-            borderRadius="30px"
+            borderRadius={{ base: "20px", md: "30px" }}
             overflow="hidden"
-            mx="20px"
+            mx={{ base: "8px", md: "20px" }}
+            my={{ base: "8px", md: "16px" }}
+            maxW={{ base: "calc(100vw - 16px)", md: "calc(100vw - 40px)", xl: "1120px" }}
+            maxH={{ base: "calc(100vh - 16px)", md: "calc(100vh - 32px)" }}
           >
             <ModalHeader pt="28px" pb="0px" />
             <ModalCloseButton
@@ -690,7 +693,7 @@ export default function PlayersPage() {
                 <Stack spacing="20px">
                   <Flex justify="space-between" align={{ base: "start", md: "center" }} direction={{ base: "column", md: "row" }} gap="12px">
                     <Box>
-                      <Text color={textColor} fontSize={{ base: "3xl", md: "4xl" }} fontWeight="700">
+                      <Text color={textColor} fontSize={{ base: "2xl", md: "4xl" }} fontWeight="700">
                         {selectedPlayer.displayName || selectedPlayer.username || `Игрок #${selectedPlayer.id}`}
                       </Text>
                       <Text color={textColorSecondary} fontSize="sm" mt="6px">
@@ -712,6 +715,9 @@ export default function PlayersPage() {
                   <HStack spacing="10px" flexWrap="wrap">
                     <Badge colorScheme={selectedPlayer.isOnline ? "green" : "gray"} borderRadius="999px" px="10px" py="6px">
                       {selectedPlayer.isOnline ? "Онлайн" : "Не в сети"}
+                    </Badge>
+                    <Badge colorScheme={selectedPlayer.subscribedToChannel ? "blue" : "gray"} borderRadius="999px" px="10px" py="6px">
+                      {selectedPlayer.subscribedToChannel ? "Подписан на канал" : "Не подписан"}
                     </Badge>
                     <Badge colorScheme={selectedPlayer.completedGame ? "green" : "gray"} borderRadius="999px" px="10px" py="6px">
                       {selectedPlayer.completedGame ? "Завершил игру" : "Не завершил игру"}
@@ -740,6 +746,7 @@ export default function PlayersPage() {
                       <InfoRow label="Referral code" value={selectedPlayer.referralCode || "—"} />
                       <InfoRow label="Пришел по referral" value={selectedPlayer.referredByCode || "—"} />
                       <InfoRow label="Есть referral" value={selectedPlayer.hasReferral ? "Да" : "Нет"} />
+                      <InfoRow label="Подписан на канал" value={selectedPlayer.subscribedToChannel ? "Да" : "Нет"} />
                       <InfoRow label="Промокод" value={selectedPlayer.promoCode || "—"} />
                       <InfoRow label="Создан" value={formatDateTime(selectedPlayer.createdAt)} />
                       <InfoRow label="Последний визит" value={formatDateTime(selectedPlayer.lastSeenAt)} />
@@ -751,7 +758,7 @@ export default function PlayersPage() {
                       Последние сессии
                     </Text>
                     <Box overflowX="auto">
-                      <Table variant="simple">
+                      <Table variant="simple" minW="620px">
                         <Thead>
                           <Tr>
                             <Th borderColor={borderColor}>ID</Th>
@@ -796,7 +803,7 @@ export default function PlayersPage() {
                       Игровые логи
                     </Text>
                     <Box overflowX="auto">
-                      <Table variant="simple">
+                      <Table variant="simple" minW="640px">
                         <Thead>
                           <Tr>
                             <Th borderColor={borderColor}>Время</Th>

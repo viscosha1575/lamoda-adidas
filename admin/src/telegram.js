@@ -2,6 +2,7 @@ const TELEGRAM_SDK_URL = "https://telegram.org/js/telegram-web-app.js";
 const TELEGRAM_SDK_SCRIPT_ID = "telegram-web-app-sdk";
 
 let telegramSdkPromise = null;
+let telegramBootstrapPromise = null;
 
 function isLocalAdminHost() {
   const hostname = window.location.hostname;
@@ -74,6 +75,80 @@ function loadTelegramSdk() {
   return telegramSdkPromise;
 }
 
+function toCssDimension(value, fallback = "0px") {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return `${value}px`;
+  }
+
+  return fallback;
+}
+
+function resolveSafeInsetPair(primaryInset, secondaryInset, side) {
+  const primaryValue = Number(primaryInset?.[side]);
+  const secondaryValue = Number(secondaryInset?.[side]);
+  const safePrimary = Number.isFinite(primaryValue) ? primaryValue : 0;
+  const safeSecondary = Number.isFinite(secondaryValue) ? secondaryValue : 0;
+
+  return Math.max(safePrimary, safeSecondary);
+}
+
+function bindTelegramCssVars(webApp, { fullscreenActive }) {
+  const root = document.documentElement;
+  const safeArea = webApp?.safeAreaInset || {};
+  const contentSafeArea = webApp?.contentSafeAreaInset || safeArea;
+  const topInset = fullscreenActive ? resolveSafeInsetPair(safeArea, contentSafeArea, "top") : 0;
+  const rightInset = fullscreenActive ? resolveSafeInsetPair(safeArea, contentSafeArea, "right") : 0;
+  const bottomInset = fullscreenActive ? resolveSafeInsetPair(safeArea, contentSafeArea, "bottom") : 0;
+  const leftInset = fullscreenActive ? resolveSafeInsetPair(safeArea, contentSafeArea, "left") : 0;
+
+  root.style.setProperty(
+    "--tg-viewport-width",
+    toCssDimension(webApp?.viewportWidth, `${window.innerWidth}px`)
+  );
+  root.style.setProperty(
+    "--tg-viewport-height",
+    toCssDimension(webApp?.viewportHeight, `${window.innerHeight}px`)
+  );
+  root.style.setProperty(
+    "--tg-viewport-stable-height",
+    toCssDimension(webApp?.viewportStableHeight, `${window.innerHeight}px`)
+  );
+  root.style.setProperty("--tg-safe-area-inset-top", toCssDimension(safeArea.top, "0px"));
+  root.style.setProperty("--tg-safe-area-inset-right", toCssDimension(safeArea.right, "0px"));
+  root.style.setProperty("--tg-safe-area-inset-bottom", toCssDimension(safeArea.bottom, "0px"));
+  root.style.setProperty("--tg-safe-area-inset-left", toCssDimension(safeArea.left, "0px"));
+  root.style.setProperty(
+    "--tg-content-safe-area-inset-top",
+    toCssDimension(contentSafeArea.top, "0px")
+  );
+  root.style.setProperty(
+    "--tg-content-safe-area-inset-right",
+    toCssDimension(contentSafeArea.right, "0px")
+  );
+  root.style.setProperty(
+    "--tg-content-safe-area-inset-bottom",
+    toCssDimension(contentSafeArea.bottom, "0px")
+  );
+  root.style.setProperty(
+    "--tg-content-safe-area-inset-left",
+    toCssDimension(contentSafeArea.left, "0px")
+  );
+  root.style.setProperty("--admin-safe-area-top", toCssDimension(topInset, "0px"));
+  root.style.setProperty("--admin-safe-area-right", toCssDimension(rightInset, "0px"));
+  root.style.setProperty("--admin-safe-area-bottom", toCssDimension(bottomInset, "0px"));
+  root.style.setProperty("--admin-safe-area-left", toCssDimension(leftInset, "0px"));
+}
+
+function syncTelegramUiState(webApp) {
+  const root = document.documentElement;
+  const fullscreenActive = Boolean(webApp?.isFullscreen || document.fullscreenElement);
+
+  root.dataset.tgFullscreen = webApp?.isFullscreen ? "true" : "false";
+  root.dataset.adminFullscreen = fullscreenActive ? "true" : "false";
+
+  bindTelegramCssVars(webApp, { fullscreenActive });
+}
+
 export function getTelegramWebAppSync() {
   return window.Telegram?.WebApp || null;
 }
@@ -111,11 +186,52 @@ export async function toggleMiniAppFullscreen() {
   return "unsupported";
 }
 
+export async function bootstrapTelegram() {
+  if (telegramBootstrapPromise) {
+    return telegramBootstrapPromise;
+  }
+
+  telegramBootstrapPromise = (async () => {
+    try {
+      const webApp = await loadTelegramSdk();
+
+      if (!webApp) {
+        return null;
+      }
+
+      const syncState = () => {
+        syncTelegramUiState(webApp);
+      };
+
+      webApp.onEvent?.("viewportChanged", syncState);
+      webApp.onEvent?.("fullscreenChanged", syncState);
+      webApp.onEvent?.("fullscreenFailed", syncState);
+      webApp.onEvent?.("safeAreaChanged", syncState);
+      webApp.onEvent?.("contentSafeAreaChanged", syncState);
+      document.addEventListener("fullscreenchange", syncState);
+
+      webApp.ready?.();
+      webApp.expand?.();
+      syncState();
+
+      return webApp;
+    } catch (error) {
+      if (!isLocalAdminBypassEnabled()) {
+        throw error;
+      }
+
+      return null;
+    }
+  })();
+
+  return telegramBootstrapPromise;
+}
+
 export async function getTelegramWebApp() {
   let telegramWebApp = null;
 
   try {
-    telegramWebApp = await loadTelegramSdk();
+    telegramWebApp = await bootstrapTelegram();
   } catch (error) {
     if (!isLocalAdminBypassEnabled()) {
       throw error;

@@ -39,7 +39,7 @@ function Sidebar(props) {
 
   // SIDEBAR
   return (
-    <Box display={{ sm: "none", xl: "block" }} w="100%" position='fixed' minH='100%'>
+    <Box display={{ base: "none", xl: "block" }} w="100%" position='fixed' minH='100%'>
       <Box
         bg={sidebarBg}
         transition={variantChange}
@@ -74,7 +74,7 @@ export function SidebarResponsive(props) {
   //  BRAND
 
   return (
-    <Flex display={{ sm: "flex", xl: "none" }} alignItems='center'>
+    <Flex display={{ base: "none", md: "flex", xl: "none" }} alignItems='center'>
       <Flex ref={btnRef} w='max-content' h='max-content' onClick={onOpen}>
         <Icon
           as={IoMenuOutline}
@@ -92,14 +92,18 @@ export function SidebarResponsive(props) {
         placement={document.documentElement.dir === "rtl" ? "right" : "left"}
         finalFocusRef={btnRef}>
         <DrawerOverlay />
-        <DrawerContent w='285px' maxW='285px' bg={sidebarBackgroundColor}>
+        <DrawerContent
+          w={{ base: '88vw', sm: '320px' }}
+          maxW={{ base: '88vw', sm: '320px' }}
+          bg={sidebarBackgroundColor}
+        >
           <DrawerCloseButton
             zIndex='3'
             onClose={onClose}
             _focus={{ boxShadow: "none" }}
             _hover={{ boxShadow: "none" }}
           />
-          <DrawerBody maxW='285px' px='0rem' pb='0'>
+          <DrawerBody maxW={{ base: '88vw', sm: '320px' }} px='0rem' pb='0'>
             <Scrollbars
               autoHide
               renderTrackVertical={renderTrack}
