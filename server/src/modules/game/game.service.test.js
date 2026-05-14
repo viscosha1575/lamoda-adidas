@@ -24,10 +24,14 @@ function createGameServiceWithSubscriptionChecker(gameRepository, telegramSubscr
 
 function withRewardRepository(overrides = {}) {
   let assignedPromoCode = null;
+  let subscribedToChannel = false;
 
   return {
     get assignedPromoCode() {
       return assignedPromoCode;
+    },
+    get subscribedToChannel() {
+      return subscribedToChannel;
     },
     repository: {
       async findPlayerRewardStateById() {
@@ -43,6 +47,10 @@ function withRewardRepository(overrides = {}) {
       },
       async upsertGameResult() {
         return { id: 1 };
+      },
+      async markPlayerSubscribedToChannel() {
+        subscribedToChannel = true;
+        return subscribedToChannel;
       },
       setAssignedPromoCode(value) {
         assignedPromoCode = value;
@@ -102,8 +110,9 @@ test("startSession always starts with sneaker 1 opened by default", async () => 
 });
 
 test("checkSubscription returns Telegram membership status for current player", async () => {
+  const rewardAwareRepository = withRewardRepository();
   const gameService = createGameServiceWithSubscriptionChecker(
-    withRewardRepository().repository,
+    rewardAwareRepository.repository,
     {
       isConfigured: true,
       channelUrl: "https://t.me/lamoda_channel",
@@ -121,6 +130,7 @@ test("checkSubscription returns Telegram membership status for current player", 
   const result = await gameService.checkSubscription({
     id: 5,
     telegramUserId: 123456789,
+    subscribedToChannel: false,
   });
 
   assert.deepEqual(result, {
@@ -128,7 +138,9 @@ test("checkSubscription returns Telegram membership status for current player", 
     subscribed: true,
     memberStatus: "member",
     channelUrl: "https://t.me/lamoda_channel",
+    subscribedToChannel: true,
   });
+  assert.equal(rewardAwareRepository.subscribedToChannel, true);
 });
 
 test("checkSubscription reports unavailable when Telegram checker is not configured", async () => {
@@ -143,6 +155,7 @@ test("checkSubscription reports unavailable when Telegram checker is not configu
   const result = await gameService.checkSubscription({
     id: 5,
     telegramUserId: 123456789,
+    subscribedToChannel: false,
   });
 
   assert.deepEqual(result, {
@@ -150,6 +163,43 @@ test("checkSubscription reports unavailable when Telegram checker is not configu
     subscribed: false,
     memberStatus: null,
     channelUrl: "https://t.me/lamoda_channel",
+    subscribedToChannel: false,
+  });
+});
+
+test("checkSubscription keeps saved subscription flag when Telegram now reports unsubscribed", async () => {
+  const rewardAwareRepository = withRewardRepository({
+    async markPlayerSubscribedToChannel() {
+      throw new Error("should not update subscription flag");
+    },
+  });
+  const gameService = createGameServiceWithSubscriptionChecker(
+    rewardAwareRepository.repository,
+    {
+      isConfigured: true,
+      channelUrl: "https://t.me/lamoda_channel",
+      async checkSubscription() {
+        return {
+          subscribed: false,
+          memberStatus: "left",
+          channelUrl: "https://t.me/lamoda_channel",
+        };
+      },
+    },
+  );
+
+  const result = await gameService.checkSubscription({
+    id: 5,
+    telegramUserId: 123456789,
+    subscribedToChannel: true,
+  });
+
+  assert.deepEqual(result, {
+    available: true,
+    subscribed: false,
+    memberStatus: "left",
+    channelUrl: "https://t.me/lamoda_channel",
+    subscribedToChannel: true,
   });
 });
 

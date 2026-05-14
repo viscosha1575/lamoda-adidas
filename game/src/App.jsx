@@ -6,7 +6,7 @@ import {
 } from './api.js'
 import { logGameDebug } from './debug.js'
 import { getTelegramWebApp, requestTelegramFullscreen } from './telegram.js'
-import { useServerGameSession } from './game-session.js'
+import { useBackendBootstrap, useServerGameSession } from './game-session.js'
 
 const defaultChannelUrl = import.meta.env.VITE_SUBSCRIPTION_CHANNEL_URL ?? 'https://t.me/lamoda_na_svyazi'
 const LOADING_SCREEN = 'loading'
@@ -4494,6 +4494,7 @@ const slides = [
 ]
 
 function App() {
+  const backendBootstrap = useBackendBootstrap()
   const [activeIndex, setActiveIndex] = useState(0)
   const [subscriptionChannelUrl, setSubscriptionChannelUrl] = useState(defaultChannelUrl)
   const [isCheckingSubscription, setIsCheckingSubscription] = useState(false)
@@ -4506,8 +4507,10 @@ function App() {
       activeIndex,
       slideId: slide?.id ?? null,
       introOnly: true,
+      authStatus: backendBootstrap.status,
+      playerId: backendBootstrap.player?.id ?? null,
     })
-  }, [activeIndex, slide?.id])
+  }, [activeIndex, backendBootstrap.player?.id, backendBootstrap.status, slide?.id])
 
   useEffect(() => {
     const webApp = getTelegramWebApp()
@@ -4516,6 +4519,23 @@ function App() {
     console.log('Telegram initData on app intro:', initData)
     console.log('Telegram initDataUnsafe on app intro:', webApp?.initDataUnsafe ?? null)
   }, [])
+
+  useEffect(() => {
+    if (backendBootstrap.player?.subscribedToChannel) {
+      setIsSubscriptionConfirmed(true)
+    }
+  }, [backendBootstrap.player?.subscribedToChannel])
+
+  useEffect(() => {
+    if (backendBootstrap.status !== 'error') {
+      return
+    }
+
+    logGameDebug('app:auth-bootstrap-error', {
+      message: backendBootstrap.error?.message ?? 'unknown error',
+      status: backendBootstrap.error?.status ?? null,
+    })
+  }, [backendBootstrap.error, backendBootstrap.status])
 
   const navigateTo = useCallback((nextIndex) => {
     if (typeof nextIndex !== 'number') {

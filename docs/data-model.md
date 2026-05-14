@@ -17,6 +17,7 @@ Columns:
 - `referral_code` - personal unique referral code of the player
 - `referred_by_code` - inbound referral code used by this player
 - `has_referral` - boolean flag for referral presence
+- `subscribed_to_channel` - boolean flag set to `true` after successful Telegram channel subscription check
 - `auth_token` - unique bearer token
 - `auth_token_expires_at`
 - `last_seen_at`
@@ -29,6 +30,7 @@ Rules:
 - `referral_code` is the player's own share code.
 - `referred_by_code` stores who referred the player.
 - Once `has_referral` becomes `true`, it stays `true`.
+- Once `subscribed_to_channel` becomes `true`, it stays `true`.
 
 ## `game_sessions`
 
@@ -102,3 +104,5 @@ Columns:
 - `002_create_game_tables.sql`
 - `003_add_player_referral.sql`
 - `004_add_referral_identity_and_activity_logs.sql`
+- `005_add_player_completion_and_promo_codes.sql`
+- `006_add_player_channel_subscription.sql`

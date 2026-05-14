@@ -183,6 +183,19 @@ export function createGameRepository({ pool }) {
       );
     },
 
+    async markPlayerSubscribedToChannel(playerId) {
+      const result = await pool.query(
+        `UPDATE players
+         SET subscribed_to_channel = TRUE,
+             updated_at = NOW()
+         WHERE id = $1
+         RETURNING subscribed_to_channel`,
+        [playerId],
+      );
+
+      return Boolean(result.rows[0]?.subscribed_to_channel);
+    },
+
     async assignPromoCodeToPlayer(playerId) {
       const client = await pool.connect();
 

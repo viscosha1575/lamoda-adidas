@@ -71,6 +71,7 @@ test("createSession marks Telegram player with referredByCode when referralCode 
   assert.equal(result.referralLink, `https://t.me/lamoda_games_bot/search?startapp=${result.referralCode}`);
   assert.equal(result.isExisting, false);
   assert.equal(result.telegramUserId, 123456789);
+  assert.equal(result.subscribedToChannel, false);
 });
 
 test("createSession keeps hasReferral false when referralCode is missing", async () => {
@@ -111,6 +112,7 @@ test("createSession keeps hasReferral false when referralCode is missing", async
   assert.equal(result.referredByCode, null);
   assert.match(result.referralCode, /^[A-Z0-9]{12}$/);
   assert.equal(result.isExisting, false);
+  assert.equal(result.subscribedToChannel, false);
 });
 
 test("createSession accepts raw Telegram initData without hash validation", async () => {
@@ -154,6 +156,7 @@ test("createSession accepts raw Telegram initData without hash validation", asyn
   assert.equal(result.lastName, "Test");
   assert.equal(result.hasReferral, false);
   assert.equal(result.isExisting, false);
+  assert.equal(result.subscribedToChannel, false);
 });
 
 test("createSession rejects requests without Telegram initData", async () => {

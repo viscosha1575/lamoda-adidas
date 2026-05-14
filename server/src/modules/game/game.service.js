@@ -216,22 +216,29 @@ export function createGameService({
       throw new HttpError(400, "Telegram user is required for subscription check");
     }
 
+    const subscribedToChannel = Boolean(player?.subscribedToChannel);
+
     if (!telegramSubscriptionChecker?.isConfigured) {
       return {
         available: false,
         subscribed: false,
         memberStatus: null,
         channelUrl: telegramSubscriptionChecker?.channelUrl ?? null,
+        subscribedToChannel,
       };
     }
 
     const result = await telegramSubscriptionChecker.checkSubscription(player.telegramUserId);
+    const persistedSubscribedToChannel = result.subscribed
+      ? await gameRepository.markPlayerSubscribedToChannel(player.id)
+      : subscribedToChannel;
 
     return {
       available: true,
       subscribed: result.subscribed,
       memberStatus: result.memberStatus,
       channelUrl: result.channelUrl ?? null,
+      subscribedToChannel: persistedSubscribedToChannel,
     };
   }
 

@@ -85,6 +85,7 @@ function normalizePlayer(player, { onlineWindowSeconds, telegramAppUrl }) {
     referredByCode: player.referred_by_code ?? null,
     referralLink: buildReferralLink(telegramAppUrl, player.referral_code ?? null),
     hasReferral: Boolean(player.has_referral),
+    subscribedToChannel: Boolean(player.subscribed_to_channel),
     completedGame: Boolean(player.completed_game),
     timeExpired: Boolean(player.time_expired),
     isOnline: isPlayerOnline(player, onlineWindowSeconds),

@@ -81,6 +81,7 @@ curl -X POST http://localhost:3001/api/auth/session \
       "referredByCode": "PLAYER42",
       "referralLink": "https://t.me/lamoda_games_bot/search?startapp=A1B2C3D4E5F6",
       "hasReferral": true,
+      "subscribedToChannel": false,
       "isOnline": true,
       "lastSeenAt": "2026-05-12T12:00:00.000Z",
       "isExisting": false
@@ -221,6 +222,24 @@ Example response with no session:
     "session": null,
     "lifecycle": "idle",
     "reason": null
+  }
+}
+```
+
+### `GET /api/game/subscription-status`
+
+Checks current Telegram channel subscription status and, when confirmed, permanently stores `subscribedToChannel = true` for the player.
+
+Example response:
+
+```json
+{
+  "data": {
+    "available": true,
+    "subscribed": true,
+    "memberStatus": "member",
+    "channelUrl": "https://t.me/lamoda_na_svyazi",
+    "subscribedToChannel": true
   }
 }
 ```
