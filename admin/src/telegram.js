@@ -74,6 +74,43 @@ function loadTelegramSdk() {
   return telegramSdkPromise;
 }
 
+export function getTelegramWebAppSync() {
+  return window.Telegram?.WebApp || null;
+}
+
+export function isTelegramFullscreenAvailable(webApp = getTelegramWebAppSync()) {
+  return typeof webApp?.requestFullscreen === "function" && typeof webApp?.exitFullscreen === "function";
+}
+
+export function isTelegramFullscreen(webApp = getTelegramWebAppSync()) {
+  return Boolean(webApp?.isFullscreen);
+}
+
+export async function toggleMiniAppFullscreen() {
+  const webApp = getTelegramWebAppSync();
+
+  if (isTelegramFullscreenAvailable(webApp)) {
+    if (webApp.isFullscreen) {
+      webApp.exitFullscreen();
+    } else {
+      webApp.requestFullscreen();
+    }
+    return "telegram";
+  }
+
+  if (document.fullscreenElement) {
+    await document.exitFullscreen();
+    return "browser";
+  }
+
+  if (typeof document.documentElement.requestFullscreen === "function") {
+    await document.documentElement.requestFullscreen();
+    return "browser";
+  }
+
+  return "unsupported";
+}
+
 export async function getTelegramWebApp() {
   let telegramWebApp = null;
 
