@@ -1,5 +1,10 @@
 export function createGameController({ gameService }) {
   return {
+    async checkSubscription(request, response) {
+      const result = await gameService.checkSubscription(request.player);
+      response.json({ data: result });
+    },
+
     async getState(request, response) {
       const state = await gameService.getState(request.player.id);
       response.json({ data: state });

@@ -160,6 +160,7 @@ export function createGameService({
   gameDurationSeconds,
   heartbeatGraceSeconds,
   playerOnlineWindowSeconds,
+  telegramSubscriptionChecker = null,
 }) {
   async function getPlayerRewardState(playerId) {
     const rewardState = await gameRepository.findPlayerRewardStateById(playerId);
@@ -207,6 +208,30 @@ export function createGameService({
       ),
       lifecycle,
       reason,
+    };
+  }
+
+  async function checkSubscription(player) {
+    if (!player?.telegramUserId) {
+      throw new HttpError(400, "Telegram user is required for subscription check");
+    }
+
+    if (!telegramSubscriptionChecker?.isConfigured) {
+      return {
+        available: false,
+        subscribed: false,
+        memberStatus: null,
+        channelUrl: telegramSubscriptionChecker?.channelUrl ?? null,
+      };
+    }
+
+    const result = await telegramSubscriptionChecker.checkSubscription(player.telegramUserId);
+
+    return {
+      available: true,
+      subscribed: result.subscribed,
+      memberStatus: result.memberStatus,
+      channelUrl: result.channelUrl ?? null,
     };
   }
 
@@ -313,6 +338,7 @@ export function createGameService({
   }
 
   return {
+    checkSubscription,
     async getState(playerId) {
       const now = new Date();
       const openSession = await getOpenSession(playerId);

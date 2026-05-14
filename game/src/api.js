@@ -89,6 +89,10 @@ export async function getGameState(token) {
   return request('/game/state', { token })
 }
 
+export async function checkSubscriptionStatus(token) {
+  return request('/game/subscription-status', { token })
+}
+
 export async function deleteCurrentPlayer(token) {
   return request('/auth/current', {
     method: 'DELETE',

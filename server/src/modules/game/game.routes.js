@@ -8,6 +8,7 @@ export function createGameRouter({ authMiddleware, gameController }) {
   const router = Router();
 
   router.use(authMiddleware);
+  router.get("/subscription-status", asyncHandler(gameController.checkSubscription));
   router.get("/state", asyncHandler(gameController.getState));
   router.post("/start-session", asyncHandler(gameController.startSession));
   router.post("/found-sneaker", asyncHandler(gameController.collectSneaker));

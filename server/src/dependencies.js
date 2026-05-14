@@ -10,6 +10,7 @@ import { createGameController } from "./modules/game/game.controller.js";
 import { createGameRepository } from "./modules/game/game.repository.js";
 import { createGameRouter } from "./modules/game/game.routes.js";
 import { createGameService } from "./modules/game/game.service.js";
+import { createTelegramSubscriptionChecker } from "./modules/game/telegram-subscription.js";
 import { createAuthMiddleware } from "./middlewares/auth.js";
 
 export function buildDependencies({ pool, config }) {
@@ -31,11 +32,17 @@ export function buildDependencies({ pool, config }) {
   });
 
   const gameRepository = createGameRepository({ pool });
+  const telegramSubscriptionChecker = createTelegramSubscriptionChecker({
+    botToken: config.telegramGameBotToken,
+    chatId: config.telegramSubscriptionChatId,
+    channelUrl: config.telegramSubscriptionUrl,
+  });
   const gameService = createGameService({
     gameRepository,
     gameDurationSeconds: config.gameDurationSeconds,
     heartbeatGraceSeconds: config.heartbeatGraceSeconds,
     playerOnlineWindowSeconds: config.playerOnlineWindowSeconds,
+    telegramSubscriptionChecker,
   });
   const gameController = createGameController({ gameService });
   const authController = createAuthController({ authService, gameService });

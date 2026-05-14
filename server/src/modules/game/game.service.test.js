@@ -12,6 +12,16 @@ function createGameServiceForTest(gameRepository) {
   });
 }
 
+function createGameServiceWithSubscriptionChecker(gameRepository, telegramSubscriptionChecker) {
+  return createGameService({
+    gameRepository,
+    gameDurationSeconds: 600,
+    heartbeatGraceSeconds: 15,
+    playerOnlineWindowSeconds: 15,
+    telegramSubscriptionChecker,
+  });
+}
+
 function withRewardRepository(overrides = {}) {
   let assignedPromoCode = null;
 
@@ -89,6 +99,58 @@ test("startSession always starts with sneaker 1 opened by default", async () => 
   ]);
   assert.equal(result.session.remainingSeconds, 600);
   assert.equal(result.session.promoCode, null);
+});
+
+test("checkSubscription returns Telegram membership status for current player", async () => {
+  const gameService = createGameServiceWithSubscriptionChecker(
+    withRewardRepository().repository,
+    {
+      isConfigured: true,
+      channelUrl: "https://t.me/lamoda_channel",
+      async checkSubscription(telegramUserId) {
+        assert.equal(telegramUserId, 123456789);
+        return {
+          subscribed: true,
+          memberStatus: "member",
+          channelUrl: "https://t.me/lamoda_channel",
+        };
+      },
+    },
+  );
+
+  const result = await gameService.checkSubscription({
+    id: 5,
+    telegramUserId: 123456789,
+  });
+
+  assert.deepEqual(result, {
+    available: true,
+    subscribed: true,
+    memberStatus: "member",
+    channelUrl: "https://t.me/lamoda_channel",
+  });
+});
+
+test("checkSubscription reports unavailable when Telegram checker is not configured", async () => {
+  const gameService = createGameServiceWithSubscriptionChecker(
+    withRewardRepository().repository,
+    {
+      isConfigured: false,
+      channelUrl: "https://t.me/lamoda_channel",
+    },
+  );
+
+  const result = await gameService.checkSubscription({
+    id: 5,
+    telegramUserId: 123456789,
+  });
+
+  assert.deepEqual(result, {
+    available: false,
+    subscribed: false,
+    memberStatus: null,
+    channelUrl: "https://t.me/lamoda_channel",
+  });
 });
 
 test("logActivity stores source and action and refreshes online activity", async () => {

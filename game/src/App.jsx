@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
+  checkSubscriptionStatus,
   deleteCurrentPlayer,
   resetAnonymousId,
 } from './api.js'
@@ -7,7 +8,7 @@ import { logGameDebug } from './debug.js'
 import { getTelegramWebApp, requestTelegramFullscreen } from './telegram.js'
 import { useServerGameSession } from './game-session.js'
 
-const channelUrl = 'https://www.lamoda.ru/'
+const defaultChannelUrl = import.meta.env.VITE_SUBSCRIPTION_CHANNEL_URL ?? 'https://t.me/lamoda_na_svyazi'
 const LOADING_SCREEN = 'loading'
 const MAP_TUTORIAL_SCREEN = 'map-tutorial'
 const GAME_PLAY_SCREEN = 'game-play'
@@ -4449,12 +4450,12 @@ const slides = [
       {
         label: 'Проверить подписку',
         variant: 'dark',
-        next: 2,
+        kind: 'check-subscription',
       },
       {
         label: 'Подписаться',
         variant: 'lime',
-        href: channelUrl,
+        kind: 'open-channel',
       },
     ],
   },
@@ -4481,12 +4482,12 @@ const slides = [
       {
         label: 'Проверить подписку',
         variant: 'dark',
-        next: 1,
+        kind: 'check-subscription',
       },
       {
         label: 'Подписаться',
         variant: 'lime',
-        href: channelUrl,
+        kind: 'open-channel',
       },
     ],
   },
@@ -4494,6 +4495,9 @@ const slides = [
 
 function App() {
   const [activeIndex, setActiveIndex] = useState(0)
+  const [subscriptionChannelUrl, setSubscriptionChannelUrl] = useState(defaultChannelUrl)
+  const [isCheckingSubscription, setIsCheckingSubscription] = useState(false)
+  const [isSubscriptionConfirmed, setIsSubscriptionConfirmed] = useState(false)
   const slide = typeof activeIndex === 'number' ? slides[activeIndex] : null
   const isAlertSlide = slide?.id === 'alert'
 
@@ -4528,6 +4532,43 @@ function App() {
     })
     setActiveIndex(nextIndex)
   }, [activeIndex])
+
+  const handleSubscriptionCheck = useCallback(async () => {
+    if (isCheckingSubscription) {
+      return
+    }
+
+    setIsCheckingSubscription(true)
+
+    try {
+      const result = await checkSubscriptionStatus()
+
+      if (result?.channelUrl) {
+        setSubscriptionChannelUrl(result.channelUrl)
+      }
+
+      if (result?.subscribed) {
+        setIsSubscriptionConfirmed(true)
+        logGameDebug('app:subscription-confirmed', {
+          memberStatus: result?.memberStatus ?? null,
+          available: result?.available ?? true,
+        })
+        return
+      }
+
+      setIsSubscriptionConfirmed(false)
+      navigateTo(2)
+    } catch (error) {
+      setIsSubscriptionConfirmed(false)
+      logGameDebug('app:subscription-check-failed', {
+        message: error?.message ?? 'unknown error',
+        status: error?.status ?? null,
+      })
+      navigateTo(2)
+    } finally {
+      setIsCheckingSubscription(false)
+    }
+  }, [isCheckingSubscription, navigateTo])
 
   return (
     <main className="relative min-h-svh overflow-hidden bg-[#3d5064] text-white">
@@ -4593,29 +4634,44 @@ function App() {
               }
 
               if (action.variant === 'dark') {
+                const isSubscriptionAction = action.kind === 'check-subscription'
+                const buttonLabel = isSubscriptionAction
+                  ? (isCheckingSubscription
+                      ? 'Проверяем...'
+                      : (isSubscriptionConfirmed ? 'Подписка найдена' : action.label))
+                  : action.label
+
                 return (
                   <button
                     key={action.label}
                     type="button"
                     className="pixel-button-svg"
-                    onClick={() => navigateTo(action.next)}
+                    disabled={isCheckingSubscription}
+                    onClick={() => {
+                      if (isSubscriptionAction) {
+                        void handleSubscriptionCheck()
+                        return
+                      }
+
+                      navigateTo(action.next)
+                    }}
                   >
                     <ButtonSvg
                       width="100%"
                       className="absolute inset-0 h-full w-full"
                     />
                     <span className="button-text-dark relative z-10">
-                      {action.label}
+                      {buttonLabel}
                     </span>
                   </button>
                 )
               }
 
-              if (action.href) {
+              if (action.kind === 'open-channel') {
                 return (
                   <a
                     key={action.label}
-                    href={action.href}
+                    href={subscriptionChannelUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="pixel-button-svg-light"

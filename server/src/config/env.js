@@ -3,6 +3,15 @@ import { z } from "zod";
 
 dotenv.config();
 
+const optionalNonEmptyString = z.preprocess((value) => {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const trimmedValue = value.trim();
+  return trimmedValue === "" ? undefined : trimmedValue;
+}, z.string().min(1).optional());
+
 const booleanFromEnv = z
   .enum(["true", "false"])
   .transform((value) => value === "true");
@@ -19,9 +28,19 @@ const envSchema = z.object({
   CORS_ORIGINS: z
     .string()
     .default("http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173"),
-  TELEGRAM_BOT_TOKEN: z.string().optional(),
+  TELEGRAM_BOT_TOKEN: optionalNonEmptyString,
+  TELEGRAM_GAME_BOT_TOKEN: optionalNonEmptyString,
   TELEGRAM_TRUST_CLIENT_USER: booleanFromEnv.default("true"),
   TELEGRAM_APP_URL: z.string().url().default("https://t.me/lamoda_games_bot/search"),
+  TELEGRAM_SUBSCRIPTION_CHAT_ID: optionalNonEmptyString,
+  TELEGRAM_SUBSCRIPTION_URL: z.preprocess((value) => {
+    if (typeof value !== "string") {
+      return value;
+    }
+
+    const trimmedValue = value.trim();
+    return trimmedValue === "" ? undefined : trimmedValue;
+  }, z.string().url().optional()),
   REQUEST_BODY_SECRET: z.string().optional(),
   AUTH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
   GAME_DURATION_SECONDS: z.coerce.number().int().positive().default(600),
@@ -56,8 +75,11 @@ export function loadConfig() {
     database,
     corsOrigins: env.CORS_ORIGINS.split(",").map((origin) => origin.trim()).filter(Boolean),
     telegramBotToken: env.TELEGRAM_BOT_TOKEN ?? null,
+    telegramGameBotToken: env.TELEGRAM_GAME_BOT_TOKEN ?? env.TELEGRAM_BOT_TOKEN ?? null,
     trustTelegramClientUser: env.TELEGRAM_TRUST_CLIENT_USER,
     telegramAppUrl: env.TELEGRAM_APP_URL,
+    telegramSubscriptionChatId: env.TELEGRAM_SUBSCRIPTION_CHAT_ID ?? "@lamoda_na_svyazi",
+    telegramSubscriptionUrl: env.TELEGRAM_SUBSCRIPTION_URL ?? "https://t.me/lamoda_na_svyazi",
     requestBodySecret: env.REQUEST_BODY_SECRET ?? "",
     authTokenTtlDays: env.AUTH_TOKEN_TTL_DAYS,
     gameDurationSeconds: env.GAME_DURATION_SECONDS,
