@@ -667,18 +667,18 @@ export default function PlayersPage() {
             borderRadius={{ base: "20px", md: "30px" }}
             overflow="hidden"
             mx={{ base: "8px", md: "20px" }}
-            mt={{ base: "calc(20px + var(--admin-safe-area-top, 0px))", md: "16px" }}
-            mb={{ base: "calc(12px + var(--admin-safe-area-bottom, 0px))", md: "16px" }}
+            mt={{ base: "calc(20px + env(safe-area-inset-top, 0px))", md: "16px" }}
+            mb={{ base: "calc(12px + env(safe-area-inset-bottom, 0px))", md: "16px" }}
             maxW={{ base: "calc(100vw - 16px)", md: "calc(100vw - 40px)", xl: "1120px" }}
             maxH={{
-              base: "calc(100vh - 32px - var(--admin-safe-area-top, 0px) - var(--admin-safe-area-bottom, 0px))",
+              base: "calc(100vh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))",
               md: "calc(100vh - 32px)"
             }}
           >
             <ModalHeader pt="28px" pb="0px" />
             <ModalCloseButton
-              top="20px"
-              right="20px"
+              top={{ base: "calc(20px + env(safe-area-inset-top, 0px))", md: "20px" }}
+              right={{ base: "calc(20px + env(safe-area-inset-right, 0px))", md: "20px" }}
               zIndex="3"
               borderRadius="999px"
               bg={modalCloseBg}
