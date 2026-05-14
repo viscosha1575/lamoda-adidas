@@ -33,6 +33,8 @@ function createPlayerResponse() {
     referredByCode: null,
     referralLink: "https://t.me/lamoda_games_bot/search?startapp=PLAYER42ABCD",
     hasReferral: false,
+    completedGame: false,
+    timeExpired: false,
     isOnline: true,
     authToken: "token-123",
     authTokenExpiresAt: "2026-05-12T10:00:00.000Z",
@@ -67,6 +69,7 @@ test("POST /api/auth/session reads Telegram initData only from headers", async (
           id: 15,
           status: "active",
           remainingSeconds: 587,
+          promoCode: null,
           foundSneakers: [
             { sneakerNumber: 1, found: true },
             { sneakerNumber: 2, found: true },
@@ -97,7 +100,10 @@ test("POST /api/auth/session reads Telegram initData only from headers", async (
   assert.equal(response.statusCode, 201);
   assert.equal(response.body.data.token, "token-123");
   assert.equal(response.body.data.player.telegramUserId, 123456789);
+  assert.equal(response.body.data.player.completedGame, false);
+  assert.equal(response.body.data.player.timeExpired, false);
   assert.equal(response.body.data.lifecycle, "active");
+  assert.equal(response.body.data.session.promoCode, null);
   assert.deepEqual(response.body.data.session.foundSneakers, [
     { sneakerNumber: 1, found: true },
     { sneakerNumber: 2, found: true },

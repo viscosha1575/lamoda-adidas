@@ -8,6 +8,9 @@ function mapPlayerRow(row) {
     referralCode: row.referral_code ?? null,
     referredByCode: row.referred_by_code ?? null,
     hasReferral: Boolean(row.has_referral),
+    completedGame: Boolean(row.completed_game),
+    timeExpired: Boolean(row.time_expired),
+    promoCode: row.promo_code ?? null,
     authProvider: row.auth_provider ?? null,
     lastSeenAt: row.last_seen_at ?? null,
     createdAt: row.created_at ?? null,
@@ -200,7 +203,8 @@ export function createAdminRepository({ pool }) {
             GROUP BY player_id
          )
          SELECT p.id, p.telegram_user_id, p.username, p.first_name, p.last_name,
-                p.referral_code, p.referred_by_code, p.has_referral, p.auth_provider,
+                p.referral_code, p.referred_by_code, p.has_referral,
+                p.completed_game, p.time_expired, pc.code AS promo_code, p.auth_provider,
                 p.last_seen_at, p.created_at, p.updated_at,
                 COALESCE(ss.total_sessions, 0) AS total_sessions,
                 COALESCE(rs.finished_sessions, 0) AS finished_sessions,
@@ -210,6 +214,7 @@ export function createAdminRepository({ pool }) {
            FROM players p
            LEFT JOIN session_stats ss ON ss.player_id = p.id
            LEFT JOIN result_stats rs ON rs.player_id = p.id
+           LEFT JOIN promo_codes pc ON pc.assigned_player_id = p.id
           WHERE (
             $1 = '%%'
             OR CAST(p.id AS TEXT) ILIKE $1
@@ -234,7 +239,8 @@ export function createAdminRepository({ pool }) {
     async findPlayerById(playerId) {
       const result = await pool.query(
         `SELECT p.id, p.telegram_user_id, p.username, p.first_name, p.last_name,
-                p.referral_code, p.referred_by_code, p.has_referral, p.auth_provider,
+                p.referral_code, p.referred_by_code, p.has_referral,
+                p.completed_game, p.time_expired, pc.code AS promo_code, p.auth_provider,
                 p.last_seen_at, p.created_at, p.updated_at,
                 (SELECT COUNT(*)::int FROM game_sessions WHERE player_id = p.id) AS total_sessions,
                 (SELECT COUNT(*)::int FROM game_results WHERE player_id = p.id) AS finished_sessions,
@@ -244,6 +250,7 @@ export function createAdminRepository({ pool }) {
                 (SELECT MAX(started_at) FROM game_sessions WHERE player_id = p.id) AS last_session_at,
                 (SELECT COUNT(*)::int FROM game_activity_logs WHERE player_id = p.id) AS total_activity_logs
            FROM players p
+           LEFT JOIN promo_codes pc ON pc.assigned_player_id = p.id
           WHERE p.id = $1`,
         [playerId],
       );

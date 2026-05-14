@@ -12,8 +12,38 @@ function createGameServiceForTest(gameRepository) {
   });
 }
 
+function withRewardRepository(overrides = {}) {
+  let assignedPromoCode = null;
+
+  return {
+    get assignedPromoCode() {
+      return assignedPromoCode;
+    },
+    repository: {
+      async findPlayerRewardStateById() {
+        return {
+          completedGame: false,
+          timeExpired: false,
+          promoCode: assignedPromoCode,
+        };
+      },
+      async markPlayerOutcome() {},
+      async assignPromoCodeToPlayer() {
+        return assignedPromoCode;
+      },
+      async upsertGameResult() {
+        return { id: 1 };
+      },
+      setAssignedPromoCode(value) {
+        assignedPromoCode = value;
+      },
+      ...overrides,
+    },
+  };
+}
+
 test("startSession always starts with sneaker 1 opened by default", async () => {
-  const gameRepository = {
+  const rewardAwareRepository = withRewardRepository({
     async findLatestOpenSessionByPlayerId() {
       return null;
     },
@@ -33,16 +63,18 @@ test("startSession always starts with sneaker 1 opened by default", async () => 
         lastHeartbeatAt: session.lastHeartbeatAt,
         finishedAt: null,
         expiredAt: null,
+        completionReason: null,
       };
     },
-  };
+  });
 
-  const gameService = createGameServiceForTest(gameRepository);
+  const gameService = createGameServiceForTest(rewardAwareRepository.repository);
   const result = await gameService.startSession(3, {
     foundSneakerNumbers: [4, 7, 7],
   });
 
   assert.equal(result.lifecycle, "active");
+  assert.equal(result.reason, "new-session");
   assert.deepEqual(result.session.foundSneakers, [
     { sneakerNumber: 1, found: true },
     { sneakerNumber: 2, found: false },
@@ -56,6 +88,7 @@ test("startSession always starts with sneaker 1 opened by default", async () => 
     { sneakerNumber: 10, found: false },
   ]);
   assert.equal(result.session.remainingSeconds, 600);
+  assert.equal(result.session.promoCode, null);
 });
 
 test("logActivity stores source and action and refreshes online activity", async () => {
@@ -72,9 +105,10 @@ test("logActivity stores source and action and refreshes online activity", async
     lastHeartbeatAt: new Date("2026-05-12T10:00:05.000Z"),
     finishedAt: null,
     expiredAt: null,
+    completionReason: null,
   };
 
-  const gameRepository = {
+  const rewardAwareRepository = withRewardRepository({
     async findLatestOpenSessionByPlayerId() {
       return session;
     },
@@ -97,9 +131,9 @@ test("logActivity stores source and action and refreshes online activity", async
         createdAt: new Date(),
       };
     },
-  };
+  });
 
-  const gameService = createGameServiceForTest(gameRepository);
+  const gameService = createGameServiceForTest(rewardAwareRepository.repository);
   const result = await gameService.logActivity(5, {
     source: "unity",
     action: "swipe",
@@ -127,9 +161,10 @@ test("logActivity resumes paused session back to active", async () => {
     lastHeartbeatAt: new Date("2026-05-14T09:36:34.267Z"),
     finishedAt: null,
     expiredAt: null,
+    completionReason: null,
   };
 
-  const gameRepository = {
+  const rewardAwareRepository = withRewardRepository({
     async findLatestOpenSessionByPlayerId() {
       return session;
     },
@@ -154,9 +189,9 @@ test("logActivity resumes paused session back to active", async () => {
         createdAt: new Date(),
       };
     },
-  };
+  });
 
-  const gameService = createGameServiceForTest(gameRepository);
+  const gameService = createGameServiceForTest(rewardAwareRepository.repository);
   const result = await gameService.logActivity(5, {
     source: "unity",
     action: "swipe",
@@ -184,11 +219,12 @@ test("collectSneaker auto-finishes session when the tenth sneaker is found", asy
     lastHeartbeatAt: new Date(now.getTime() - 1_000),
     finishedAt: null,
     expiredAt: null,
+    completionReason: null,
   };
 
   let updateCallCount = 0;
-
-  const gameRepository = {
+  let markedOutcome = null;
+  const rewardAwareRepository = withRewardRepository({
     async findLatestOpenSessionByPlayerId() {
       return openSession;
     },
@@ -206,6 +242,7 @@ test("collectSneaker auto-finishes session when the tenth sneaker is found", asy
       }
 
       assert.equal(valuesToUpdate.status, "finished");
+      assert.equal(valuesToUpdate.completion_reason, "completed");
       assert.equal(valuesToUpdate.remaining_seconds >= 0, true);
 
       return {
@@ -217,25 +254,49 @@ test("collectSneaker auto-finishes session when the tenth sneaker is found", asy
         lastPausedAt: valuesToUpdate.last_paused_at,
         lastHeartbeatAt: openSession.lastHeartbeatAt,
         finishedAt: valuesToUpdate.finished_at,
+        completionReason: "completed",
       };
     },
-    async createGameResult(resultPayload) {
+    async markPlayerOutcome(playerId, payload) {
+      assert.equal(playerId, 7);
+      markedOutcome = payload;
+    },
+    async upsertGameResult(resultPayload) {
       assert.equal(resultPayload.playerId, 7);
       assert.equal(resultPayload.gameSessionId, 41);
       assert.deepEqual(resultPayload.foundSneakerNumbers, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
       assert.equal(resultPayload.eligibleForRaffle, true);
+      assert.equal(resultPayload.completionReason, "completed");
 
       return { id: 201 };
     },
-  };
+    async assignPromoCodeToPlayer(playerId) {
+      assert.equal(playerId, 7);
+      rewardAwareRepository.repository.setAssignedPromoCode("PROMO-10");
+      return "PROMO-10";
+    },
+    async findPlayerRewardStateById() {
+      return {
+        completedGame: true,
+        timeExpired: false,
+        promoCode: rewardAwareRepository.assignedPromoCode,
+      };
+    },
+  });
 
-  const gameService = createGameServiceForTest(gameRepository);
+  const gameService = createGameServiceForTest(rewardAwareRepository.repository);
   const result = await gameService.collectSneaker(7, { sneakerNumber: 10 });
 
+  assert.deepEqual(markedOutcome, {
+    completedGame: true,
+    timeExpired: false,
+  });
   assert.equal(result.accepted, true);
   assert.equal(result.lifecycle, "finished");
   assert.equal(result.reason, "completed");
   assert.equal(result.session.status, "finished");
+  assert.equal(result.session.remainingSeconds >= 0, true);
+  assert.equal(result.session.promoCode, "PROMO-10");
   assert.equal(result.session.canCollect, false);
 });
 
@@ -253,15 +314,18 @@ test("finishSession marks session as finished with zero remaining seconds", asyn
     lastHeartbeatAt: new Date("2026-05-14T09:36:34.267Z"),
     finishedAt: null,
     expiredAt: null,
+    completionReason: null,
   };
 
-  const gameRepository = {
+  let markedOutcome = null;
+  const rewardAwareRepository = withRewardRepository({
     async findLatestOpenSessionByPlayerId() {
       return openSession;
     },
     async updateSession(_sessionId, valuesToUpdate) {
       assert.equal(valuesToUpdate.status, "finished");
       assert.equal(valuesToUpdate.remaining_seconds, 0);
+      assert.equal(valuesToUpdate.completion_reason, "time-ended");
 
       return {
         ...openSession,
@@ -270,24 +334,155 @@ test("finishSession marks session as finished with zero remaining seconds", asyn
         lastPausedAt: valuesToUpdate.last_paused_at,
         lastResumedAt: null,
         finishedAt: valuesToUpdate.finished_at,
+        completionReason: "time-ended",
       };
     },
-    async createGameResult(resultPayload) {
+    async markPlayerOutcome(playerId, payload) {
+      assert.equal(playerId, 9);
+      markedOutcome = payload;
+    },
+    async upsertGameResult(resultPayload) {
       assert.equal(resultPayload.playerId, 9);
       assert.equal(resultPayload.remainingSeconds, 0);
       assert.equal(resultPayload.completedInSeconds, 600);
       assert.equal(resultPayload.eligibleForRaffle, false);
+      assert.equal(resultPayload.completionReason, "time-ended");
 
       return { id: 202 };
     },
-  };
+  });
 
-  const gameService = createGameServiceForTest(gameRepository);
+  const gameService = createGameServiceForTest(rewardAwareRepository.repository);
   const result = await gameService.finishSession(9);
 
+  assert.deepEqual(markedOutcome, {
+    completedGame: false,
+    timeExpired: true,
+  });
   assert.equal(result.lifecycle, "finished");
   assert.equal(result.reason, "time-ended");
   assert.equal(result.session.status, "finished");
   assert.equal(result.session.remainingSeconds, 0);
+  assert.equal(result.session.canCollect, true);
+});
+
+test("collectSneaker keeps counting on finished session and returns promo code after 10 of 10", async () => {
+  const finishedSession = {
+    id: 77,
+    playerId: 12,
+    status: "finished",
+    remainingSeconds: 0,
+    foundSneakerNumbers: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+    pauseCount: 1,
+    startedAt: new Date("2026-05-14T10:00:00.000Z"),
+    lastResumedAt: null,
+    lastPausedAt: new Date("2026-05-14T10:10:00.000Z"),
+    lastHeartbeatAt: new Date("2026-05-14T10:10:00.000Z"),
+    finishedAt: new Date("2026-05-14T10:10:00.000Z"),
+    expiredAt: null,
+    completionReason: "time-ended",
+  };
+
+  let markedOutcome = null;
+  const rewardAwareRepository = withRewardRepository({
+    async findLatestOpenSessionByPlayerId() {
+      return null;
+    },
+    async findLatestSessionByPlayerId() {
+      return finishedSession;
+    },
+    async updateSession(_sessionId, valuesToUpdate) {
+      assert.deepEqual(valuesToUpdate, {
+        found_sneaker_numbers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      });
+
+      return {
+        ...finishedSession,
+        foundSneakerNumbers: valuesToUpdate.found_sneaker_numbers,
+      };
+    },
+    async markPlayerOutcome(playerId, payload) {
+      assert.equal(playerId, 12);
+      markedOutcome = payload;
+    },
+    async upsertGameResult(resultPayload) {
+      assert.deepEqual(resultPayload.foundSneakerNumbers, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+      assert.equal(resultPayload.remainingSeconds, 0);
+      assert.equal(resultPayload.eligibleForRaffle, false);
+      assert.equal(resultPayload.completionReason, "time-ended");
+
+      return { id: 303 };
+    },
+    async assignPromoCodeToPlayer(playerId) {
+      assert.equal(playerId, 12);
+      rewardAwareRepository.repository.setAssignedPromoCode("AFTER-TIME");
+      return "AFTER-TIME";
+    },
+    async findPlayerRewardStateById() {
+      return {
+        completedGame: false,
+        timeExpired: true,
+        promoCode: rewardAwareRepository.assignedPromoCode,
+      };
+    },
+  });
+
+  const gameService = createGameServiceForTest(rewardAwareRepository.repository);
+  const result = await gameService.collectSneaker(12, { sneakerNumber: 10 });
+
+  assert.deepEqual(markedOutcome, {
+    completedGame: false,
+    timeExpired: true,
+  });
+  assert.equal(result.accepted, true);
+  assert.equal(result.lifecycle, "finished");
+  assert.equal(result.reason, "time-ended");
+  assert.equal(result.session.status, "finished");
+  assert.equal(result.session.remainingSeconds, 0);
+  assert.equal(result.session.promoCode, "AFTER-TIME");
+  assert.equal(result.session.canCollect, false);
+});
+
+test("getState returns finished session with zero time and assigned promo code", async () => {
+  const finishedSession = {
+    id: 88,
+    playerId: 15,
+    status: "finished",
+    remainingSeconds: 245,
+    foundSneakerNumbers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    pauseCount: 1,
+    startedAt: new Date("2026-05-14T11:00:00.000Z"),
+    lastResumedAt: null,
+    lastPausedAt: new Date("2026-05-14T11:10:00.000Z"),
+    lastHeartbeatAt: new Date("2026-05-14T11:10:00.000Z"),
+    finishedAt: new Date("2026-05-14T11:10:00.000Z"),
+    expiredAt: null,
+    completionReason: "completed",
+  };
+
+  const rewardAwareRepository = withRewardRepository({
+    async findLatestOpenSessionByPlayerId() {
+      return null;
+    },
+    async findLatestSessionByPlayerId() {
+      return finishedSession;
+    },
+    async findPlayerRewardStateById() {
+      return {
+        completedGame: true,
+        timeExpired: false,
+        promoCode: "AUTH-PROMO",
+      };
+    },
+  });
+
+  const gameService = createGameServiceForTest(rewardAwareRepository.repository);
+  const result = await gameService.getState(15);
+
+  assert.equal(result.lifecycle, "finished");
+  assert.equal(result.reason, "completed");
+  assert.equal(result.session.status, "finished");
+  assert.equal(result.session.remainingSeconds, 0);
+  assert.equal(result.session.promoCode, "AUTH-PROMO");
   assert.equal(result.session.canCollect, false);
 });

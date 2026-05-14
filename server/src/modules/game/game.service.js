@@ -45,11 +45,55 @@ function createLifecycleResponse(lifecycle, reason = null) {
   };
 }
 
-function serializeSession(session, now, heartbeatGraceSeconds, playerOnlineWindowSeconds) {
+function resolveCompletionReason(session) {
+  if (session?.completionReason) {
+    return session.completionReason;
+  }
+
+  if (session?.status === "expired") {
+    return "expired";
+  }
+
+  if (session?.status === "finished") {
+    return hasCollectedAllSneakers(session.foundSneakerNumbers)
+      ? "completed"
+      : "time-ended";
+  }
+
+  return null;
+}
+
+function canSessionCollect(session, remainingSeconds) {
+  const foundSneakerNumbers = normalizeCollectedSneakers(session.foundSneakerNumbers);
+
+  if (hasCollectedAllSneakers(foundSneakerNumbers)) {
+    return false;
+  }
+
+  if (session.status === "paused") {
+    return false;
+  }
+
+  if (session.status === "active") {
+    return remainingSeconds > 0;
+  }
+
+  return FINISHED_STATUSES.has(session.status);
+}
+
+function serializeSession(
+  session,
+  now,
+  heartbeatGraceSeconds,
+  playerOnlineWindowSeconds,
+  rewardState = null,
+) {
   let remainingSeconds = session.remainingSeconds;
   const foundSneakerNumbers = normalizeCollectedSneakers(session.foundSneakerNumbers);
 
-  if (session.status === "active" && session.lastResumedAt) {
+  if (FINISHED_STATUSES.has(session.status)) {
+    remainingSeconds = 0;
+  } else if (session.status === "active" && session.lastResumedAt) {
     const lastHeartbeatAt = session.lastHeartbeatAt ?? session.lastResumedAt;
     const freezeAt = addSeconds(new Date(lastHeartbeatAt), heartbeatGraceSeconds);
     const effectiveNow = now.getTime() > freezeAt.getTime() ? freezeAt : now;
@@ -62,6 +106,7 @@ function serializeSession(session, now, heartbeatGraceSeconds, playerOnlineWindo
     status: session.status,
     remainingSeconds,
     foundSneakers: buildFoundSneakers(foundSneakerNumbers),
+    promoCode: rewardState?.promoCode ?? null,
     pauseCount: session.pauseCount,
     startedAt: session.startedAt,
     lastResumedAt: session.lastResumedAt,
@@ -69,7 +114,8 @@ function serializeSession(session, now, heartbeatGraceSeconds, playerOnlineWindo
     lastHeartbeatAt: session.lastHeartbeatAt,
     finishedAt: session.finishedAt,
     expiredAt: session.expiredAt,
-    canCollect: session.status === "active" && remainingSeconds > 0,
+    completionReason: resolveCompletionReason(session),
+    canCollect: canSessionCollect(session, remainingSeconds),
     isOnline: Boolean(
       session.lastHeartbeatAt
       && now.getTime() - new Date(session.lastHeartbeatAt).getTime()
@@ -94,12 +140,100 @@ function calculateRunningState(session, now, heartbeatGraceSeconds) {
   };
 }
 
+function buildGameResultPayload(session, gameDurationSeconds, {
+  remainingSeconds,
+  reason,
+}) {
+  return {
+    playerId: session.playerId,
+    gameSessionId: session.id,
+    foundSneakerNumbers: normalizeCollectedSneakers(session.foundSneakerNumbers),
+    completedInSeconds: Math.max(0, gameDurationSeconds - remainingSeconds),
+    remainingSeconds,
+    eligibleForRaffle: reason === "completed",
+    completionReason: reason,
+  };
+}
+
 export function createGameService({
   gameRepository,
   gameDurationSeconds,
   heartbeatGraceSeconds,
   playerOnlineWindowSeconds,
 }) {
+  async function getPlayerRewardState(playerId) {
+    const rewardState = await gameRepository.findPlayerRewardStateById(playerId);
+
+    return rewardState ?? {
+      completedGame: false,
+      timeExpired: false,
+      promoCode: null,
+    };
+  }
+
+  async function persistSessionOutcome(session, {
+    reason,
+    remainingSeconds,
+  }) {
+    await gameRepository.markPlayerOutcome(session.playerId, {
+      completedGame: reason === "completed",
+      timeExpired: reason !== "completed",
+    });
+
+    await gameRepository.upsertGameResult(
+      buildGameResultPayload(session, gameDurationSeconds, {
+        remainingSeconds,
+        reason,
+      }),
+    );
+
+    if (hasCollectedAllSneakers(session.foundSneakerNumbers)) {
+      await gameRepository.assignPromoCodeToPlayer(session.playerId);
+    }
+
+    return getPlayerRewardState(session.playerId);
+  }
+
+  async function buildSessionResponse(session, now, lifecycle, reason = null) {
+    const rewardState = await getPlayerRewardState(session.playerId);
+
+    return {
+      session: serializeSession(
+        session,
+        now,
+        heartbeatGraceSeconds,
+        playerOnlineWindowSeconds,
+        rewardState,
+      ),
+      lifecycle,
+      reason,
+    };
+  }
+
+  async function expireSession(session, {
+    atTime,
+    remainingSeconds = 0,
+  }) {
+    const expiredSession = await gameRepository.updateSession(session.id, {
+      status: "expired",
+      remaining_seconds: 0,
+      last_paused_at: atTime,
+      last_resumed_at: null,
+      expired_at: atTime,
+      completion_reason: "expired",
+    });
+
+    const rewardState = await persistSessionOutcome(expiredSession, {
+      reason: "expired",
+      remainingSeconds,
+    });
+
+    return {
+      session: expiredSession,
+      rewardState,
+    };
+  }
+
   async function settleOpenSession(session) {
     if (!session || session.status !== "active" || !session.lastResumedAt) {
       return session;
@@ -109,13 +243,12 @@ export function createGameService({
     const runningState = calculateRunningState(session, now, heartbeatGraceSeconds);
 
     if (runningState.isExpired) {
-      return gameRepository.updateSession(session.id, {
-        status: "expired",
-        remaining_seconds: 0,
-        last_paused_at: runningState.freezeAt,
-        last_resumed_at: null,
-        expired_at: runningState.freezeAt,
+      const expired = await expireSession(session, {
+        atTime: runningState.freezeAt,
+        remainingSeconds: 0,
       });
+
+      return expired.session;
     }
 
     if (runningState.isStale) {
@@ -136,6 +269,16 @@ export function createGameService({
     return settleOpenSession(session);
   }
 
+  async function getLatestPlayableSession(playerId) {
+    const openSession = await getOpenSession(playerId);
+
+    if (openSession) {
+      return openSession;
+    }
+
+    return gameRepository.findLatestSessionByPlayerId(playerId);
+  }
+
   async function finalizeSession(session, {
     playerId,
     now,
@@ -148,15 +291,12 @@ export function createGameService({
       last_paused_at: now,
       last_resumed_at: null,
       finished_at: now,
+      completion_reason: reason,
     });
 
-    await gameRepository.createGameResult({
-      playerId,
-      gameSessionId: finishedSession.id,
-      foundSneakerNumbers: finishedSession.foundSneakerNumbers,
-      completedInSeconds: gameDurationSeconds - remainingSeconds,
+    const rewardState = await persistSessionOutcome(finishedSession, {
+      reason,
       remainingSeconds,
-      eligibleForRaffle: hasCollectedAllSneakers(finishedSession.foundSneakerNumbers),
     });
 
     return {
@@ -165,6 +305,7 @@ export function createGameService({
         now,
         heartbeatGraceSeconds,
         playerOnlineWindowSeconds,
+        rewardState,
       ),
       lifecycle: "finished",
       reason,
@@ -177,16 +318,12 @@ export function createGameService({
       const openSession = await getOpenSession(playerId);
 
       if (openSession) {
-        return {
-          session: serializeSession(
-            openSession,
-            now,
-            heartbeatGraceSeconds,
-            playerOnlineWindowSeconds,
-          ),
-          lifecycle: openSession.status,
-          reason: null,
-        };
+        return buildSessionResponse(
+          openSession,
+          now,
+          openSession.status,
+          resolveCompletionReason(openSession),
+        );
       }
 
       const latestSession = await gameRepository.findLatestSessionByPlayerId(playerId);
@@ -196,7 +333,12 @@ export function createGameService({
       }
 
       if (FINISHED_STATUSES.has(latestSession.status)) {
-        return createLifecycleResponse(latestSession.status);
+        return buildSessionResponse(
+          latestSession,
+          now,
+          latestSession.status,
+          resolveCompletionReason(latestSession),
+        );
       }
 
       return createLifecycleResponse("idle");
@@ -212,16 +354,12 @@ export function createGameService({
           last_heartbeat_at: now,
         });
 
-        return {
-          session: serializeSession(
-            touchedSession,
-            now,
-            heartbeatGraceSeconds,
-            playerOnlineWindowSeconds,
-          ),
-          lifecycle: "active",
-          reason: "existing-session",
-        };
+        return buildSessionResponse(
+          touchedSession,
+          now,
+          "active",
+          "existing-session",
+        );
       }
 
       if (openSession?.status === "paused") {
@@ -231,16 +369,12 @@ export function createGameService({
           last_heartbeat_at: now,
         });
 
-        return {
-          session: serializeSession(
-            resumedSession,
-            now,
-            heartbeatGraceSeconds,
-            playerOnlineWindowSeconds,
-          ),
-          lifecycle: "active",
-          reason: "resumed-session",
-        };
+        return buildSessionResponse(
+          resumedSession,
+          now,
+          "active",
+          "resumed-session",
+        );
       }
 
       const createdSession = await gameRepository.createSession({
@@ -254,71 +388,74 @@ export function createGameService({
         lastHeartbeatAt: now,
       });
 
-      return {
-        session: serializeSession(
-          createdSession,
-          now,
-          heartbeatGraceSeconds,
-          playerOnlineWindowSeconds,
-        ),
-        lifecycle: "active",
-        reason: "new-session",
-      };
+      return buildSessionResponse(
+        createdSession,
+        now,
+        "active",
+        "new-session",
+      );
     },
 
     async collectSneaker(playerId, payload) {
       const { sneakerNumber } = sneakerCollectSchema.parse(payload);
-      const openSession = await getOpenSession(playerId);
       const now = new Date();
+      let session = await getLatestPlayableSession(playerId);
+      let runningState = null;
 
-      if (!openSession) {
+      if (!session) {
         throw new HttpError(409, "No active game session. Start a game first.");
       }
 
-      if (openSession.status !== "active") {
+      if (session.status === "paused") {
         throw new HttpError(409, "Game session is not active");
       }
 
-      const runningState = calculateRunningState(openSession, now, heartbeatGraceSeconds);
+      if (session.status === "active") {
+        runningState = calculateRunningState(session, now, heartbeatGraceSeconds);
 
-      if (runningState.isExpired) {
-        await gameRepository.updateSession(openSession.id, {
-          status: "expired",
-          remaining_seconds: 0,
-          last_paused_at: now,
-          last_resumed_at: null,
-          expired_at: now,
-        });
+        if (runningState.isExpired) {
+          const expired = await expireSession(session, {
+            atTime: runningState.freezeAt,
+            remainingSeconds: 0,
+          });
 
-        throw new HttpError(409, "Time is over");
+          session = expired.session;
+          runningState = null;
+        }
       }
 
-      if (openSession.foundSneakerNumbers.includes(sneakerNumber)) {
+      if (session.foundSneakerNumbers.includes(sneakerNumber)) {
+        const rewardState = await getPlayerRewardState(playerId);
+
         return {
           accepted: false,
           session: serializeSession(
-            openSession,
+            session,
             now,
             heartbeatGraceSeconds,
             playerOnlineWindowSeconds,
+            rewardState,
           ),
-          lifecycle: "active",
+          lifecycle: session.status,
+          reason: resolveCompletionReason(session),
         };
       }
 
-      const updatedSession = await gameRepository.updateSession(openSession.id, {
-        found_sneaker_numbers: sortUniqueSneakers([
-          ...openSession.foundSneakerNumbers,
-          sneakerNumber,
-        ]),
-        last_heartbeat_at: now,
+      const nextFoundSneakerNumbers = sortUniqueSneakers([
+        ...session.foundSneakerNumbers,
+        sneakerNumber,
+      ]);
+
+      const updatedSession = await gameRepository.updateSession(session.id, {
+        found_sneaker_numbers: nextFoundSneakerNumbers,
+        ...(session.status === "active" ? { last_heartbeat_at: now } : {}),
       });
 
-      if (hasCollectedAllSneakers(updatedSession.foundSneakerNumbers)) {
+      if (session.status === "active" && hasCollectedAllSneakers(updatedSession.foundSneakerNumbers)) {
         const finishedResult = await finalizeSession(updatedSession, {
           playerId,
           now,
-          remainingSeconds: runningState.remainingSeconds,
+          remainingSeconds: runningState?.remainingSeconds ?? updatedSession.remainingSeconds,
           reason: "completed",
         });
 
@@ -328,6 +465,18 @@ export function createGameService({
         };
       }
 
+      let rewardState = null;
+      const completionReason = resolveCompletionReason(updatedSession);
+
+      if (FINISHED_STATUSES.has(updatedSession.status)) {
+        rewardState = await persistSessionOutcome(updatedSession, {
+          reason: completionReason,
+          remainingSeconds: 0,
+        });
+      } else if (hasCollectedAllSneakers(updatedSession.foundSneakerNumbers)) {
+        await gameRepository.assignPromoCodeToPlayer(playerId);
+      }
+
       return {
         accepted: true,
         session: serializeSession(
@@ -335,8 +484,10 @@ export function createGameService({
           now,
           heartbeatGraceSeconds,
           playerOnlineWindowSeconds,
+          rewardState ?? await getPlayerRewardState(playerId),
         ),
-        lifecycle: "active",
+        lifecycle: updatedSession.status,
+        reason: completionReason,
       };
     },
 
@@ -346,6 +497,15 @@ export function createGameService({
 
       if (!openSession) {
         throw new HttpError(409, "No active game session to finish");
+      }
+
+      if (FINISHED_STATUSES.has(openSession.status)) {
+        return buildSessionResponse(
+          openSession,
+          now,
+          openSession.status,
+          resolveCompletionReason(openSession),
+        );
       }
 
       return finalizeSession(openSession, {
@@ -363,16 +523,16 @@ export function createGameService({
 
       let session = openSession;
 
-      if (openSession) {
-        session = await gameRepository.updateSession(openSession.id, openSession.status === "paused"
-          ? {
-              status: "active",
-              last_resumed_at: now,
-              last_heartbeat_at: now,
-            }
-          : {
-              last_heartbeat_at: now,
-            });
+      if (openSession?.status === "paused") {
+        session = await gameRepository.updateSession(openSession.id, {
+          status: "active",
+          last_resumed_at: now,
+          last_heartbeat_at: now,
+        });
+      } else if (openSession?.status === "active") {
+        session = await gameRepository.updateSession(openSession.id, {
+          last_heartbeat_at: now,
+        });
       }
 
       const activityLog = await gameRepository.createActivityLog({
@@ -387,7 +547,13 @@ export function createGameService({
         logged: true,
         activityLog,
         session: session
-          ? serializeSession(session, now, heartbeatGraceSeconds, playerOnlineWindowSeconds)
+          ? serializeSession(
+              session,
+              now,
+              heartbeatGraceSeconds,
+              playerOnlineWindowSeconds,
+              await getPlayerRewardState(playerId),
+            )
           : null,
         lifecycle: session?.status ?? "idle",
       };

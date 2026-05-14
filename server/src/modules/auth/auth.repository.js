@@ -4,7 +4,8 @@ export function createAuthRepository({ pool }) {
       const result = await pool.query(
         `SELECT id, telegram_user_id, username, first_name, last_name,
                 auth_provider, referral_code, referred_by_code, has_referral,
-                auth_token, auth_token_expires_at, last_seen_at, created_at, updated_at
+                completed_game, time_expired, auth_token, auth_token_expires_at,
+                last_seen_at, created_at, updated_at
          FROM players
          WHERE telegram_user_id = $1`,
         [String(telegramUserId)],
@@ -17,7 +18,8 @@ export function createAuthRepository({ pool }) {
       const result = await pool.query(
         `SELECT id, telegram_user_id, username, first_name, last_name,
                 auth_provider, referral_code, referred_by_code, has_referral,
-                auth_token, auth_token_expires_at, last_seen_at, created_at, updated_at
+                completed_game, time_expired, auth_token, auth_token_expires_at,
+                last_seen_at, created_at, updated_at
          FROM players
          WHERE auth_token = $1`,
         [authToken],
@@ -33,7 +35,8 @@ export function createAuthRepository({ pool }) {
          WHERE id = $1
          RETURNING id, telegram_user_id, username, first_name, last_name,
                    auth_provider, referral_code, referred_by_code, has_referral,
-                   auth_token, auth_token_expires_at, last_seen_at, created_at, updated_at`,
+                   completed_game, time_expired, auth_token, auth_token_expires_at,
+                   last_seen_at, created_at, updated_at`,
         [playerId],
       );
 
@@ -74,7 +77,8 @@ export function createAuthRepository({ pool }) {
            updated_at = NOW()
          RETURNING id, telegram_user_id, username, first_name, last_name,
                    auth_provider, referral_code, referred_by_code, has_referral,
-                   auth_token, auth_token_expires_at, last_seen_at, created_at, updated_at`,
+                   completed_game, time_expired, auth_token, auth_token_expires_at,
+                   last_seen_at, created_at, updated_at`,
         [
           String(player.telegramUserId),
           player.username ?? null,
