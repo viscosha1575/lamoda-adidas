@@ -667,20 +667,33 @@ export default function PlayersPage() {
             borderRadius={{ base: "20px", md: "30px" }}
             overflow="hidden"
             mx={{ base: "8px", md: "20px" }}
-            my={{ base: "8px", md: "16px" }}
+            mt={{ base: "calc(8px + var(--admin-safe-area-top, 0px))", md: "16px" }}
+            mb={{ base: "calc(8px + var(--admin-safe-area-bottom, 0px))", md: "16px" }}
             maxW={{ base: "calc(100vw - 16px)", md: "calc(100vw - 40px)", xl: "1120px" }}
-            maxH={{ base: "calc(100vh - 16px)", md: "calc(100vh - 32px)" }}
+            maxH={{
+              base: "calc(100vh - 16px - var(--admin-safe-area-top, 0px) - var(--admin-safe-area-bottom, 0px))",
+              md: "calc(100vh - 32px)"
+            }}
           >
-            <ModalHeader pt="28px" pb="0px" />
+            <ModalHeader
+              pt={{ base: "calc(28px + var(--admin-safe-area-top, 0px))", md: "28px" }}
+              pb="0px"
+            />
             <ModalCloseButton
-              top="20px"
-              right="20px"
+              top={{ base: "calc(20px + var(--admin-safe-area-top, 0px))", md: "20px" }}
+              right={{ base: "calc(20px + var(--admin-safe-area-right, 0px))", md: "20px" }}
+              zIndex="3"
               borderRadius="999px"
               bg={modalCloseBg}
               color={modalCloseColor}
+              boxShadow="0px 8px 24px rgba(15, 23, 42, 0.12)"
               _hover={{ bg: modalSubtleBg }}
             />
-            <ModalBody p={{ base: "20px", md: "28px" }} pb={{ base: "24px", md: "28px" }}>
+            <ModalBody
+              p={{ base: "20px", md: "28px" }}
+              pt={{ base: "calc(20px + var(--admin-safe-area-top, 0px))", md: "28px" }}
+              pb={{ base: "calc(24px + var(--admin-safe-area-bottom, 0px))", md: "28px" }}
+            >
               {!selectedPlayer ? (
                 <Text color={textColorSecondary}>Игрок не выбран</Text>
               ) : loadingDetails ? (
