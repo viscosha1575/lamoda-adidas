@@ -91,6 +91,24 @@ function readSafeInsetPx(cssVarName) {
 
   return Number.isFinite(parsedValue) ? parsedValue : 0
 }
+
+function shouldUseDesktopIntroLayout() {
+  if (typeof window === 'undefined') {
+    return false
+  }
+
+  const tgMobile = document.documentElement.dataset.tgMobile
+
+  if (tgMobile === 'false') {
+    return true
+  }
+
+  if (tgMobile === 'true') {
+    return false
+  }
+
+  return window.innerWidth >= 768
+}
 const gamePropObjects = [
   {
     key: 'prop-basketball-1-x1830-y4429',
@@ -4500,6 +4518,7 @@ function App() {
   const [subscriptionChannelUrl, setSubscriptionChannelUrl] = useState(defaultChannelUrl)
   const [isCheckingSubscription, setIsCheckingSubscription] = useState(false)
   const [isSubscriptionConfirmed, setIsSubscriptionConfirmed] = useState(false)
+  const [useDesktopIntroLayout, setUseDesktopIntroLayout] = useState(() => shouldUseDesktopIntroLayout())
   const slide = typeof activeIndex === 'number' ? slides[activeIndex] : null
   const isAlertSlide = slide?.id === 'alert'
 
@@ -4519,6 +4538,30 @@ function App() {
 
     console.log('Telegram initData on app intro:', initData)
     console.log('Telegram initDataUnsafe on app intro:', webApp?.initDataUnsafe ?? null)
+  }, [])
+
+  useEffect(() => {
+    const syncIntroLayout = () => {
+      setUseDesktopIntroLayout(shouldUseDesktopIntroLayout())
+    }
+
+    syncIntroLayout()
+
+    const observer = typeof MutationObserver !== 'undefined'
+      ? new MutationObserver(syncIntroLayout)
+      : null
+
+    observer?.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-tg-mobile'],
+    })
+
+    window.addEventListener('resize', syncIntroLayout)
+
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener('resize', syncIntroLayout)
+    }
   }, [])
 
   useEffect(() => {
@@ -4655,7 +4698,7 @@ function App() {
           <div
             className={`intro-grid-item ${isAlertSlide ? 'intro-grid-item-4' : 'intro-grid-item-3'} relative mt-auto h-[106px] ${
               isAlertSlide
-                ? 'grid w-full grid-rows-[47px_47px] content-end gap-y-3 px-2 md:grid-rows-[47px]'
+                ? `grid w-full content-end gap-y-3 px-2 ${useDesktopIntroLayout ? 'grid-rows-[47px]' : 'grid-rows-[47px_47px]'}`
                 : 'grid w-full content-end gap-y-3 px-2'
             }`}
           >
@@ -4732,7 +4775,7 @@ function App() {
                 </button>
               )
             })}
-            {isAlertSlide ? <div aria-hidden="true" className="md:hidden" /> : null}
+            {isAlertSlide && !useDesktopIntroLayout ? <div aria-hidden="true" /> : null}
           </div>
         </article>
         </section>
