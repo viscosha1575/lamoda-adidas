@@ -443,6 +443,78 @@ test("collectSneaker keeps counting on finished session and returns promo code a
   assert.equal(result.session.canCollect, false);
 });
 
+test("getState auto-finishes active session when time reaches zero", async () => {
+  const now = Date.now();
+  const activeSession = {
+    id: 79,
+    playerId: 14,
+    status: "active",
+    remainingSeconds: 5,
+    foundSneakerNumbers: [1, 2],
+    pauseCount: 0,
+    startedAt: new Date(now - 20_000),
+    lastResumedAt: new Date(now - 10_000),
+    lastPausedAt: null,
+    lastHeartbeatAt: new Date(now - 1_000),
+    finishedAt: null,
+    expiredAt: null,
+    completionReason: null,
+  };
+
+  let markedOutcome = null;
+  const rewardAwareRepository = withRewardRepository({
+    async findLatestOpenSessionByPlayerId() {
+      return activeSession;
+    },
+    async updateSession(_sessionId, valuesToUpdate) {
+      assert.equal(valuesToUpdate.status, "finished");
+      assert.equal(valuesToUpdate.remaining_seconds, 0);
+      assert.equal(valuesToUpdate.completion_reason, "time-ended");
+      assert.ok(valuesToUpdate.finished_at instanceof Date);
+
+      return {
+        ...activeSession,
+        status: "finished",
+        remainingSeconds: 0,
+        lastPausedAt: valuesToUpdate.last_paused_at,
+        lastResumedAt: null,
+        finishedAt: valuesToUpdate.finished_at,
+        completionReason: "time-ended",
+      };
+    },
+    async markPlayerOutcome(playerId, payload) {
+      assert.equal(playerId, 14);
+      markedOutcome = payload;
+    },
+    async upsertGameResult(resultPayload) {
+      assert.equal(resultPayload.remainingSeconds, 0);
+      assert.equal(resultPayload.completionReason, "time-ended");
+
+      return { id: 404 };
+    },
+    async findPlayerRewardStateById() {
+      return {
+        completedGame: false,
+        timeExpired: true,
+        promoCode: null,
+      };
+    },
+  });
+
+  const gameService = createGameServiceForTest(rewardAwareRepository.repository);
+  const result = await gameService.getState(14);
+
+  assert.deepEqual(markedOutcome, {
+    completedGame: false,
+    timeExpired: true,
+  });
+  assert.equal(result.lifecycle, "finished");
+  assert.equal(result.reason, "time-ended");
+  assert.equal(result.session.status, "finished");
+  assert.equal(result.session.remainingSeconds, 0);
+  assert.equal(result.session.canCollect, true);
+});
+
 test("getState returns finished session with zero time and assigned promo code", async () => {
   const finishedSession = {
     id: 88,

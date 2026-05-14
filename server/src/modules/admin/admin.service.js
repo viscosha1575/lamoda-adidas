@@ -124,11 +124,11 @@ function normalizeDisplayName(player) {
 }
 
 function isPlayerOnline(player, onlineWindowSeconds) {
-  if (!player?.lastSeenAt) {
+  if (!player?.latestHeartbeatAt) {
     return false;
   }
 
-  return Date.now() - new Date(player.lastSeenAt).getTime() <= onlineWindowSeconds * 1000;
+  return Date.now() - new Date(player.latestHeartbeatAt).getTime() <= onlineWindowSeconds * 1000;
 }
 
 function normalizePlayer(player, onlineWindowSeconds) {
@@ -155,6 +155,7 @@ function normalizePlayerDetails(row, onlineWindowSeconds) {
       promoCode: row.promo_code ?? null,
       authProvider: row.auth_provider ?? null,
       lastSeenAt: row.last_seen_at ?? null,
+      latestHeartbeatAt: row.latest_heartbeat_at ?? null,
       createdAt: row.created_at ?? null,
       updatedAt: row.updated_at ?? null,
     }, onlineWindowSeconds),

@@ -5,7 +5,7 @@ WORKDIR /app
 ARG REQUEST_BODY_SECRET
 
 COPY package.json package-lock.json* ./
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 COPY . .
 RUN REQUEST_BODY_SECRET="$REQUEST_BODY_SECRET" npm run build

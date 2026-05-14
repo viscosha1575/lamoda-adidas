@@ -1,4 +1,5 @@
 import { prepareRequestBody } from "./requestCipher";
+import { resolveMockAdminResponse } from "./mockAdminApi";
 
 export const API_BASE_URL =
   (
@@ -12,6 +13,14 @@ export const API_BASE_URL =
   ).replace(/\/$/, "");
 
 let telegramInitData = "";
+
+function canUseLocalMockApi() {
+  return (
+    import.meta.env.DEV
+    && typeof window !== "undefined"
+    && ["localhost", "127.0.0.1", "0.0.0.0"].includes(window.location.hostname)
+  );
+}
 
 function normalizeAdminApiPath(path) {
   if (path === "/api") {
@@ -55,17 +64,31 @@ export async function apiFetch(path, init = {}, baseUrl = API_BASE_URL) {
 export async function postJson(path, body, options = {}) {
   const baseUrl = options.baseUrl || API_BASE_URL;
   const requestBody = await prepareRequestBody(body);
-  const response = await apiFetch(path, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(requestBody),
-  }, baseUrl);
+  let response;
+
+  try {
+    response = await apiFetch(path, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    }, baseUrl);
+  } catch (error) {
+    if (canUseLocalMockApi()) {
+      return resolveMockAdminResponse(path, body);
+    }
+
+    throw error;
+  }
 
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
+    if (canUseLocalMockApi() && response.status >= 500) {
+      return resolveMockAdminResponse(path, body);
+    }
+
     throw new Error(data.message || "Request failed");
   }
 

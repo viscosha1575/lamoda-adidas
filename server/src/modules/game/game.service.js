@@ -210,26 +210,26 @@ export function createGameService({
     };
   }
 
-  async function expireSession(session, {
+  async function finishTimedOutSession(session, {
     atTime,
     remainingSeconds = 0,
   }) {
-    const expiredSession = await gameRepository.updateSession(session.id, {
-      status: "expired",
+    const finishedSession = await gameRepository.updateSession(session.id, {
+      status: "finished",
       remaining_seconds: 0,
       last_paused_at: atTime,
       last_resumed_at: null,
-      expired_at: atTime,
-      completion_reason: "expired",
+      finished_at: atTime,
+      completion_reason: "time-ended",
     });
 
-    const rewardState = await persistSessionOutcome(expiredSession, {
-      reason: "expired",
+    const rewardState = await persistSessionOutcome(finishedSession, {
+      reason: "time-ended",
       remainingSeconds,
     });
 
     return {
-      session: expiredSession,
+      session: finishedSession,
       rewardState,
     };
   }
@@ -243,12 +243,12 @@ export function createGameService({
     const runningState = calculateRunningState(session, now, heartbeatGraceSeconds);
 
     if (runningState.isExpired) {
-      const expired = await expireSession(session, {
+      const finished = await finishTimedOutSession(session, {
         atTime: runningState.freezeAt,
         remainingSeconds: 0,
       });
 
-      return expired.session;
+      return finished.session;
     }
 
     if (runningState.isStale) {
@@ -414,12 +414,12 @@ export function createGameService({
         runningState = calculateRunningState(session, now, heartbeatGraceSeconds);
 
         if (runningState.isExpired) {
-          const expired = await expireSession(session, {
+          const finished = await finishTimedOutSession(session, {
             atTime: runningState.freezeAt,
             remainingSeconds: 0,
           });
 
-          session = expired.session;
+          session = finished.session;
           runningState = null;
         }
       }

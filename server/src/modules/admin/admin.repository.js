@@ -13,6 +13,7 @@ function mapPlayerRow(row) {
     promoCode: row.promo_code ?? null,
     authProvider: row.auth_provider ?? null,
     lastSeenAt: row.last_seen_at ?? null,
+    latestHeartbeatAt: row.latest_heartbeat_at ?? null,
     createdAt: row.created_at ?? null,
     updatedAt: row.updated_at ?? null,
     totalSessions: Number(row.total_sessions ?? 0),
@@ -87,7 +88,11 @@ export function createAdminRepository({ pool }) {
               WHERE referred_by_code IS NOT NULL) AS total_referred_players_count,
             (SELECT COUNT(*)::int
                FROM players
-              WHERE last_seen_at >= $2) AS currently_online_players_count,
+              WHERE id IN (
+                SELECT DISTINCT player_id
+                  FROM game_sessions
+                 WHERE last_heartbeat_at >= $2
+              )) AS currently_online_players_count,
             (SELECT COALESCE(ROUND(AVG(completed_in_seconds)), 0)::int
                FROM game_results
               WHERE ($1::timestamptz IS NULL OR created_at >= $1)) AS average_completion_seconds,
@@ -190,7 +195,8 @@ export function createAdminRepository({ pool }) {
         `WITH session_stats AS (
            SELECT player_id,
                   COUNT(*)::int AS total_sessions,
-                  MAX(started_at) AS last_session_at
+                  MAX(started_at) AS last_session_at,
+                  MAX(last_heartbeat_at) AS latest_heartbeat_at
              FROM game_sessions
             GROUP BY player_id
          ),
@@ -206,6 +212,7 @@ export function createAdminRepository({ pool }) {
                 p.referral_code, p.referred_by_code, p.has_referral,
                 p.completed_game, p.time_expired, pc.code AS promo_code, p.auth_provider,
                 p.last_seen_at, p.created_at, p.updated_at,
+                ss.latest_heartbeat_at,
                 COALESCE(ss.total_sessions, 0) AS total_sessions,
                 COALESCE(rs.finished_sessions, 0) AS finished_sessions,
                 COALESCE(rs.best_duration_seconds, 0) AS best_duration_seconds,
@@ -242,6 +249,7 @@ export function createAdminRepository({ pool }) {
                 p.referral_code, p.referred_by_code, p.has_referral,
                 p.completed_game, p.time_expired, pc.code AS promo_code, p.auth_provider,
                 p.last_seen_at, p.created_at, p.updated_at,
+                (SELECT MAX(last_heartbeat_at) FROM game_sessions WHERE player_id = p.id) AS latest_heartbeat_at,
                 (SELECT COUNT(*)::int FROM game_sessions WHERE player_id = p.id) AS total_sessions,
                 (SELECT COUNT(*)::int FROM game_results WHERE player_id = p.id) AS finished_sessions,
                 (SELECT COALESCE(SUM(completed_in_seconds), 0)::int FROM game_results WHERE player_id = p.id) AS total_duration_seconds,
