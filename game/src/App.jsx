@@ -31,6 +31,7 @@ const TG_SAFE_CONTENT_BOTTOM = 'var(--tg-content-safe-area-inset-bottom, env(saf
 const TG_SAFE_CONTENT_LEFT = 'var(--tg-content-safe-area-inset-left, env(safe-area-inset-left, 0px))'
 const TG_SAFE_CONTENT_RIGHT = 'var(--tg-content-safe-area-inset-right, env(safe-area-inset-right, 0px))'
 const TG_SAFE_UI_TOP = 'max(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)), var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px)))'
+const TG_SAFE_INTRO_TOP = `calc(${TG_SAFE_UI_TOP} + 1rem)`
 let phaserSceneDebugId = 0
 const tutorialSneakerObject = {
   key: 'tutorial-sneaker-10',
@@ -89,51 +90,6 @@ function readSafeInsetPx(cssVarName) {
   const parsedValue = Number.parseFloat(rawValue)
 
   return Number.isFinite(parsedValue) ? parsedValue : 0
-}
-
-function readSafeUiTopPx() {
-  return Math.max(
-    readSafeInsetPx('--tg-safe-area-inset-top'),
-    readSafeInsetPx('--tg-content-safe-area-inset-top'),
-  )
-}
-
-function useIntroTopPadding(defaultPx = 100, extraPx = 0) {
-  const [paddingTop, setPaddingTop] = useState(() => {
-    const safeTopPx = readSafeUiTopPx()
-    const effectiveTopPx = safeTopPx > 0 ? safeTopPx : defaultPx
-
-    return `calc(${effectiveTopPx}px + ${extraPx}px)`
-  })
-
-  useEffect(() => {
-    const syncPaddingTop = () => {
-      const safeTopPx = readSafeUiTopPx()
-      const effectiveTopPx = safeTopPx > 0 ? safeTopPx : defaultPx
-
-      setPaddingTop(`calc(${effectiveTopPx}px + ${extraPx}px)`)
-    }
-
-    syncPaddingTop()
-
-    const webApp = getTelegramWebApp()
-
-    webApp?.onEvent?.('viewportChanged', syncPaddingTop)
-    webApp?.onEvent?.('fullscreenChanged', syncPaddingTop)
-    webApp?.onEvent?.('safeAreaChanged', syncPaddingTop)
-    webApp?.onEvent?.('contentSafeAreaChanged', syncPaddingTop)
-    window.addEventListener('resize', syncPaddingTop)
-
-    return () => {
-      webApp?.offEvent?.('viewportChanged', syncPaddingTop)
-      webApp?.offEvent?.('fullscreenChanged', syncPaddingTop)
-      webApp?.offEvent?.('safeAreaChanged', syncPaddingTop)
-      webApp?.offEvent?.('contentSafeAreaChanged', syncPaddingTop)
-      window.removeEventListener('resize', syncPaddingTop)
-    }
-  }, [defaultPx, extraPx])
-
-  return paddingTop
 }
 const gamePropObjects = [
   {
@@ -2980,7 +2936,6 @@ function MapTutorialScreen({
   const foundSneakerSlotRef = useRef(null)
   const friendsTransitionTimeoutRef = useRef(0)
   const introInitDataLoggedRef = useRef(false)
-  const introTopPadding = useIntroTopPadding(100, 16)
   const getTutorialObjectTargetRect = useCallback(
     () => foundSneakerSlotRef.current?.getBoundingClientRect() ?? null,
     [],
@@ -3103,7 +3058,7 @@ function MapTutorialScreen({
             phase === 'intro' ? 'visible opacity-100' : 'invisible opacity-0'
           }`}
           style={{
-            paddingTop: introTopPadding,
+            paddingTop: TG_SAFE_INTRO_TOP,
             paddingBottom: TG_SAFE_CONTENT_BOTTOM,
             paddingLeft: `calc(${TG_SAFE_CONTENT_LEFT} + 1.75rem)`,
             paddingRight: `calc(${TG_SAFE_CONTENT_RIGHT} + 1.75rem)`,
@@ -3179,7 +3134,7 @@ function MapTutorialScreen({
             phase === 'collected' ? 'pointer-events-none visible opacity-100' : 'pointer-events-none invisible opacity-0'
           }`}
           style={{
-            paddingTop: introTopPadding,
+            paddingTop: TG_SAFE_INTRO_TOP,
             paddingBottom: TG_SAFE_CONTENT_BOTTOM,
             paddingLeft: `calc(${TG_SAFE_CONTENT_LEFT} + 1.75rem)`,
             paddingRight: `calc(${TG_SAFE_CONTENT_RIGHT} + 1.75rem)`,
@@ -3231,7 +3186,7 @@ function MapTutorialScreen({
               : 'pointer-events-none invisible opacity-0'
           }`}
           style={{
-            paddingTop: introTopPadding,
+            paddingTop: TG_SAFE_INTRO_TOP,
             paddingBottom: TG_SAFE_CONTENT_BOTTOM,
             paddingLeft: `calc(${TG_SAFE_CONTENT_LEFT} + 1.75rem)`,
             paddingRight: `calc(${TG_SAFE_CONTENT_RIGHT} + 1.75rem)`,
@@ -4545,7 +4500,6 @@ function App() {
   const [subscriptionChannelUrl, setSubscriptionChannelUrl] = useState(defaultChannelUrl)
   const [isCheckingSubscription, setIsCheckingSubscription] = useState(false)
   const [isSubscriptionConfirmed, setIsSubscriptionConfirmed] = useState(false)
-  const appIntroTopPadding = useIntroTopPadding(100, 0)
   const slide = typeof activeIndex === 'number' ? slides[activeIndex] : null
   const isAlertSlide = slide?.id === 'alert'
 
@@ -4646,7 +4600,7 @@ function App() {
           key={slide.id}
           className="screen-grain relative flex h-svh w-full flex-col overflow-hidden rounded-none bg-[#3d5064] px-6 sm:px-8"
           style={{
-            paddingTop: appIntroTopPadding,
+            paddingTop: TG_SAFE_UI_TOP,
             paddingBottom: `calc(${TG_SAFE_CONTENT_BOTTOM} + 2rem)`,
           }}
         >
@@ -4664,7 +4618,7 @@ function App() {
           ) : null}
 
           <div
-            className={`relative flex flex-1 flex-col items-center justify-center ${
+            className={`relative flex flex-col items-center justify-center ${
               isAlertSlide ? 'gap-8' : 'gap-6'
             }`}
           >
@@ -4684,7 +4638,7 @@ function App() {
           </div>
 
           <div
-            className={`intro-grid-item ${isAlertSlide ? 'intro-grid-item-4' : 'intro-grid-item-3'} relative ${
+            className={`intro-grid-item ${isAlertSlide ? 'intro-grid-item-4' : 'intro-grid-item-3'} relative mt-auto ${
               isAlertSlide
                 ? 'grid w-full grid-rows-[47px_47px] gap-y-3 px-2'
                 : 'grid w-full gap-y-3 px-2'
