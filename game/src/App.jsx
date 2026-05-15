@@ -63,7 +63,7 @@ const tutorialFoundCopy = {
   body: [
     'Первая пара ваша.',
     'Осталось 9 пар и ровно',
-    '10 минут на их поиск.',
+    '5 минут на их поиск.',
     '',
     'Найдите все и участвуйте',
     'в розыгрыше 10 сертификатов',
@@ -609,6 +609,40 @@ function formatRemainingSeconds(totalSeconds) {
     minutes: String(minutes).padStart(2, '0'),
     seconds: String(seconds).padStart(2, '0'),
   }
+}
+
+function buildReferralShareUrl(referralLink) {
+  const shareUrl = new URL('https://t.me/share/url')
+  shareUrl.searchParams.set('url', referralLink)
+  shareUrl.searchParams.set('text', 'Присоединяйся к игре Lamoda x adidas и попробуй собрать все 10 кроссовок за 5 минут.')
+  return shareUrl.toString()
+}
+
+async function shareReferralLink(player) {
+  const referralLink = player?.referralLink
+
+  if (!referralLink || typeof window === 'undefined') {
+    return
+  }
+
+  const shareData = {
+    title: 'Lamoda x adidas',
+    text: 'Присоединяйся к игре Lamoda x adidas и попробуй собрать все 10 кроссовок за 5 минут.',
+    url: referralLink,
+  }
+
+  if (navigator.share) {
+    try {
+      await navigator.share(shareData)
+      return
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        return
+      }
+    }
+  }
+
+  window.open(buildReferralShareUrl(referralLink), '_blank', 'noopener,noreferrer')
 }
 
 function SneakerArt() {
@@ -4034,7 +4068,7 @@ function GamePlayOverlay({
               <div className="mt-[18px] flex h-[65px] items-center gap-5">
                 <img src="/assets/game/ui/time.webp" alt="" aria-hidden="true" className="h-auto w-[92px] shrink-0" />
                 <p className="font-display text-[16px] leading-[1.02] text-black">
-                  10 минут на поиск
+                  5 минут на поиск
                   <br />
                   и то, чтобы собрать
                   <br />
@@ -4330,9 +4364,21 @@ function GamePlayScreen({
     }
   }, [serverGame.finishSession, serverGame.session])
 
-  const handleRestart = useCallback(() => {
-    void serverGame.startSession()
-  }, [serverGame.startSession])
+  const handleShareReferral = useCallback(() => {
+    void shareReferralLink(player)
+  }, [player])
+
+  const resultOverlayConfig = serverGame.session?.completionReason === 'completed-after-time'
+    ? {
+        title: 'Промокод сохранен',
+        body: 'Все 10 кроссовок найдены уже после тайм-аута. Промокод остается у вас, но для розыгрыша нужно позвать друга и начать попытку заново с 5 минутами.',
+        actionLabel: 'Позвать друга',
+      }
+    : {
+        title: 'Коллекция собрана',
+        body: 'Все 10 кроссовок найдены вовремя. Промокод сохранен, и вы участвуете в розыгрыше.',
+        actionLabel: 'Поделиться игрой',
+      }
 
   const showReturningLoadingHint = loadingMode === 'returning'
     && !onSceneReadyChange
@@ -4395,21 +4441,12 @@ function GamePlayScreen({
           </div>
         ) : null}
 
-        {serverGame.lifecycle === 'expired' ? (
-          <SessionResultOverlay
-            title="Время вышло"
-            body="Попытка завершилась, а прогресс этой сессии не сохранился. Можно начать новый поиск."
-            actionLabel="Начать заново"
-            onAction={handleRestart}
-          />
-        ) : null}
-
         {serverGame.lifecycle === 'finished' ? (
           <SessionResultOverlay
-            title="Коллекция собрана"
-            body="Все пары найдены вовремя. Эта попытка зафиксирована, а вы можете запустить новый раунд."
-            actionLabel="Играть снова"
-            onAction={handleRestart}
+            title={resultOverlayConfig.title}
+            body={resultOverlayConfig.body}
+            actionLabel={resultOverlayConfig.actionLabel}
+            onAction={handleShareReferral}
           />
         ) : null}
       </section>

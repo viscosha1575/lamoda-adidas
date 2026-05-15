@@ -22,7 +22,7 @@ function createInitDataHeader() {
   }).toString();
 }
 
-function createPlayerResponse() {
+function createPlayerResponse(overrides = {}) {
   return {
     id: 1,
     telegramUserId: 123456789,
@@ -33,13 +33,16 @@ function createPlayerResponse() {
     referredByCode: null,
     referralLink: "https://t.me/lamoda_games_bot/search?startapp=PLAYER42ABCD",
     hasReferral: false,
-    completedGame: false,
-    timeExpired: false,
+    gameCompletionState: null,
+    raffleWon: null,
     isOnline: true,
     authToken: "token-123",
     authTokenExpiresAt: "2026-05-12T10:00:00.000Z",
     lastSeenAt: "2026-05-12T09:50:00.000Z",
     isExisting: false,
+    referredPlayerId: null,
+    referralApplied: false,
+    ...overrides,
   };
 }
 
@@ -100,8 +103,8 @@ test("POST /api/auth/session reads Telegram initData only from headers", async (
   assert.equal(response.statusCode, 201);
   assert.equal(response.body.data.token, "token-123");
   assert.equal(response.body.data.player.telegramUserId, 123456789);
-  assert.equal(response.body.data.player.completedGame, false);
-  assert.equal(response.body.data.player.timeExpired, false);
+  assert.equal(response.body.data.player.gameCompletionState, null);
+  assert.equal(response.body.data.player.raffleWon, null);
   assert.equal(response.body.data.lifecycle, "active");
   assert.equal(response.body.data.session.promoCode, null);
   assert.deepEqual(response.body.data.session.foundSneakers, [
@@ -109,6 +112,62 @@ test("POST /api/auth/session reads Telegram initData only from headers", async (
     { sneakerNumber: 2, found: true },
     { sneakerNumber: 3, found: false },
   ]);
+});
+
+test("POST /api/auth/session restarts inviter session after applying referral", async () => {
+  const authService = {
+    async createSession(payload) {
+      assert.equal(payload.referralCode, "PLAYER42");
+      return createPlayerResponse({
+        hasReferral: true,
+        referredByCode: "PLAYER42",
+        referredPlayerId: 42,
+        referralApplied: true,
+      });
+    },
+    async deletePlayerById() {
+      return { deleted: true };
+    },
+    async getPlayerByToken() {
+      return null;
+    },
+    async getPlayerByInitData() {
+      return null;
+    },
+  };
+  const gameService = {
+    async restartSessionForReferral(playerId) {
+      assert.equal(playerId, 42);
+      return null;
+    },
+    async getState(playerId) {
+      assert.equal(playerId, 1);
+      return {
+        session: null,
+        lifecycle: "idle",
+        reason: null,
+      };
+    },
+  };
+
+  const app = express();
+  app.use(express.json());
+  app.use("/api/auth", createAuthRouter({
+    authController: createAuthController({ authService, gameService }),
+    authMiddleware: createAuthMiddleware({ authService }),
+  }));
+  app.use(errorHandler);
+
+  const response = await request(app)
+    .post("/api/auth/session")
+    .set("X-Telegram-Init-Data", createInitDataHeader())
+    .send({
+      referralCode: "PLAYER42",
+    });
+
+  assert.equal(response.statusCode, 201);
+  assert.equal(response.body.data.player.referredByCode, "PLAYER42");
+  assert.equal(response.body.data.lifecycle, "idle");
 });
 
 test("POST /api/auth/session rejects initData in body", async () => {

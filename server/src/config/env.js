@@ -43,7 +43,7 @@ const envSchema = z.object({
   }, z.string().url().optional()),
   REQUEST_BODY_SECRET: z.string().optional(),
   AUTH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
-  GAME_DURATION_SECONDS: z.coerce.number().int().positive().default(600),
+  GAME_DURATION_SECONDS: z.coerce.number().int().positive().default(300),
   HEARTBEAT_GRACE_SECONDS: z.coerce.number().int().positive().default(15),
   PLAYER_ONLINE_WINDOW_SECONDS: z.coerce.number().int().positive().default(15),
 });

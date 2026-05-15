@@ -9,8 +9,8 @@ function mapPlayerRow(row) {
     referredByCode: row.referred_by_code ?? null,
     hasReferral: Boolean(row.has_referral),
     subscribedToChannel: Boolean(row.subscribed_to_channel),
-    completedGame: Boolean(row.completed_game),
-    timeExpired: Boolean(row.time_expired),
+    gameCompletionState: row.game_completion_state ?? null,
+    raffleWon: typeof row.raffle_won === "boolean" ? row.raffle_won : null,
     promoCode: row.promo_code ?? null,
     authProvider: row.auth_provider ?? null,
     lastSeenAt: row.last_seen_at ?? null,
@@ -32,13 +32,10 @@ function mapSessionRow(row) {
     status: row.status,
     remainingSeconds: Number(row.remaining_seconds ?? 0),
     foundSneakersCount: Number(row.found_sneakers_count ?? 0),
-    pauseCount: Number(row.pause_count ?? 0),
     startedAt: row.started_at ?? null,
     lastResumedAt: row.last_resumed_at ?? null,
-    lastPausedAt: row.last_paused_at ?? null,
     lastHeartbeatAt: row.last_heartbeat_at ?? null,
     finishedAt: row.finished_at ?? null,
-    expiredAt: row.expired_at ?? null,
     player: {
       id: Number(row.player_ref_id ?? row.player_id),
       username: row.username ?? null,
@@ -106,8 +103,7 @@ export function createAdminRepository({ pool }) {
       const recentSessionsResult = await pool.query(
         `SELECT gs.id, gs.player_id, gs.status, gs.remaining_seconds,
                 COALESCE(array_length(gs.found_sneaker_numbers, 1), 0) AS found_sneakers_count,
-                gs.pause_count, gs.started_at, gs.last_resumed_at, gs.last_paused_at,
-                gs.last_heartbeat_at, gs.finished_at, gs.expired_at,
+                gs.started_at, gs.last_resumed_at, gs.last_heartbeat_at, gs.finished_at,
                 p.id AS player_ref_id, p.username, p.first_name, p.last_name
            FROM game_sessions gs
            JOIN players p ON p.id = gs.player_id
@@ -211,7 +207,7 @@ export function createAdminRepository({ pool }) {
          )
          SELECT p.id, p.telegram_user_id, p.username, p.first_name, p.last_name,
                 p.referral_code, p.referred_by_code, p.has_referral,
-                p.subscribed_to_channel, p.completed_game, p.time_expired,
+                p.subscribed_to_channel, p.game_completion_state, p.raffle_won,
                 pc.code AS promo_code, p.auth_provider,
                 p.last_seen_at, p.created_at, p.updated_at,
                 ss.latest_heartbeat_at,
@@ -249,7 +245,7 @@ export function createAdminRepository({ pool }) {
       const result = await pool.query(
         `SELECT p.id, p.telegram_user_id, p.username, p.first_name, p.last_name,
                 p.referral_code, p.referred_by_code, p.has_referral,
-                p.subscribed_to_channel, p.completed_game, p.time_expired,
+                p.subscribed_to_channel, p.game_completion_state, p.raffle_won,
                 pc.code AS promo_code, p.auth_provider,
                 p.last_seen_at, p.created_at, p.updated_at,
                 (SELECT MAX(last_heartbeat_at) FROM game_sessions WHERE player_id = p.id) AS latest_heartbeat_at,
@@ -273,8 +269,7 @@ export function createAdminRepository({ pool }) {
       const result = await pool.query(
         `SELECT gs.id, gs.player_id, gs.status, gs.remaining_seconds,
                 COALESCE(array_length(gs.found_sneaker_numbers, 1), 0) AS found_sneakers_count,
-                gs.pause_count, gs.started_at, gs.last_resumed_at, gs.last_paused_at,
-                gs.last_heartbeat_at, gs.finished_at, gs.expired_at,
+                gs.started_at, gs.last_resumed_at, gs.last_heartbeat_at, gs.finished_at,
                 p.id AS player_ref_id, p.username, p.first_name, p.last_name
            FROM game_sessions gs
            JOIN players p ON p.id = gs.player_id

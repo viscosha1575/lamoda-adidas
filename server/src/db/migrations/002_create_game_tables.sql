@@ -16,16 +16,18 @@ CREATE TABLE IF NOT EXISTS players (
 CREATE TABLE IF NOT EXISTS game_sessions (
   id BIGSERIAL PRIMARY KEY,
   player_id BIGINT NOT NULL REFERENCES players(id) ON DELETE CASCADE,
-  status TEXT NOT NULL CHECK (status IN ('active', 'paused', 'finished', 'expired')),
+  status TEXT NOT NULL CHECK (status IN ('active', 'finished')),
   remaining_seconds INTEGER NOT NULL CHECK (remaining_seconds >= 0),
   found_sneaker_numbers INTEGER[] NOT NULL DEFAULT ARRAY[1],
-  pause_count INTEGER NOT NULL DEFAULT 0,
   started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_resumed_at TIMESTAMPTZ,
-  last_paused_at TIMESTAMPTZ,
   last_heartbeat_at TIMESTAMPTZ,
   finished_at TIMESTAMPTZ,
-  expired_at TIMESTAMPTZ,
+  completion_reason TEXT
+  CHECK (
+    completion_reason IS NULL
+    OR completion_reason IN ('completed', 'time-ended', 'completed-after-time')
+  ),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -41,5 +43,7 @@ CREATE TABLE IF NOT EXISTS game_results (
   completed_in_seconds INTEGER NOT NULL CHECK (completed_in_seconds >= 0),
   remaining_seconds INTEGER NOT NULL CHECK (remaining_seconds >= 0),
   eligible_for_raffle BOOLEAN NOT NULL DEFAULT TRUE,
+  completion_reason TEXT NOT NULL
+  CHECK (completion_reason IN ('completed', 'time-ended', 'completed-after-time')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

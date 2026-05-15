@@ -34,6 +34,12 @@ test("createSession marks Telegram player with referredByCode when referralCode 
       assert.equal(telegramUserId, 123456789);
       return null;
     },
+    async findPlayerByReferralCode(referralCode) {
+      assert.equal(referralCode, "PLAYER42");
+      return {
+        id: 42,
+      };
+    },
     async upsertTelegramPlayer(player) {
       assert.equal(player.telegramUserId, 123456789);
       assert.equal(player.referredByCode, "PLAYER42");
@@ -51,6 +57,7 @@ test("createSession marks Telegram player with referredByCode when referralCode 
         referral_code: player.referralCode,
         referred_by_code: player.referredByCode,
         has_referral: player.hasReferral,
+        raffle_won: null,
         auth_token: player.authToken,
         auth_token_expires_at: player.authTokenExpiresAt,
         last_seen_at: player.lastSeenAt,
@@ -72,12 +79,19 @@ test("createSession marks Telegram player with referredByCode when referralCode 
   assert.equal(result.isExisting, false);
   assert.equal(result.telegramUserId, 123456789);
   assert.equal(result.subscribedToChannel, false);
+  assert.equal(result.gameCompletionState, null);
+  assert.equal(result.raffleWon, null);
+  assert.equal(result.referralApplied, true);
+  assert.equal(result.referredPlayerId, 42);
 });
 
 test("createSession keeps hasReferral false when referralCode is missing", async () => {
   const authRepository = {
     async findPlayerByTelegramUserId() {
       return null;
+    },
+    async findPlayerByReferralCode() {
+      throw new Error("should not load referral owner without inbound referral");
     },
     async upsertTelegramPlayer(player) {
       assert.equal(player.referredByCode, null);
@@ -95,6 +109,7 @@ test("createSession keeps hasReferral false when referralCode is missing", async
         referral_code: player.referralCode,
         referred_by_code: player.referredByCode,
         has_referral: player.hasReferral,
+        raffle_won: null,
         auth_token: player.authToken,
         auth_token_expires_at: player.authTokenExpiresAt,
         last_seen_at: player.lastSeenAt,
@@ -113,6 +128,10 @@ test("createSession keeps hasReferral false when referralCode is missing", async
   assert.match(result.referralCode, /^[A-Z0-9]{12}$/);
   assert.equal(result.isExisting, false);
   assert.equal(result.subscribedToChannel, false);
+  assert.equal(result.gameCompletionState, null);
+  assert.equal(result.raffleWon, null);
+  assert.equal(result.referralApplied, false);
+  assert.equal(result.referredPlayerId, null);
 });
 
 test("createSession accepts raw Telegram initData without hash validation", async () => {
@@ -120,6 +139,9 @@ test("createSession accepts raw Telegram initData without hash validation", asyn
     async findPlayerByTelegramUserId(telegramUserId) {
       assert.equal(telegramUserId, 123456789);
       return null;
+    },
+    async findPlayerByReferralCode() {
+      throw new Error("should not load referral owner without inbound referral");
     },
     async upsertTelegramPlayer(player) {
       assert.equal(player.telegramUserId, 123456789);
@@ -140,6 +162,7 @@ test("createSession accepts raw Telegram initData without hash validation", asyn
         referral_code: player.referralCode,
         referred_by_code: player.referredByCode,
         has_referral: player.hasReferral,
+        raffle_won: null,
         auth_token: player.authToken,
         auth_token_expires_at: player.authTokenExpiresAt,
         last_seen_at: player.lastSeenAt,
@@ -157,6 +180,8 @@ test("createSession accepts raw Telegram initData without hash validation", asyn
   assert.equal(result.hasReferral, false);
   assert.equal(result.isExisting, false);
   assert.equal(result.subscribedToChannel, false);
+  assert.equal(result.gameCompletionState, null);
+  assert.equal(result.raffleWon, null);
 });
 
 test("createSession rejects requests without Telegram initData", async () => {

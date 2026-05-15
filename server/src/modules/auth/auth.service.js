@@ -86,8 +86,8 @@ function normalizePlayer(player, { onlineWindowSeconds, telegramAppUrl }) {
     referralLink: buildReferralLink(telegramAppUrl, player.referral_code ?? null),
     hasReferral: Boolean(player.has_referral),
     subscribedToChannel: Boolean(player.subscribed_to_channel),
-    completedGame: Boolean(player.completed_game),
-    timeExpired: Boolean(player.time_expired),
+    gameCompletionState: player.game_completion_state ?? null,
+    raffleWon: typeof player.raffle_won === "boolean" ? player.raffle_won : null,
     isOnline: isPlayerOnline(player, onlineWindowSeconds),
     authToken: player.auth_token,
     authTokenExpiresAt: player.auth_token_expires_at,
@@ -146,6 +146,10 @@ export function createAuthService({
       const existingPlayer = await authRepository.findPlayerByTelegramUserId(
         telegramUser.id,
       );
+      const isNewReferral = Boolean(referredByCode) && !existingPlayer?.referred_by_code;
+      const referralOwner = isNewReferral
+        ? await authRepository.findPlayerByReferralCode(referredByCode)
+        : null;
 
       const player = await authRepository.upsertTelegramPlayer({
         telegramUserId: telegramUser.id,
@@ -161,11 +165,15 @@ export function createAuthService({
         lastSeenAt,
       });
 
-      return withPlayerStatus(player, {
-        isExisting: Boolean(existingPlayer),
-        onlineWindowSeconds: playerOnlineWindowSeconds,
-        telegramAppUrl,
-      });
+      return {
+        ...withPlayerStatus(player, {
+          isExisting: Boolean(existingPlayer),
+          onlineWindowSeconds: playerOnlineWindowSeconds,
+          telegramAppUrl,
+        }),
+        referredPlayerId: referralOwner?.id ? Number(referralOwner.id) : null,
+        referralApplied: isNewReferral && Boolean(referralOwner?.id),
+      };
     },
 
     async getPlayerByToken(authToken) {
@@ -198,6 +206,7 @@ export function createAuthService({
       if (existingPlayer) {
         const touchedPlayer = await authRepository.touchPlayerLastSeen(existingPlayer.id);
         return normalizePlayer(touchedPlayer ?? existingPlayer, {
+          isExisting: Boolean(existingPlayer),
           onlineWindowSeconds: playerOnlineWindowSeconds,
           telegramAppUrl,
         });

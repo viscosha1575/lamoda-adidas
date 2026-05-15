@@ -8,6 +8,11 @@ export function createAuthController({ authService, gameService }) {
         ? { ...request.body, initData }
         : request.body;
       const player = await authService.createSession(payload);
+
+      if (player.referralApplied && player.referredPlayerId) {
+        await gameService.restartSessionForReferral(player.referredPlayerId);
+      }
+
       const gameState = await gameService.getState(player.id);
 
       response.status(201).json({
@@ -24,8 +29,8 @@ export function createAuthController({ authService, gameService }) {
             referredByCode: player.referredByCode,
             referralLink: player.referralLink,
             hasReferral: player.hasReferral,
-            completedGame: player.completedGame,
-            timeExpired: player.timeExpired,
+            gameCompletionState: player.gameCompletionState,
+            raffleWon: player.raffleWon,
             isOnline: player.isOnline,
             lastSeenAt: player.lastSeenAt,
             isExisting: player.isExisting,

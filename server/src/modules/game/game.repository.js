@@ -7,13 +7,10 @@ function mapSession(row) {
     foundSneakerNumbers: Array.isArray(row.found_sneaker_numbers)
       ? row.found_sneaker_numbers.map((value) => Number(value)).sort((left, right) => left - right)
       : [],
-    pauseCount: Number(row.pause_count),
     startedAt: row.started_at,
     lastResumedAt: row.last_resumed_at,
-    lastPausedAt: row.last_paused_at,
     lastHeartbeatAt: row.last_heartbeat_at,
     finishedAt: row.finished_at,
-    expiredAt: row.expired_at,
     completionReason: row.completion_reason ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -42,8 +39,7 @@ function buildUpdateQuery(sessionId, valuesToUpdate) {
            SET ${assignments.join(", ")}, updated_at = NOW()
            WHERE id = $1
            RETURNING id, player_id, status, remaining_seconds, found_sneaker_numbers,
-                     pause_count, started_at, last_resumed_at, last_paused_at,
-                     last_heartbeat_at, finished_at, expired_at, completion_reason,
+                     started_at, last_resumed_at, last_heartbeat_at, finished_at, completion_reason,
                      created_at, updated_at`,
     values: [sessionId, ...values],
   };
@@ -54,8 +50,7 @@ export function createGameRepository({ pool }) {
     async findLatestSessionByPlayerId(playerId) {
       const result = await pool.query(
         `SELECT id, player_id, status, remaining_seconds, found_sneaker_numbers,
-                pause_count, started_at, last_resumed_at, last_paused_at,
-                last_heartbeat_at, finished_at, expired_at, completion_reason,
+                started_at, last_resumed_at, last_heartbeat_at, finished_at, completion_reason,
                 created_at, updated_at
          FROM game_sessions
          WHERE player_id = $1
@@ -70,12 +65,11 @@ export function createGameRepository({ pool }) {
     async findLatestOpenSessionByPlayerId(playerId) {
       const result = await pool.query(
         `SELECT id, player_id, status, remaining_seconds, found_sneaker_numbers,
-                pause_count, started_at, last_resumed_at, last_paused_at,
-                last_heartbeat_at, finished_at, expired_at, completion_reason,
+                started_at, last_resumed_at, last_heartbeat_at, finished_at, completion_reason,
                 created_at, updated_at
          FROM game_sessions
          WHERE player_id = $1
-           AND status IN ('active', 'paused')
+           AND status = 'active'
          ORDER BY created_at DESC
          LIMIT 1`,
         [playerId],
@@ -88,19 +82,17 @@ export function createGameRepository({ pool }) {
       const result = await pool.query(
         `INSERT INTO game_sessions (
            player_id, status, remaining_seconds, found_sneaker_numbers,
-           pause_count, started_at, last_resumed_at, last_heartbeat_at
+           started_at, last_resumed_at, last_heartbeat_at
          )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING id, player_id, status, remaining_seconds, found_sneaker_numbers,
-                   pause_count, started_at, last_resumed_at, last_paused_at,
-                   last_heartbeat_at, finished_at, expired_at, completion_reason,
+                   started_at, last_resumed_at, last_heartbeat_at, finished_at, completion_reason,
                    created_at, updated_at`,
         [
           session.playerId,
           session.status,
           session.remainingSeconds,
           session.foundSneakerNumbers,
-          session.pauseCount,
           session.startedAt,
           session.lastResumedAt,
           session.lastHeartbeatAt,
@@ -116,6 +108,14 @@ export function createGameRepository({ pool }) {
       return mapSession(result.rows[0]);
     },
 
+    async deleteGameResultBySessionId(gameSessionId) {
+      await pool.query(
+        `DELETE FROM game_results
+         WHERE game_session_id = $1`,
+        [gameSessionId],
+      );
+    },
+
     async upsertGameResult(resultPayload) {
       const result = await pool.query(
         `INSERT INTO game_results (
@@ -129,7 +129,7 @@ export function createGameRepository({ pool }) {
            completed_in_seconds = EXCLUDED.completed_in_seconds,
            remaining_seconds = EXCLUDED.remaining_seconds,
            eligible_for_raffle = game_results.eligible_for_raffle OR EXCLUDED.eligible_for_raffle,
-           completion_reason = COALESCE(game_results.completion_reason, EXCLUDED.completion_reason)
+           completion_reason = EXCLUDED.completion_reason
          RETURNING id`,
         [
           resultPayload.playerId,
@@ -149,7 +149,7 @@ export function createGameRepository({ pool }) {
 
     async findPlayerRewardStateById(playerId) {
       const result = await pool.query(
-        `SELECT p.completed_game, p.time_expired, pc.code AS promo_code
+        `SELECT p.game_completion_state, pc.code AS promo_code
            FROM players p
            LEFT JOIN promo_codes pc ON pc.assigned_player_id = p.id
           WHERE p.id = $1`,
@@ -163,23 +163,20 @@ export function createGameRepository({ pool }) {
       }
 
       return {
-        completedGame: Boolean(row.completed_game),
-        timeExpired: Boolean(row.time_expired),
+        gameCompletionState: row.game_completion_state ?? null,
         promoCode: row.promo_code ?? null,
       };
     },
 
     async markPlayerOutcome(playerId, {
-      completedGame = false,
-      timeExpired = false,
+      gameCompletionState = null,
     } = {}) {
       await pool.query(
         `UPDATE players
-         SET completed_game = completed_game OR $2::boolean,
-             time_expired = time_expired OR $3::boolean,
+         SET game_completion_state = $2,
              updated_at = NOW()
          WHERE id = $1`,
-        [playerId, completedGame, timeExpired],
+        [playerId, gameCompletionState],
       );
     },
 
