@@ -1,8 +1,8 @@
 {
   "info": {
-    "_postman_id": "3c8f05c5-7d95-4f9f-8c9a-c6eb1db53a51",
+    "_postman_id": "70eb532a-6171-493d-a411-a3e02c0f4a91",
     "name": "Lamoda Adidas API",
-    "description": "Полная Postman-коллекция для серверного API проекта Lamoda Adidas.",
+    "description": "Актуальная Postman-коллекция для Lamoda Adidas. Игровой поток теперь строится вокруг POST /api/game/start-session: этот endpoint и создает новую сессию, и резюмит уже существующую active-сессию. POST /api/game/finish для неполной сессии не закрывает ее, а принудительно ставит remainingSeconds=0 и completionReason=time-ended.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -11,16 +11,16 @@
       "value": "https://lamoda-specials.ru"
     },
     {
-      "key": "auth_token",
-      "value": ""
-    },
-    {
       "key": "init_data",
       "value": "query_id=AAExample&user=%7B%22id%22%3A123456789%2C%22first_name%22%3A%22Mila%22%2C%22last_name%22%3A%22Test%22%2C%22username%22%3A%22lamoda_player%22%7D&auth_date=1710000000"
     },
     {
       "key": "referral_code",
       "value": "https://t.me/lamoda_games_bot/search?startapp=PLAYER42"
+    },
+    {
+      "key": "sneaker_number",
+      "value": "2"
     }
   ],
   "item": [
@@ -41,7 +41,7 @@
                 ""
               ]
             },
-            "description": "Проверка, что корневой endpoint сервиса отвечает."
+            "description": "Проверка, что сервис отвечает."
           },
           "response": []
         }
@@ -65,7 +65,7 @@
                 "health"
               ]
             },
-            "description": "Healthcheck API и подключения к базе."
+            "description": "Healthcheck API и базы."
           },
           "response": []
         }
@@ -75,7 +75,7 @@
       "name": "Auth",
       "item": [
         {
-          "name": "POST /api/auth/session - Telegram",
+          "name": "POST /api/auth/session",
           "event": [
             {
               "listen": "test",
@@ -83,9 +83,11 @@
                 "type": "text/javascript",
                 "exec": [
                   "const payload = pm.response.json();",
-                  "if (payload?.data?.token) {",
-                  "  pm.collectionVariables.set('auth_token', payload.data.token);",
-                  "}"
+                  "const player = payload?.data?.player;",
+                  "if (player?.id) { pm.collectionVariables.set('player_id', String(player.id)); }",
+                  "if (player?.referralCode) { pm.collectionVariables.set('player_referral_code', player.referralCode); }",
+                  "if (player?.raffleWon !== undefined) { pm.collectionVariables.set('raffle_won', String(player.raffleWon)); }",
+                  "if (payload?.data?.session?.id) { pm.collectionVariables.set('game_session_id', String(payload.data.session.id)); }"
                 ]
               }
             }
@@ -117,7 +119,7 @@
                 "session"
               ]
             },
-            "description": "Создаёт сессию по Telegram initData. `initData` передаётся только в заголовке `X-Telegram-Init-Data`. После выполнения автоматически сохраняет `auth_token` в переменные коллекции."
+            "description": "Создает/обновляет auth-сессию игрока и возвращает snapshot текущего game state. `initData` передается только в заголовке `X-Telegram-Init-Data`."
           },
           "response": []
         },
@@ -142,7 +144,7 @@
                 "current"
               ]
             },
-            "description": "Удаляет текущего игрока по Telegram initData."
+            "description": "Удаляет текущего игрока."
           },
           "response": []
         }
@@ -152,32 +154,20 @@
       "name": "Game",
       "item": [
         {
-          "name": "GET /api/game/state",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "X-Telegram-Init-Data",
-                "value": "{{init_data}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/game/state",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "game",
-                "state"
-              ]
-            },
-            "description": "Текущее состояние игрока и игровой сессии."
-          },
-          "response": []
-        },
-        {
           "name": "POST /api/game/start-session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const payload = pm.response.json();",
+                  "if (payload?.data?.session?.id) { pm.collectionVariables.set('game_session_id', String(payload.data.session.id)); }",
+                  "if (payload?.data?.reason !== undefined) { pm.collectionVariables.set('game_reason', String(payload.data.reason)); }"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -205,7 +195,57 @@
                 "start-session"
               ]
             },
-            "description": "Стартует новую игровую сессию. Новая сессия всегда начинается только с первого открытого кроссовка."
+            "description": "Основная точка входа в игру. Если active-сессии нет, создает новую. Если active-сессия уже есть, резюмит ее и пересчитывает timer на стороне сервера."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/game/state",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Telegram-Init-Data",
+                "value": "{{init_data}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/game/state",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "game",
+                "state"
+              ]
+            },
+            "description": "Debug endpoint. Возвращает текущее состояние игрока и сессии, но в основном фронтовом потоке больше не нужен."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/game/subscription-status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Telegram-Init-Data",
+                "value": "{{init_data}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/game/subscription-status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "game",
+                "subscription-status"
+              ]
+            },
+            "description": "Проверка Telegram-подписки игрока."
           },
           "response": []
         },
@@ -225,7 +265,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"source\": \"unity\",\n  \"action\": \"swipe\",\n  \"details\": {\n    \"direction\": \"left\"\n  }\n}"
+              "raw": "{\n  \"source\": \"webapp\",\n  \"action\": \"presence-ping\",\n  \"details\": {\n    \"visibilityState\": \"visible\"\n  }\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/game/activity-log",
@@ -238,12 +278,25 @@
                 "activity-log"
               ]
             },
-            "description": "Логирует игровое действие игрока."
+            "description": "Логирует игровое действие / пинг активности."
           },
           "response": []
         },
         {
           "name": "POST /api/game/found-sneaker",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const payload = pm.response.json();",
+                  "if (payload?.data?.reason !== undefined) { pm.collectionVariables.set('game_reason', String(payload.data.reason)); }",
+                  "if (payload?.data?.session?.id) { pm.collectionVariables.set('game_session_id', String(payload.data.session.id)); }"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -258,7 +311,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"sneakerNumber\": 2\n}"
+              "raw": "{\n  \"sneakerNumber\": {{sneaker_number}}\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/game/found-sneaker",
@@ -271,12 +324,24 @@
                 "found-sneaker"
               ]
             },
-            "description": "Отмечает найденный кроссовок."
+            "description": "Отмечает найденный кроссовок. Если это 10-й кроссовок, сервер сам завершает сессию и возвращает finished-состояние."
           },
           "response": []
         },
         {
           "name": "POST /api/game/finish",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const payload = pm.response.json();",
+                  "if (payload?.data?.reason !== undefined) { pm.collectionVariables.set('game_reason', String(payload.data.reason)); }"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -296,7 +361,7 @@
                 "finish"
               ]
             },
-            "description": "Завершает текущую игровую сессию."
+            "description": "Сигнал от фронта, что клиентский timer закончился. Если 10 кроссовок еще не собрано, сервер оставляет сессию active, но принудительно ставит remainingSeconds=0 и completionReason=time-ended."
           },
           "response": []
         }
