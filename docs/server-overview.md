@@ -97,7 +97,6 @@ API:
 - `GET /api/health`
 - `POST /api/auth/session`
 - `DELETE /api/auth/current`
-- `GET /api/game/state`
 - `POST /api/game/start-session`
 - `POST /api/game/found-sneaker`
 - `POST /api/game/finish`

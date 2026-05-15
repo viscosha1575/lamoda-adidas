@@ -9,7 +9,6 @@ export function createGameRouter({ authMiddleware, gameController }) {
 
   router.use(authMiddleware);
   router.get("/subscription-status", asyncHandler(gameController.checkSubscription));
-  router.get("/state", asyncHandler(gameController.getState));
   router.post("/start-session", asyncHandler(gameController.startSession));
   router.post("/found-sneaker", asyncHandler(gameController.collectSneaker));
   router.post("/finish", asyncHandler(gameController.finish));

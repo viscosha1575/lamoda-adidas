@@ -4,7 +4,7 @@ export function createAuthRepository({ pool }) {
       const result = await pool.query(
         `SELECT id, telegram_user_id, username, first_name, last_name,
                 auth_provider, referral_code, referred_by_code, has_referral,
-                game_completion_state, raffle_won, subscribed_to_channel,
+                game_completion_state, raffle_won, code_id, subscribed_to_channel,
                 auth_token, auth_token_expires_at,
                 last_seen_at, created_at, updated_at
          FROM players
@@ -19,7 +19,7 @@ export function createAuthRepository({ pool }) {
       const result = await pool.query(
         `SELECT id, telegram_user_id, username, first_name, last_name,
                 auth_provider, referral_code, referred_by_code, has_referral,
-                game_completion_state, raffle_won, subscribed_to_channel,
+                game_completion_state, raffle_won, code_id, subscribed_to_channel,
                 auth_token, auth_token_expires_at,
                 last_seen_at, created_at, updated_at
          FROM players
@@ -34,7 +34,7 @@ export function createAuthRepository({ pool }) {
       const result = await pool.query(
         `SELECT id, telegram_user_id, username, first_name, last_name,
                 auth_provider, referral_code, referred_by_code, has_referral,
-                game_completion_state, raffle_won, subscribed_to_channel,
+                game_completion_state, raffle_won, code_id, subscribed_to_channel,
                 auth_token, auth_token_expires_at,
                 last_seen_at, created_at, updated_at
          FROM players
@@ -52,7 +52,7 @@ export function createAuthRepository({ pool }) {
          WHERE id = $1
          RETURNING id, telegram_user_id, username, first_name, last_name,
                    auth_provider, referral_code, referred_by_code, has_referral,
-                   game_completion_state, raffle_won, subscribed_to_channel,
+                   game_completion_state, raffle_won, code_id, subscribed_to_channel,
                    auth_token, auth_token_expires_at,
                    last_seen_at, created_at, updated_at`,
         [playerId],
@@ -95,7 +95,7 @@ export function createAuthRepository({ pool }) {
            updated_at = NOW()
          RETURNING id, telegram_user_id, username, first_name, last_name,
                    auth_provider, referral_code, referred_by_code, has_referral,
-                   game_completion_state, raffle_won, subscribed_to_channel,
+                   game_completion_state, raffle_won, code_id, subscribed_to_channel,
                    auth_token, auth_token_expires_at,
                    last_seen_at, created_at, updated_at`,
         [

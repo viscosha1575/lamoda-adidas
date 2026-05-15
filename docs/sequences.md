@@ -45,12 +45,9 @@ sequenceDiagram
 sequenceDiagram
     participant Client
     participant AuthAPI as /api/auth/session
-    participant GameAPI as /api/game/state
 
     Client->>AuthAPI: create session
-    AuthAPI-->>Client: token + player
-    Client->>GameAPI: GET state with Bearer token
-    GameAPI-->>Client: lifecycle + session or idle
+    AuthAPI-->>Client: token + player + session snapshot
 ```
 
 ## 4. Start New Game
@@ -66,10 +63,8 @@ sequenceDiagram
     API->>Game: startSession(playerId)
     Game->>DB: findLatestOpenSessionByPlayerId()
     alt active session exists
+        Game->>DB: refresh heartbeat and resume timer if remainingSeconds > 0
         Game-->>API: existing active session
-    else paused session exists
-        Game->>DB: update status=active
-        Game-->>API: resumed session
     else no open session
         Game->>DB: insert new active session
         Game-->>API: new session with foundSneakers=[{ sneakerNumber: 1, found: true }, ...]

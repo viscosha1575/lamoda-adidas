@@ -113,6 +113,21 @@ function isSessionEligibleForRaffle(session, remainingSeconds) {
   return session.status === "active" && remainingSeconds > 0;
 }
 
+function resolveTimerCountedUntil(session, now, heartbeatGraceSeconds) {
+  const lastResumedAt = new Date(session.lastResumedAt);
+  const lastHeartbeatAt = session.lastHeartbeatAt
+    ? new Date(session.lastHeartbeatAt)
+    : lastResumedAt;
+  const frozenAt = addSeconds(lastHeartbeatAt, heartbeatGraceSeconds);
+  const countedUntil = frozenAt.getTime() < now.getTime() ? frozenAt : now;
+
+  if (countedUntil.getTime() < lastResumedAt.getTime()) {
+    return lastResumedAt;
+  }
+
+  return countedUntil;
+}
+
 function serializeSession(
   session,
   now,
@@ -126,8 +141,7 @@ function serializeSession(
   if (session.status === "finished") {
     remainingSeconds = 0;
   } else if (session.status === "active" && session.lastResumedAt) {
-    const elapsedSeconds = diffWholeSeconds(now, new Date(session.lastResumedAt));
-    remainingSeconds = Math.max(0, session.remainingSeconds - elapsedSeconds);
+    remainingSeconds = calculateRunningState(session, now, heartbeatGraceSeconds).remainingSeconds;
   }
 
   return {
@@ -151,10 +165,11 @@ function serializeSession(
   };
 }
 
-function calculateRunningState(session, now) {
+function calculateRunningState(session, now, heartbeatGraceSeconds) {
   const lastResumedAt = new Date(session.lastResumedAt);
+  const countedUntil = resolveTimerCountedUntil(session, now, heartbeatGraceSeconds);
   const expiryAt = addSeconds(lastResumedAt, session.remainingSeconds);
-  const elapsedSeconds = diffWholeSeconds(now, lastResumedAt);
+  const elapsedSeconds = diffWholeSeconds(countedUntil, lastResumedAt);
   const remainingSeconds = Math.max(0, session.remainingSeconds - elapsedSeconds);
 
   return {
@@ -216,6 +231,19 @@ export function createGameService({
     }
 
     return getPlayerRewardState(session.playerId);
+  }
+
+  function buildTimerResumeValues(session, now, runningState) {
+    const valuesToUpdate = {
+      last_heartbeat_at: now,
+    };
+
+    if (session.status === "active" && session.lastResumedAt && runningState.remainingSeconds > 0) {
+      valuesToUpdate.remaining_seconds = runningState.remainingSeconds;
+      valuesToUpdate.last_resumed_at = now;
+    }
+
+    return valuesToUpdate;
   }
 
   async function buildSessionResponse(session, now, lifecycle, reason = null) {
@@ -309,7 +337,7 @@ export function createGameService({
     }
 
     const now = new Date();
-    const runningState = calculateRunningState(session, now);
+    const runningState = calculateRunningState(session, now, heartbeatGraceSeconds);
 
     if (
       runningState.isExpired
@@ -371,37 +399,6 @@ export function createGameService({
 
   return {
     checkSubscription,
-    async getState(playerId) {
-      const now = new Date();
-      const openSession = await getOpenSession(playerId);
-
-      if (openSession) {
-        return buildSessionResponse(
-          openSession,
-          now,
-          openSession.status,
-          resolveCompletionReason(openSession),
-        );
-      }
-
-      const latestSession = await gameRepository.findLatestSessionByPlayerId(playerId);
-
-      if (!latestSession) {
-        return createLifecycleResponse("idle");
-      }
-
-      if (latestSession.status === "finished") {
-        return buildSessionResponse(
-          latestSession,
-          now,
-          latestSession.status,
-          resolveCompletionReason(latestSession),
-        );
-      }
-
-      return createLifecycleResponse("idle");
-    },
-
     async startSession(playerId, payload = {}) {
       const now = new Date();
       const openSession = await getOpenSession(playerId);
@@ -409,7 +406,7 @@ export function createGameService({
 
       if (openSession?.status === "active") {
         const runningState = openSession.lastResumedAt
-          ? calculateRunningState(openSession, now)
+          ? calculateRunningState(openSession, now, heartbeatGraceSeconds)
           : {
               remainingSeconds: Number(openSession.remainingSeconds ?? 0),
               isExpired: Number(openSession.remainingSeconds ?? 0) <= 0,
@@ -432,15 +429,7 @@ export function createGameService({
           );
         }
 
-        const valuesToUpdate = {
-          last_heartbeat_at: now,
-        };
-
-        if (runningState.remainingSeconds > 0) {
-          valuesToUpdate.remaining_seconds = runningState.remainingSeconds;
-          valuesToUpdate.last_resumed_at = now;
-        }
-
+        const valuesToUpdate = buildTimerResumeValues(openSession, now, runningState);
         const touchedSession = await gameRepository.updateSession(openSession.id, valuesToUpdate);
 
         return buildSessionResponse(
@@ -522,7 +511,7 @@ export function createGameService({
       }
 
       if (session.status === "active") {
-        runningState = calculateRunningState(session, now);
+        runningState = calculateRunningState(session, now, heartbeatGraceSeconds);
 
         if (
           runningState.isExpired
@@ -564,7 +553,9 @@ export function createGameService({
       const updatedSession = await gameRepository.updateSession(session.id, {
         found_sneaker_numbers: nextFoundSneakerNumbers,
         ...(session.status === "active"
-          ? { last_heartbeat_at: now }
+          ? buildTimerResumeValues(session, now, runningState ?? {
+            remainingSeconds: Number(session.remainingSeconds ?? 0),
+          })
           : {}),
         ...(shouldPromoteFinishedTimeoutToAfterTime
           ? { completion_reason: PLAYER_GAME_COMPLETION_STATE.COMPLETED_AFTER_TIME }
@@ -690,9 +681,16 @@ export function createGameService({
       let session = openSession;
 
       if (openSession?.status === "active") {
-        session = await gameRepository.updateSession(openSession.id, {
-          last_heartbeat_at: now,
-        });
+        const runningState = openSession.lastResumedAt
+          ? calculateRunningState(openSession, now, heartbeatGraceSeconds)
+          : {
+              remainingSeconds: Number(openSession.remainingSeconds ?? 0),
+            };
+
+        session = await gameRepository.updateSession(
+          openSession.id,
+          buildTimerResumeValues(openSession, now, runningState),
+        );
       }
 
       const activityLog = await gameRepository.createActivityLog({

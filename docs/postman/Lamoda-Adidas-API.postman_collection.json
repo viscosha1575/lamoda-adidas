@@ -200,31 +200,6 @@
           "response": []
         },
         {
-          "name": "GET /api/game/state",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "X-Telegram-Init-Data",
-                "value": "{{init_data}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/game/state",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "game",
-                "state"
-              ]
-            },
-            "description": "Debug endpoint. Возвращает текущее состояние игрока и сессии, но в основном фронтовом потоке больше не нужен."
-          },
-          "response": []
-        },
-        {
           "name": "GET /api/game/subscription-status",
           "request": {
             "method": "GET",

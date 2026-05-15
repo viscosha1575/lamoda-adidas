@@ -11,6 +11,7 @@ function mapPlayerRow(row) {
     subscribedToChannel: Boolean(row.subscribed_to_channel),
     gameCompletionState: row.game_completion_state ?? null,
     raffleWon: typeof row.raffle_won === "boolean" ? row.raffle_won : null,
+    codeId: row.code_id ?? null,
     promoCode: row.promo_code ?? null,
     authProvider: row.auth_provider ?? null,
     lastSeenAt: row.last_seen_at ?? null,
@@ -207,7 +208,7 @@ export function createAdminRepository({ pool }) {
          )
          SELECT p.id, p.telegram_user_id, p.username, p.first_name, p.last_name,
                 p.referral_code, p.referred_by_code, p.has_referral,
-                p.subscribed_to_channel, p.game_completion_state, p.raffle_won,
+                p.subscribed_to_channel, p.game_completion_state, p.raffle_won, p.code_id,
                 pc.code AS promo_code, p.auth_provider,
                 p.last_seen_at, p.created_at, p.updated_at,
                 ss.latest_heartbeat_at,
@@ -245,7 +246,7 @@ export function createAdminRepository({ pool }) {
       const result = await pool.query(
         `SELECT p.id, p.telegram_user_id, p.username, p.first_name, p.last_name,
                 p.referral_code, p.referred_by_code, p.has_referral,
-                p.subscribed_to_channel, p.game_completion_state, p.raffle_won,
+                p.subscribed_to_channel, p.game_completion_state, p.raffle_won, p.code_id,
                 pc.code AS promo_code, p.auth_provider,
                 p.last_seen_at, p.created_at, p.updated_at,
                 (SELECT MAX(last_heartbeat_at) FROM game_sessions WHERE player_id = p.id) AS latest_heartbeat_at,

@@ -34,7 +34,6 @@ X-Telegram-Init-Data: <initData>
 
 ### Game
 
-- `GET /api/game/state`
 - `POST /api/game/start-session`
 - `POST /api/game/activity-log`
 - `POST /api/game/found-sneaker`
@@ -198,98 +197,20 @@ X-Telegram-Init-Data: <initData>
 }
 ```
 
-### 4.3 `GET /api/game/state`
-
-Зачем нужен:
-
-- возвращает текущее состояние игры для игрока
-- нужен, чтобы понять, есть ли активная сессия, завершена ли она, истекло ли время
-
-Когда вызывать:
-
-- когда нужно принудительно пересинхронизировать состояние с сервером
-- при необходимости синхронизировать состояние с сервером
-
-Заголовки:
-
-```http
-X-Telegram-Init-Data: <initData>
-```
-
-Тело запроса:
-
-- не нужно
-
-Пример ответа без активной сессии:
-
-```json
-{
-  "data": {
-    "session": null,
-    "lifecycle": "idle",
-    "reason": null
-  }
-}
-```
-
-Пример ответа с активной сессией:
-
-```json
-{
-  "data": {
-    "session": {
-      "id": 15,
-      "status": "active",
-      "remainingSeconds": 587,
-      "foundSneakers": [
-        { "sneakerNumber": 1, "found": true },
-        { "sneakerNumber": 2, "found": true },
-        { "sneakerNumber": 3, "found": false }
-      ],
-      "pauseCount": 0,
-      "startedAt": "2026-05-12T10:00:00.000Z",
-      "lastResumedAt": "2026-05-12T10:00:00.000Z",
-      "lastPausedAt": null,
-      "lastHeartbeatAt": "2026-05-12T10:00:10.000Z",
-      "finishedAt": null,
-      "expiredAt": null,
-      "canCollect": true,
-      "isOnline": true
-    },
-    "lifecycle": "active",
-    "reason": null
-  }
-}
-```
-
-Что означает `lifecycle`:
-
-- `idle` — игры ещё нет
-- `active` — игра идёт
-- `paused` — сервер поставил игру на паузу из-за отсутствия активности
-- `finished` — игра завершена успешно
-- `expired` — время закончилось
-
-Что фронту важно взять из ответа:
-
-- `lifecycle`
-- `session.remainingSeconds`
-- `session.foundSneakers`
-- `session.canCollect`
-- `session.isOnline`
-
-### 4.4 `POST /api/game/start-session`
+### 4.3 `POST /api/game/start-session`
 
 Зачем нужен:
 
 - запускает новую игровую сессию
 - если у игрока уже есть открытая сессия, сервер вернёт её
-- если сессия была `paused`, сервер активирует её обратно
+- если `remainingSeconds > 0`, сервер резюмирует таймер
+- если `remainingSeconds = 0`, сервер не запускает таймер заново
 
 Когда вызывать:
 
 - когда игрок нажал кнопку старта
-- когда нужно войти в текущую паузную сессию
+- когда нужно войти в текущую сессию
+- при любом повторном входе в игровой экран
 
 Заголовки:
 
@@ -353,16 +274,15 @@ Content-Type: application/json
 
 - `new-session` — создана новая сессия
 - `existing-session` — уже была активная сессия
-- `resumed-session` — была паузная сессия, сервер вернул её в активное состояние
 
-### 4.5 `POST /api/game/activity-log`
+### 4.4 `POST /api/game/activity-log`
 
 Зачем нужен:
 
 - сообщает серверу, что игрок онлайн и активен
 - пишет игровой лог
 - обновляет `lastHeartbeatAt`
-- помогает серверу не переводить игру в `paused`
+- не дает таймеру заморозиться
 
 Когда вызывать:
 
@@ -454,9 +374,9 @@ Content-Type: application/json
 Важно:
 
 - если activity-логов нет дольше `15 секунд`, игрок считается не онлайн
-- если долго нет активности, сервер может перевести сессию в `paused`
+- если activity-логов нет дольше grace-окна, таймер перестает уменьшаться, пока активность не вернется
 
-### 4.6 `POST /api/game/found-sneaker`
+### 4.5 `POST /api/game/found-sneaker`
 
 Зачем нужен:
 
@@ -553,7 +473,7 @@ Content-Type: application/json
 - всегда брать актуальный список из `session.foundSneakers`
 - не пытаться доверять только локальному состоянию
 
-### 4.7 `POST /api/game/finish`
+### 4.6 `POST /api/game/finish`
 
 Зачем нужен:
 
@@ -689,8 +609,7 @@ X-Telegram-Init-Data: <initData>
 Минимальный сценарий для фронта:
 
 1. `POST /api/auth/session`
-2. `GET /api/game/state`
-3. если `lifecycle = idle` -> `POST /api/game/start-session`
-4. во время игры слать `POST /api/game/activity-log`
-5. при находке пары слать `POST /api/game/found-sneaker`
-6. после 10 из 10 слать `POST /api/game/finish`
+2. `POST /api/game/start-session`
+3. во время игры слать `POST /api/game/activity-log`
+4. при находке пары слать `POST /api/game/found-sneaker`
+5. после 10 из 10 слать `POST /api/game/finish`

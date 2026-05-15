@@ -13,8 +13,6 @@ export function createAuthController({ authService, gameService }) {
         await gameService.restartSessionForReferral(player.referredPlayerId);
       }
 
-      const gameState = await gameService.getState(player.id);
-
       response.status(201).json({
         data: {
           token: player.authToken,
@@ -31,13 +29,14 @@ export function createAuthController({ authService, gameService }) {
             hasReferral: player.hasReferral,
             gameCompletionState: player.gameCompletionState,
             raffleWon: player.raffleWon,
+            codeId: player.codeId,
             isOnline: player.isOnline,
             lastSeenAt: player.lastSeenAt,
             isExisting: player.isExisting,
           },
-          session: gameState.session,
-          lifecycle: gameState.lifecycle,
-          reason: gameState.reason,
+          session: null,
+          lifecycle: "idle",
+          reason: null,
         },
       });
     },

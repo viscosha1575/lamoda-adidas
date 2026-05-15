@@ -88,6 +88,7 @@ function normalizePlayer(player, { onlineWindowSeconds, telegramAppUrl }) {
     subscribedToChannel: Boolean(player.subscribed_to_channel),
     gameCompletionState: player.game_completion_state ?? null,
     raffleWon: typeof player.raffle_won === "boolean" ? player.raffle_won : null,
+    codeId: player.code_id ?? null,
     isOnline: isPlayerOnline(player, onlineWindowSeconds),
     authToken: player.auth_token,
     authTokenExpiresAt: player.auth_token_expires_at,

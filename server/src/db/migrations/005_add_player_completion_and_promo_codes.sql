@@ -4,7 +4,8 @@ ALTER TABLE players
     game_completion_state IS NULL
     OR game_completion_state IN ('completed', 'time-ended', 'completed-after-time')
   ),
-  ADD COLUMN IF NOT EXISTS raffle_won BOOLEAN;
+  ADD COLUMN IF NOT EXISTS raffle_won BOOLEAN,
+  ADD COLUMN IF NOT EXISTS code_id TEXT UNIQUE;
 
 CREATE TABLE IF NOT EXISTS promo_codes (
   id BIGSERIAL PRIMARY KEY,

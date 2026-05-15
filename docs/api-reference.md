@@ -173,59 +173,6 @@ X-Telegram-Init-Data: <initData>
 }
 ```
 
-### `GET /api/game/state`
-
-Returns current player game state.
-
-Possible lifecycle values:
-
-- `idle`
-- `active`
-- `paused`
-- `finished`
-- `expired`
-
-Example response with active session:
-
-```json
-{
-  "data": {
-    "session": {
-      "id": 15,
-      "status": "active",
-      "remainingSeconds": 587,
-      "foundSneakers": [
-        { "sneakerNumber": 1, "found": true },
-        { "sneakerNumber": 2, "found": true },
-        { "sneakerNumber": 3, "found": false }
-      ],
-      "pauseCount": 0,
-      "startedAt": "2026-05-12T10:00:00.000Z",
-      "lastResumedAt": "2026-05-12T10:00:00.000Z",
-      "lastPausedAt": null,
-      "lastHeartbeatAt": "2026-05-12T10:00:10.000Z",
-      "finishedAt": null,
-      "expiredAt": null,
-      "canCollect": true
-    },
-    "lifecycle": "active",
-    "reason": null
-  }
-}
-```
-
-Example response with no session:
-
-```json
-{
-  "data": {
-    "session": null,
-    "lifecycle": "idle",
-    "reason": null
-  }
-}
-```
-
 ### `GET /api/game/subscription-status`
 
 Checks current Telegram channel subscription status and, when confirmed, permanently stores `subscribedToChannel = true` for the player.
@@ -246,12 +193,13 @@ Example response:
 
 ### `POST /api/game/start-session`
 
-Creates new session or resumes paused one.
+Creates new session or returns the current one.
 
 Behavior:
 
 - If session is already active, returns it.
-- If latest open session is paused, resumes it.
+- If `remainingSeconds > 0`, refreshes heartbeat and resumes the timer from the saved remainder.
+- If `remainingSeconds = 0`, does not restart the timer.
 - If there is no open session, creates a new active session.
 
 Important:

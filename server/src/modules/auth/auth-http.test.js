@@ -35,6 +35,7 @@ function createPlayerResponse(overrides = {}) {
     hasReferral: false,
     gameCompletionState: null,
     raffleWon: null,
+    codeId: null,
     isOnline: true,
     authToken: "token-123",
     authTokenExpiresAt: "2026-05-12T10:00:00.000Z",
@@ -63,27 +64,7 @@ test("POST /api/auth/session reads Telegram initData only from headers", async (
       return null;
     },
   };
-  const gameService = {
-    async getState(playerId) {
-      assert.equal(playerId, 1);
-
-      return {
-        session: {
-          id: 15,
-          status: "active",
-          remainingSeconds: 587,
-          promoCode: null,
-          foundSneakers: [
-            { sneakerNumber: 1, found: true },
-            { sneakerNumber: 2, found: true },
-            { sneakerNumber: 3, found: false },
-          ],
-        },
-        lifecycle: "active",
-        reason: null,
-      };
-    },
-  };
+  const gameService = {};
 
   const app = express();
   app.use(express.json());
@@ -105,13 +86,9 @@ test("POST /api/auth/session reads Telegram initData only from headers", async (
   assert.equal(response.body.data.player.telegramUserId, 123456789);
   assert.equal(response.body.data.player.gameCompletionState, null);
   assert.equal(response.body.data.player.raffleWon, null);
-  assert.equal(response.body.data.lifecycle, "active");
-  assert.equal(response.body.data.session.promoCode, null);
-  assert.deepEqual(response.body.data.session.foundSneakers, [
-    { sneakerNumber: 1, found: true },
-    { sneakerNumber: 2, found: true },
-    { sneakerNumber: 3, found: false },
-  ]);
+  assert.equal(response.body.data.player.codeId, null);
+  assert.equal(response.body.data.lifecycle, "idle");
+  assert.equal(response.body.data.session, null);
 });
 
 test("POST /api/auth/session restarts inviter session after applying referral", async () => {
@@ -139,14 +116,6 @@ test("POST /api/auth/session restarts inviter session after applying referral", 
     async restartSessionForReferral(playerId) {
       assert.equal(playerId, 42);
       return null;
-    },
-    async getState(playerId) {
-      assert.equal(playerId, 1);
-      return {
-        session: null,
-        lifecycle: "idle",
-        reason: null,
-      };
     },
   };
 
@@ -185,11 +154,7 @@ test("POST /api/auth/session rejects initData in body", async () => {
       return null;
     },
   };
-  const gameService = {
-    async getState() {
-      throw new Error("should not be called");
-    },
-  };
+  const gameService = {};
 
   const app = express();
   app.use(express.json());

@@ -5,11 +5,6 @@ export function createGameController({ gameService }) {
       response.json({ data: result });
     },
 
-    async getState(request, response) {
-      const state = await gameService.getState(request.player.id);
-      response.json({ data: state });
-    },
-
     async startSession(request, response) {
       const state = await gameService.startSession(request.player.id, request.body);
       response.status(201).json({ data: state });

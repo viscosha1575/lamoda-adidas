@@ -153,6 +153,7 @@ function normalizePlayerDetails(row, onlineWindowSeconds) {
       subscribedToChannel: Boolean(row.subscribed_to_channel),
       gameCompletionState: row.game_completion_state ?? null,
       raffleWon: typeof row.raffle_won === "boolean" ? row.raffle_won : null,
+      codeId: row.code_id ?? null,
       promoCode: row.promo_code ?? null,
       authProvider: row.auth_provider ?? null,
       lastSeenAt: row.last_seen_at ?? null,

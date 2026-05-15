@@ -58,6 +58,7 @@ test("createSession marks Telegram player with referredByCode when referralCode 
         referred_by_code: player.referredByCode,
         has_referral: player.hasReferral,
         raffle_won: null,
+        code_id: null,
         auth_token: player.authToken,
         auth_token_expires_at: player.authTokenExpiresAt,
         last_seen_at: player.lastSeenAt,
@@ -81,6 +82,7 @@ test("createSession marks Telegram player with referredByCode when referralCode 
   assert.equal(result.subscribedToChannel, false);
   assert.equal(result.gameCompletionState, null);
   assert.equal(result.raffleWon, null);
+  assert.equal(result.codeId, null);
   assert.equal(result.referralApplied, true);
   assert.equal(result.referredPlayerId, 42);
 });
@@ -110,6 +112,7 @@ test("createSession keeps hasReferral false when referralCode is missing", async
         referred_by_code: player.referredByCode,
         has_referral: player.hasReferral,
         raffle_won: null,
+        code_id: null,
         auth_token: player.authToken,
         auth_token_expires_at: player.authTokenExpiresAt,
         last_seen_at: player.lastSeenAt,
@@ -130,6 +133,7 @@ test("createSession keeps hasReferral false when referralCode is missing", async
   assert.equal(result.subscribedToChannel, false);
   assert.equal(result.gameCompletionState, null);
   assert.equal(result.raffleWon, null);
+  assert.equal(result.codeId, null);
   assert.equal(result.referralApplied, false);
   assert.equal(result.referredPlayerId, null);
 });
@@ -163,6 +167,7 @@ test("createSession accepts raw Telegram initData without hash validation", asyn
         referred_by_code: player.referredByCode,
         has_referral: player.hasReferral,
         raffle_won: null,
+        code_id: null,
         auth_token: player.authToken,
         auth_token_expires_at: player.authTokenExpiresAt,
         last_seen_at: player.lastSeenAt,
@@ -182,6 +187,7 @@ test("createSession accepts raw Telegram initData without hash validation", asyn
   assert.equal(result.subscribedToChannel, false);
   assert.equal(result.gameCompletionState, null);
   assert.equal(result.raffleWon, null);
+  assert.equal(result.codeId, null);
 });
 
 test("createSession rejects requests without Telegram initData", async () => {
