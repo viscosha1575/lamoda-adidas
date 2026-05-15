@@ -109,6 +109,50 @@ test("startSession always starts with sneaker 1 opened by default", async () => 
   assert.equal(result.session.promoCode, null);
 });
 
+test("startSession resumes existing active session and restarts timer from current remaining time", async () => {
+  const now = Date.now();
+  const openSession = {
+    id: 16,
+    playerId: 3,
+    status: "active",
+    remainingSeconds: 300,
+    foundSneakerNumbers: [1, 2, 3],
+    startedAt: new Date(now - 120_000),
+    lastResumedAt: new Date(now - 12_000),
+    lastHeartbeatAt: new Date(now - 2_000),
+    finishedAt: null,
+    completionReason: null,
+  };
+
+  const rewardAwareRepository = withRewardRepository({
+    async findLatestOpenSessionByPlayerId() {
+      return openSession;
+    },
+    async updateSession(_sessionId, valuesToUpdate) {
+      assert.equal(valuesToUpdate.last_heartbeat_at instanceof Date, true);
+      assert.equal(valuesToUpdate.last_resumed_at instanceof Date, true);
+      assert.equal(valuesToUpdate.remaining_seconds <= 300, true);
+      assert.equal(valuesToUpdate.remaining_seconds >= 287, true);
+
+      return {
+        ...openSession,
+        remainingSeconds: valuesToUpdate.remaining_seconds,
+        lastResumedAt: valuesToUpdate.last_resumed_at,
+        lastHeartbeatAt: valuesToUpdate.last_heartbeat_at,
+      };
+    },
+  });
+
+  const gameService = createGameServiceForTest(rewardAwareRepository.repository);
+  const result = await gameService.startSession(3);
+
+  assert.equal(result.lifecycle, "active");
+  assert.equal(result.reason, "existing-session");
+  assert.equal(result.session.status, "active");
+  assert.equal(result.session.remainingSeconds <= 300, true);
+  assert.equal(result.session.remainingSeconds >= 287, true);
+});
+
 test("checkSubscription returns Telegram membership status for current player", async () => {
   const rewardAwareRepository = withRewardRepository();
   const gameService = createGameServiceWithSubscriptionChecker(
@@ -529,7 +573,7 @@ test("collectSneaker auto-finishes session when the tenth sneaker is found", asy
   });
 });
 
-test("finishSession returns current incomplete session without finishing it", async () => {
+test("finishSession marks incomplete session as time-ended and keeps it active", async () => {
   const openSession = {
     id: 52,
     playerId: 9,
@@ -549,25 +593,47 @@ test("finishSession returns current incomplete session without finishing it", as
       return openSession;
     },
     async updateSession(_sessionId, valuesToUpdate) {
-      throw new Error(`should not update incomplete active session on finish: ${JSON.stringify(valuesToUpdate)}`);
+      assert.equal(valuesToUpdate.remaining_seconds, 0);
+      assert.equal(valuesToUpdate.completion_reason, "time-ended");
+      assert.ok(valuesToUpdate.last_heartbeat_at instanceof Date);
+
+      return {
+        ...openSession,
+        remainingSeconds: 0,
+        lastHeartbeatAt: valuesToUpdate.last_heartbeat_at,
+        completionReason: "time-ended",
+      };
     },
     async markPlayerOutcome(playerId, payload) {
       assert.equal(playerId, 9);
       markedOutcome = payload;
     },
     async upsertGameResult(resultPayload) {
-      throw new Error(`should not persist result for incomplete session: ${JSON.stringify(resultPayload)}`);
+      assert.equal(resultPayload.playerId, 9);
+      assert.equal(resultPayload.gameSessionId, 52);
+      assert.equal(resultPayload.remainingSeconds, 0);
+      assert.equal(resultPayload.completionReason, "time-ended");
+      assert.equal(resultPayload.eligibleForRaffle, false);
+      return { id: 202 };
+    },
+    async findPlayerRewardStateById() {
+      return {
+        gameCompletionState: "time-ended",
+        promoCode: null,
+      };
     },
   });
 
   const gameService = createGameServiceForTest(rewardAwareRepository.repository);
   const result = await gameService.finishSession(9);
 
-  assert.equal(markedOutcome, null);
+  assert.deepEqual(markedOutcome, {
+    gameCompletionState: "time-ended",
+  });
   assert.equal(result.lifecycle, "active");
-  assert.equal(result.reason, null);
+  assert.equal(result.reason, "time-ended");
   assert.equal(result.session.status, "active");
-  assert.equal(result.session.remainingSeconds, 553);
+  assert.equal(result.session.remainingSeconds, 0);
   assert.equal(result.session.canCollect, true);
 });
 

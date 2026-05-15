@@ -284,6 +284,25 @@ export function createGameService({
     return timedOutSession;
   }
 
+  async function forceSessionTimedOut(session, atTime) {
+    if (session.status !== "active" || isSessionComplete(session)) {
+      return session;
+    }
+
+    const timedOutSession = await gameRepository.updateSession(session.id, {
+      remaining_seconds: 0,
+      completion_reason: PLAYER_GAME_COMPLETION_STATE.TIME_ENDED,
+      last_heartbeat_at: atTime,
+    });
+
+    await persistSessionOutcome(timedOutSession, {
+      reason: PLAYER_GAME_COMPLETION_STATE.TIME_ENDED,
+      remainingSeconds: 0,
+    });
+
+    return timedOutSession;
+  }
+
   async function settleOpenSession(session) {
     if (!session || session.status !== "active" || !session.lastResumedAt) {
       return session;
@@ -389,9 +408,40 @@ export function createGameService({
       startSessionSchema.parse(payload);
 
       if (openSession?.status === "active") {
-        const touchedSession = await gameRepository.updateSession(openSession.id, {
+        const runningState = openSession.lastResumedAt
+          ? calculateRunningState(openSession, now)
+          : {
+              remainingSeconds: Number(openSession.remainingSeconds ?? 0),
+              isExpired: Number(openSession.remainingSeconds ?? 0) <= 0,
+            };
+
+        if (
+          runningState.isExpired
+          && !isSessionComplete(openSession)
+        ) {
+          const timedOutSession = await markSessionTimedOut(
+            openSession,
+            runningState.expiryAt ?? now,
+          );
+
+          return buildSessionResponse(
+            timedOutSession,
+            now,
+            "active",
+            resolveCompletionReason(timedOutSession),
+          );
+        }
+
+        const valuesToUpdate = {
           last_heartbeat_at: now,
-        });
+        };
+
+        if (runningState.remainingSeconds > 0) {
+          valuesToUpdate.remaining_seconds = runningState.remainingSeconds;
+          valuesToUpdate.last_resumed_at = now;
+        }
+
+        const touchedSession = await gameRepository.updateSession(openSession.id, valuesToUpdate);
 
         return buildSessionResponse(
           touchedSession,
@@ -611,7 +661,7 @@ export function createGameService({
 
       if (!isSessionComplete(openSession)) {
         const currentSession = openSession.status === "active"
-          ? await settleOpenSession(openSession)
+          ? await forceSessionTimedOut(openSession, now)
           : openSession;
 
         return buildSessionResponse(

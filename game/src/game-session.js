@@ -3,7 +3,6 @@ import {
   collectSneaker,
   createAuthSession,
   finishGame,
-  getGameState,
   logActivity,
   startGameSession,
 } from './api.js'
@@ -71,7 +70,7 @@ export function useBackendBootstrap() {
       try {
         const authSession = await createAuthSession()
         const gameStateFromAuth = extractGameStateFromAuthSession(authSession)
-        const gameState = gameStateFromAuth ?? normalizeGameState(await getGameState(authSession.token))
+        const gameState = gameStateFromAuth ?? null
 
         if (cancelled) {
           return
@@ -175,10 +174,6 @@ export function useServerGameSession({ token, initialGameState = null, autoStart
     }
   }, [applyState])
 
-  const refreshState = useCallback(async () => (
-    runAction('refresh-state', () => getGameState(token))
-  ), [runAction, token])
-
   const startSession = useCallback(async () => (
     runAction('start-session', () => startGameSession(token))
   ), [runAction, token])
@@ -198,7 +193,7 @@ export function useServerGameSession({ token, initialGameState = null, autoStart
     } catch (requestError) {
       if (requestError.status === 409) {
         try {
-          await refreshState()
+          await startSession()
         } catch {
           // Ignore refresh failures here and surface the original error to the UI.
         }
@@ -206,7 +201,7 @@ export function useServerGameSession({ token, initialGameState = null, autoStart
 
       throw requestError
     }
-  }, [refreshState, runAction, token])
+  }, [runAction, startSession, token])
 
   const finishSession = useCallback(async () => (
     runAction('finish-session', () => finishGame(token))
@@ -246,12 +241,13 @@ export function useServerGameSession({ token, initialGameState = null, autoStart
   }, [gameState])
 
   useEffect(() => {
-    if (!autoStart || initialGameState?.session) {
+    if (!autoStart) {
       return undefined
     }
 
     logGameDebug('server-game:auto-start-triggered', {
       lifecycle: initialGameState?.lifecycle ?? null,
+      hasInitialSession: Boolean(initialGameState?.session),
     })
     void startSession()
 
@@ -311,9 +307,9 @@ export function useServerGameSession({ token, initialGameState = null, autoStart
 
   useEffect(() => {
     if (gameState?.session?.status === 'active' && displayRemainingSeconds <= 0) {
-      void refreshState()
+      void finishSession()
     }
-  }, [displayRemainingSeconds, gameState?.session?.status, refreshState])
+  }, [displayRemainingSeconds, finishSession, gameState?.session?.status])
 
   return {
     gameState,
@@ -326,6 +322,5 @@ export function useServerGameSession({ token, initialGameState = null, autoStart
     logSessionActivity,
     collectSessionSneaker,
     finishSession,
-    refreshState,
   }
 }

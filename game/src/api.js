@@ -85,10 +85,6 @@ export function markGameEntered() {
   window.localStorage.setItem(ENTERED_GAME_STORAGE_KEY, 'true')
 }
 
-export async function getGameState(token) {
-  return request('/game/state', { token })
-}
-
 export async function checkSubscriptionStatus(token) {
   return request('/game/subscription-status', { token })
 }
