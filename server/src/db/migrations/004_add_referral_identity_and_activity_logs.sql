@@ -1,6 +1,7 @@
 ALTER TABLE players
   ADD COLUMN IF NOT EXISTS referred_by_code TEXT,
-  ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+  ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  ADD COLUMN IF NOT EXISTS utm_slug TEXT;
 
 UPDATE players
 SET referred_by_code = referral_code
@@ -21,6 +22,10 @@ SET has_referral = (referred_by_code IS NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS players_referral_code_idx
   ON players (referral_code);
 
+CREATE INDEX IF NOT EXISTS players_utm_slug_idx
+  ON players (utm_slug)
+  WHERE utm_slug IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS game_activity_logs (
   id BIGSERIAL PRIMARY KEY,
   player_id BIGINT NOT NULL REFERENCES players(id) ON DELETE CASCADE,
@@ -36,3 +41,17 @@ CREATE INDEX IF NOT EXISTS game_activity_logs_player_created_idx
 
 CREATE INDEX IF NOT EXISTS game_activity_logs_session_created_idx
   ON game_activity_logs (game_session_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS player_utm_visits (
+  id BIGSERIAL PRIMARY KEY,
+  player_id BIGINT NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  utm_slug TEXT NOT NULL,
+  was_existing_player BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS player_utm_visits_slug_created_idx
+  ON player_utm_visits (utm_slug, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS player_utm_visits_player_created_idx
+  ON player_utm_visits (player_id, created_at DESC);

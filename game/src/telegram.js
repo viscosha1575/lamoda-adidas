@@ -12,11 +12,10 @@ export function getTelegramWebApp() {
   return window.Telegram?.WebApp ?? null
 }
 
-function normalizeReferralCode(value) {
+function normalizeStartParam(value) {
   const normalized = String(value ?? '')
     .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, '')
+    .replace(/[^A-Za-z0-9_-]/g, '')
 
   return normalized || null
 }
@@ -41,7 +40,7 @@ export function getTelegramStartParam() {
   }
 
   for (const candidate of candidates) {
-    const normalized = normalizeReferralCode(candidate)
+    const normalized = normalizeStartParam(candidate)
     if (normalized) {
       return normalized
     }

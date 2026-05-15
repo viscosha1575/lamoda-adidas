@@ -25,6 +25,7 @@ export function createAuthController({ authService, gameService }) {
             authProvider: player.authProvider,
             referralCode: player.referralCode,
             referredByCode: player.referredByCode,
+            utmSlug: player.utmSlug,
             referralLink: player.referralLink,
             hasReferral: player.hasReferral,
             gameCompletionState: player.gameCompletionState,

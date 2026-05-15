@@ -21,7 +21,24 @@ function sanitizeReferralCode(value) {
   return normalizedValue || null;
 }
 
-function normalizeReferredByCode(value) {
+function sanitizeStartParam(value) {
+  const normalizedValue = String(value ?? "")
+    .trim()
+    .replace(/[^A-Za-z0-9_-]/g, "");
+
+  return normalizedValue || null;
+}
+
+function sanitizeUtmSlug(value) {
+  const normalizedValue = String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "");
+
+  return normalizedValue || null;
+}
+
+function extractStartParam(value) {
   if (!value) {
     return null;
   }
@@ -37,7 +54,7 @@ function normalizeReferredByCode(value) {
     const queryParams = new URLSearchParams(url.search);
 
     for (const key of ["startapp", "start_param", "ref"]) {
-      const normalizedParamValue = sanitizeReferralCode(queryParams.get(key));
+      const normalizedParamValue = sanitizeStartParam(queryParams.get(key));
 
       if (normalizedParamValue) {
         return normalizedParamValue;
@@ -46,8 +63,12 @@ function normalizeReferredByCode(value) {
 
     return null;
   } catch {
-    return sanitizeReferralCode(rawValue);
+    return sanitizeStartParam(rawValue);
   }
+}
+
+function normalizeReferredByCode(value) {
+  return sanitizeReferralCode(extractStartParam(value));
 }
 
 function buildReferralLink(telegramAppUrl, referralCode) {
@@ -83,6 +104,7 @@ function normalizePlayer(player, { onlineWindowSeconds, telegramAppUrl }) {
     authProvider: player.auth_provider,
     referralCode: player.referral_code ?? null,
     referredByCode: player.referred_by_code ?? null,
+    utmSlug: player.utm_slug ?? null,
     referralLink: buildReferralLink(telegramAppUrl, player.referral_code ?? null),
     hasReferral: Boolean(player.has_referral),
     subscribedToChannel: Boolean(player.subscribed_to_channel),
@@ -130,8 +152,7 @@ export function createAuthService({
       const input = authSessionSchema.parse(payload);
       const authToken = crypto.randomUUID();
       const authTokenExpiresAt = buildTokenExpiry(authTokenTtlDays);
-      const referredByCode = normalizeReferredByCode(input.referralCode);
-      const hasReferral = Boolean(referredByCode);
+      const startParam = extractStartParam(input.startParam ?? input.referralCode);
       const lastSeenAt = new Date();
 
       if (!input.initData) {
@@ -147,10 +168,14 @@ export function createAuthService({
       const existingPlayer = await authRepository.findPlayerByTelegramUserId(
         telegramUser.id,
       );
-      const isNewReferral = Boolean(referredByCode) && !existingPlayer?.referred_by_code;
-      const referralOwner = isNewReferral
-        ? await authRepository.findPlayerByReferralCode(referredByCode)
+      const referralCodeCandidate = sanitizeReferralCode(startParam);
+      const referralOwner = referralCodeCandidate
+        ? await authRepository.findPlayerByReferralCode(referralCodeCandidate)
         : null;
+      const referredByCode = referralOwner ? referralCodeCandidate : null;
+      const utmSlug = referredByCode ? null : sanitizeUtmSlug(startParam);
+      const hasReferral = Boolean(referredByCode);
+      const isNewReferral = Boolean(referredByCode) && !existingPlayer?.referred_by_code;
 
       const player = await authRepository.upsertTelegramPlayer({
         telegramUserId: telegramUser.id,
@@ -161,10 +186,19 @@ export function createAuthService({
         referralCode: existingPlayer?.referral_code ?? createPersonalReferralCode(),
         referredByCode,
         hasReferral,
+        utmSlug,
         authToken,
         authTokenExpiresAt,
         lastSeenAt,
       });
+
+      if (utmSlug) {
+        await authRepository.trackPlayerUtmVisit(
+          player.id,
+          utmSlug,
+          Boolean(existingPlayer),
+        );
+      }
 
       return {
         ...withPlayerStatus(player, {

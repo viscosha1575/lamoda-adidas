@@ -1,3 +1,5 @@
+import crypto from "node:crypto";
+
 function mapPlayerRow(row) {
   return {
     id: Number(row.id),
@@ -7,6 +9,7 @@ function mapPlayerRow(row) {
     lastName: row.last_name ?? null,
     referralCode: row.referral_code ?? null,
     referredByCode: row.referred_by_code ?? null,
+    utmSlug: row.utm_slug ?? null,
     hasReferral: Boolean(row.has_referral),
     subscribedToChannel: Boolean(row.subscribed_to_channel),
     gameCompletionState: row.game_completion_state ?? null,
@@ -56,6 +59,53 @@ function mapActivityLogRow(row) {
     details: row.details ?? {},
     createdAt: row.created_at ?? null,
   };
+}
+
+function mapUtmSummaryRow(row) {
+  return {
+    utmSlug: row.utm_slug ?? null,
+    uniqueUsersCount: Number(row.unique_users_count ?? 0),
+    returningUsersCount: Number(row.returning_users_count ?? 0),
+    totalClicksCount: Number(row.total_clicks_count ?? 0),
+    lastClickAt: row.last_click_at ?? null,
+  };
+}
+
+function mapPromoCodeRow(row) {
+  return {
+    id: Number(row.id),
+    code: row.code,
+    assignedPlayerId: row.assigned_player_id ? Number(row.assigned_player_id) : null,
+    assignedAt: row.assigned_at ?? null,
+    createdAt: row.created_at ?? null,
+    updatedAt: row.updated_at ?? null,
+    player: row.assigned_player_id ? {
+      id: Number(row.assigned_player_id),
+      telegramUserId: row.telegram_user_id ? Number(row.telegram_user_id) : null,
+      username: row.username ?? null,
+      firstName: row.first_name ?? null,
+      lastName: row.last_name ?? null,
+    } : null,
+  };
+}
+
+function mapRafflePlayerRow(row) {
+  return {
+    id: Number(row.id),
+    telegramUserId: row.telegram_user_id ? Number(row.telegram_user_id) : null,
+    username: row.username ?? null,
+    firstName: row.first_name ?? null,
+    lastName: row.last_name ?? null,
+    gameCompletionState: row.game_completion_state ?? null,
+    raffleWon: typeof row.raffle_won === "boolean" ? row.raffle_won : null,
+    codeId: row.code_id ?? null,
+    createdAt: row.created_at ?? null,
+    updatedAt: row.updated_at ?? null,
+  };
+}
+
+function createNumericCodeId() {
+  return String(crypto.randomInt(10_000_000, 100_000_000));
 }
 
 export function createAdminRepository({ pool }) {
@@ -207,7 +257,7 @@ export function createAdminRepository({ pool }) {
             GROUP BY player_id
          )
          SELECT p.id, p.telegram_user_id, p.username, p.first_name, p.last_name,
-                p.referral_code, p.referred_by_code, p.has_referral,
+                p.referral_code, p.referred_by_code, p.utm_slug, p.has_referral,
                 p.subscribed_to_channel, p.game_completion_state, p.raffle_won, p.code_id,
                 pc.code AS promo_code, p.auth_provider,
                 p.last_seen_at, p.created_at, p.updated_at,
@@ -245,7 +295,7 @@ export function createAdminRepository({ pool }) {
     async findPlayerById(playerId) {
       const result = await pool.query(
         `SELECT p.id, p.telegram_user_id, p.username, p.first_name, p.last_name,
-                p.referral_code, p.referred_by_code, p.has_referral,
+                p.referral_code, p.referred_by_code, p.utm_slug, p.has_referral,
                 p.subscribed_to_channel, p.game_completion_state, p.raffle_won, p.code_id,
                 pc.code AS promo_code, p.auth_provider,
                 p.last_seen_at, p.created_at, p.updated_at,
@@ -294,6 +344,207 @@ export function createAdminRepository({ pool }) {
       );
 
       return result.rows.map(mapActivityLogRow);
+    },
+
+    async getUtmSummary({ search }) {
+      const searchValue = `%${String(search || "").trim()}%`;
+      const result = await pool.query(
+        `SELECT utm_slug,
+                COUNT(*)::int AS total_clicks_count,
+                COUNT(DISTINCT player_id)::int AS unique_users_count,
+                COUNT(DISTINCT player_id) FILTER (WHERE was_existing_player)::int AS returning_users_count,
+                MAX(created_at) AS last_click_at
+           FROM player_utm_visits
+          WHERE ($1 = '%%' OR utm_slug ILIKE $1)
+          GROUP BY utm_slug
+          ORDER BY total_clicks_count DESC, utm_slug ASC`,
+        [searchValue],
+      );
+
+      return result.rows.map(mapUtmSummaryRow);
+    },
+
+    async findPromoCodes({ search, status }) {
+      const searchValue = `%${String(search || "").trim()}%`;
+      const normalizedStatus = status === "issued" || status === "new" ? status : "all";
+      const result = await pool.query(
+        `SELECT pc.id, pc.code, pc.assigned_player_id, pc.assigned_at, pc.created_at, pc.updated_at,
+                p.telegram_user_id, p.username, p.first_name, p.last_name
+           FROM promo_codes pc
+           LEFT JOIN players p ON p.id = pc.assigned_player_id
+          WHERE (
+            $1 = '%%'
+            OR pc.code ILIKE $1
+            OR COALESCE(p.username, '') ILIKE $1
+            OR COALESCE(p.first_name, '') ILIKE $1
+            OR COALESCE(p.last_name, '') ILIKE $1
+            OR COALESCE(p.telegram_user_id, '') ILIKE $1
+          )
+            AND (
+              $2 = 'all'
+              OR ($2 = 'issued' AND pc.assigned_player_id IS NOT NULL)
+              OR ($2 = 'new' AND pc.assigned_player_id IS NULL)
+            )
+          ORDER BY pc.created_at DESC, pc.id DESC`,
+        [searchValue, normalizedStatus],
+      );
+
+      return result.rows.map(mapPromoCodeRow);
+    },
+
+    async createPromoCode(code) {
+      const existingResult = await pool.query(
+        `SELECT pc.id, pc.code, pc.assigned_player_id, pc.assigned_at, pc.created_at, pc.updated_at,
+                p.telegram_user_id, p.username, p.first_name, p.last_name
+           FROM promo_codes pc
+           LEFT JOIN players p ON p.id = pc.assigned_player_id
+          WHERE pc.code = $1
+          LIMIT 1`,
+        [code],
+      );
+
+      if (existingResult.rows[0]) {
+        return {
+          created: false,
+          promoCode: mapPromoCodeRow(existingResult.rows[0]),
+        };
+      }
+
+      const result = await pool.query(
+        `INSERT INTO promo_codes (code)
+         VALUES ($1)
+         RETURNING id, code, assigned_player_id, assigned_at, created_at, updated_at`,
+        [code],
+      );
+
+      return {
+        created: true,
+        promoCode: mapPromoCodeRow(result.rows[0]),
+      };
+    },
+
+    async deleteAllPromoCodes() {
+      const result = await pool.query(
+        `DELETE FROM promo_codes
+         RETURNING id`,
+      );
+
+      return Number(result.rowCount ?? 0);
+    },
+
+    async findRafflePlayers({ search, outcome = "all" }) {
+      const searchValue = `%${String(search || "").trim()}%`;
+      const normalizedOutcome = ["all", "won", "lost", "pending"].includes(outcome)
+        ? outcome
+        : "all";
+      const result = await pool.query(
+        `SELECT p.id, p.telegram_user_id, p.username, p.first_name, p.last_name,
+                p.game_completion_state, p.raffle_won, p.code_id, p.created_at, p.updated_at
+           FROM players p
+          WHERE p.game_completion_state = 'completed'
+            AND (
+              $1 = '%%'
+              OR COALESCE(p.telegram_user_id, '') ILIKE $1
+              OR COALESCE(p.username, '') ILIKE $1
+            )
+            AND (
+              $2 = 'all'
+              OR ($2 = 'won' AND p.raffle_won = TRUE)
+              OR ($2 = 'lost' AND p.raffle_won = FALSE)
+              OR ($2 = 'pending' AND p.raffle_won IS NULL)
+            )
+          ORDER BY p.created_at DESC, p.id DESC`,
+        [searchValue, normalizedOutcome],
+      );
+
+      return result.rows.map(mapRafflePlayerRow);
+    },
+
+    async markRaffleWinner(playerId) {
+      const client = await pool.connect();
+
+      try {
+        await client.query("BEGIN");
+
+        const playerResult = await client.query(
+          `SELECT id, telegram_user_id, username, first_name, last_name,
+                  game_completion_state, raffle_won, code_id, created_at, updated_at
+             FROM players
+            WHERE id = $1
+              AND game_completion_state = 'completed'
+            LIMIT 1
+            FOR UPDATE`,
+          [playerId],
+        );
+
+        const playerRow = playerResult.rows[0];
+
+        if (!playerRow) {
+          await client.query("ROLLBACK");
+          return null;
+        }
+
+        if (playerRow.raffle_won === true && playerRow.code_id) {
+          await client.query("COMMIT");
+          return mapRafflePlayerRow(playerRow);
+        }
+
+        let codeId = playerRow.code_id ?? null;
+
+        if (!codeId) {
+          for (let attempt = 0; attempt < 20; attempt += 1) {
+            const candidate = createNumericCodeId();
+            const codeExistsResult = await client.query(
+              `SELECT 1
+                 FROM players
+                WHERE code_id = $1
+                LIMIT 1`,
+              [candidate],
+            );
+
+            if (!codeExistsResult.rows[0]) {
+              codeId = candidate;
+              break;
+            }
+          }
+        }
+
+        if (!codeId) {
+          throw new Error("Unable to generate unique codeId");
+        }
+
+        const updatedResult = await client.query(
+          `UPDATE players
+              SET raffle_won = TRUE,
+                  code_id = $2,
+                  updated_at = NOW()
+            WHERE id = $1
+          RETURNING id, telegram_user_id, username, first_name, last_name,
+                    game_completion_state, raffle_won, code_id, created_at, updated_at`,
+          [playerId, codeId],
+        );
+
+        await client.query("COMMIT");
+        return mapRafflePlayerRow(updatedResult.rows[0]);
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+
+    async finishRaffle() {
+      const result = await pool.query(
+        `UPDATE players
+            SET raffle_won = FALSE,
+                updated_at = NOW()
+          WHERE game_completion_state = 'completed'
+            AND raffle_won IS NULL
+        RETURNING id`,
+      );
+
+      return Number(result.rowCount ?? 0);
     },
 
     async deletePlayerById(playerId) {

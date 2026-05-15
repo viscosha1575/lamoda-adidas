@@ -57,6 +57,7 @@ test("createSession marks Telegram player with referredByCode when referralCode 
         referral_code: player.referralCode,
         referred_by_code: player.referredByCode,
         has_referral: player.hasReferral,
+        utm_slug: null,
         raffle_won: null,
         code_id: null,
         auth_token: player.authToken,
@@ -111,6 +112,7 @@ test("createSession keeps hasReferral false when referralCode is missing", async
         referral_code: player.referralCode,
         referred_by_code: player.referredByCode,
         has_referral: player.hasReferral,
+        utm_slug: null,
         raffle_won: null,
         code_id: null,
         auth_token: player.authToken,
@@ -166,6 +168,7 @@ test("createSession accepts raw Telegram initData without hash validation", asyn
         referral_code: player.referralCode,
         referred_by_code: player.referredByCode,
         has_referral: player.hasReferral,
+        utm_slug: null,
         raffle_won: null,
         code_id: null,
         auth_token: player.authToken,
@@ -199,4 +202,60 @@ test("createSession rejects requests without Telegram initData", async () => {
       message: "Telegram initData is required",
     },
   );
+});
+
+test("createSession stores lowercase startapp as utm slug and tracks visit", async () => {
+  let trackedVisit = null;
+  const authRepository = {
+    async findPlayerByTelegramUserId() {
+      return {
+        id: 77,
+        referral_code: "ABCDEF123456",
+      };
+    },
+    async findPlayerByReferralCode(referralCode) {
+      assert.equal(referralCode, "TEST");
+      return null;
+    },
+    async upsertTelegramPlayer(player) {
+      assert.equal(player.referredByCode, null);
+      assert.equal(player.hasReferral, false);
+      assert.equal(player.utmSlug, "test");
+
+      return {
+        id: 77,
+        telegram_user_id: player.telegramUserId,
+        username: player.username,
+        first_name: player.firstName,
+        last_name: player.lastName,
+        auth_provider: player.authProvider,
+        referral_code: player.referralCode,
+        referred_by_code: null,
+        has_referral: false,
+        utm_slug: "test",
+        raffle_won: null,
+        code_id: null,
+        auth_token: player.authToken,
+        auth_token_expires_at: player.authTokenExpiresAt,
+        last_seen_at: player.lastSeenAt,
+      };
+    },
+    async trackPlayerUtmVisit(playerId, utmSlug, wasExistingPlayer) {
+      trackedVisit = { playerId, utmSlug, wasExistingPlayer };
+    },
+  };
+
+  const authService = createAuthServiceForTest(authRepository);
+  const result = await authService.createSession({
+    initData: createInitData(),
+    startParam: "test",
+  });
+
+  assert.equal(result.utmSlug, "test");
+  assert.equal(result.referredByCode, null);
+  assert.deepEqual(trackedVisit, {
+    playerId: 77,
+    utmSlug: "test",
+    wasExistingPlayer: true,
+  });
 });

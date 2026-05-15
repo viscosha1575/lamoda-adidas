@@ -149,6 +149,7 @@ function normalizePlayerDetails(row, onlineWindowSeconds) {
       lastName: row.last_name ?? null,
       referralCode: row.referral_code ?? null,
       referredByCode: row.referred_by_code ?? null,
+      utmSlug: row.utm_slug ?? null,
       hasReferral: Boolean(row.has_referral),
       subscribedToChannel: Boolean(row.subscribed_to_channel),
       gameCompletionState: row.game_completion_state ?? null,
@@ -195,6 +196,33 @@ function resolveSortColumn(sortKey) {
 
 function resolveSortDirection(sortDirection) {
   return String(sortDirection).toLowerCase() === "asc" ? "ASC" : "DESC";
+}
+
+function normalizePromoCode(value) {
+  const normalizedValue = String(value ?? "").trim();
+  return normalizedValue || null;
+}
+
+function normalizePromoCodePlayer(player, onlineWindowSeconds) {
+  if (!player) {
+    return null;
+  }
+
+  return normalizePlayer({
+    id: Number(player.id),
+    telegramUserId: player.telegramUserId ?? null,
+    username: player.username ?? null,
+    firstName: player.firstName ?? null,
+    lastName: player.lastName ?? null,
+    latestHeartbeatAt: null,
+  }, onlineWindowSeconds);
+}
+
+function normalizeRafflePlayer(player) {
+  return {
+    ...player,
+    displayName: normalizeDisplayName(player),
+  };
 }
 
 export function createAdminService({
@@ -325,6 +353,118 @@ export function createAdminService({
 
       return {
         logs: await adminRepository.findActivityLogsByPlayerId(playerId, limit),
+      };
+    },
+
+    async getUtmSummary(payload = {}) {
+      const rows = await adminRepository.getUtmSummary({
+        search: payload?.search ?? "",
+      });
+
+      return {
+        items: rows,
+        summary: {
+          totalUtmsCount: rows.length,
+          totalClicksCount: rows.reduce(
+            (sum, row) => sum + Number(row.totalClicksCount ?? 0),
+            0,
+          ),
+          totalUniqueUsersCount: rows.reduce(
+            (sum, row) => sum + Number(row.uniqueUsersCount ?? 0),
+            0,
+          ),
+        },
+      };
+    },
+
+    async getPromoCodes(payload = {}) {
+      const items = await adminRepository.findPromoCodes({
+        search: payload?.search ?? "",
+        status: payload?.status ?? "all",
+      });
+
+      const normalizedItems = items.map((item) => ({
+        ...item,
+        player: normalizePromoCodePlayer(item.player, config.playerOnlineWindowSeconds),
+      }));
+
+      return {
+        items: normalizedItems,
+        summary: {
+          totalCodesCount: normalizedItems.length,
+          issuedCodesCount: normalizedItems.filter((item) => item.assignedPlayerId).length,
+          newCodesCount: normalizedItems.filter((item) => !item.assignedPlayerId).length,
+        },
+      };
+    },
+
+    async createPromoCode(payload = {}) {
+      const code = normalizePromoCode(payload?.code);
+
+      if (!code) {
+        throw new HttpError(400, "code is required");
+      }
+
+      const result = await adminRepository.createPromoCode(code);
+
+      return {
+        created: result.created,
+        promoCode: {
+          ...result.promoCode,
+          player: normalizePromoCodePlayer(result.promoCode.player, config.playerOnlineWindowSeconds),
+        },
+      };
+    },
+
+    async deleteAllPromoCodes() {
+      const deletedCount = await adminRepository.deleteAllPromoCodes();
+
+      return {
+        deletedCount,
+      };
+    },
+
+    async getRafflePlayers(payload = {}) {
+      const items = await adminRepository.findRafflePlayers({
+        search: payload?.search ?? "",
+        outcome: payload?.outcome ?? "all",
+      });
+      const normalizedItems = items.map(normalizeRafflePlayer);
+
+      return {
+        items: normalizedItems,
+        summary: {
+          totalParticipantsCount: normalizedItems.length,
+          winnersCount: normalizedItems.filter((item) => item.raffleWon === true).length,
+          losersCount: normalizedItems.filter((item) => item.raffleWon === false).length,
+          pendingCount: normalizedItems.filter((item) => item.raffleWon == null).length,
+        },
+      };
+    },
+
+    async markRaffleWinner(payload = {}) {
+      const playerId = Number(payload?.playerId);
+
+      if (!Number.isInteger(playerId) || playerId <= 0) {
+        throw new HttpError(400, "playerId is required");
+      }
+
+      const player = await adminRepository.markRaffleWinner(playerId);
+
+      if (!player) {
+        throw new HttpError(404, "Raffle player not found");
+      }
+
+      return {
+        player: normalizeRafflePlayer(player),
+      };
+    },
+
+    async finishRaffle() {
+      const updatedCount = await adminRepository.finishRaffle();
+
+      return {
+        updatedCount,
       };
     },
 

@@ -20,8 +20,10 @@ function createMockPlayer({
   hasReferral = false,
   referredByCode = null,
   subscribedToChannel = false,
-  completedGame = false,
-  timeExpired = false,
+  utmSlug = null,
+  gameCompletionState = null,
+  raffleWon = null,
+  codeId = null,
   promoCode = null,
 }) {
   return {
@@ -34,8 +36,10 @@ function createMockPlayer({
     referredByCode,
     hasReferral,
     subscribedToChannel,
-    completedGame,
-    timeExpired,
+    utmSlug,
+    gameCompletionState,
+    raffleWon,
+    codeId,
     promoCode,
     authProvider: "telegram",
     createdAt: daysAgo(daysCreatedAgo, id % 6),
@@ -94,17 +98,34 @@ function createMockLog({
   };
 }
 
+function createMockPromoCode({
+  id,
+  code,
+  assignedPlayerId = null,
+  hoursCreatedAgo = 24,
+  hoursAssignedAgo = null,
+}) {
+  return {
+    id,
+    code,
+    assignedPlayerId,
+    assignedAt: hoursAssignedAgo == null ? null : hoursAgo(hoursAssignedAgo),
+    createdAt: hoursAgo(hoursCreatedAgo),
+    updatedAt: hoursAgo(hoursAssignedAgo ?? hoursCreatedAgo),
+  };
+}
+
 const mockState = {
   players: [
-    createMockPlayer({ id: 1, username: "mila.design", firstName: "Мила", lastName: "Иванова", daysCreatedAgo: 1, hoursSeenAgo: 0.15, subscribedToChannel: true, completedGame: true, promoCode: "TEST-LAMODA-0001" }),
-    createMockPlayer({ id: 2, username: "roma.runner", firstName: "Роман", lastName: "Петров", daysCreatedAgo: 2, hoursSeenAgo: 1.2, timeExpired: true }),
-    createMockPlayer({ id: 3, username: "katya.style", firstName: "Катя", lastName: "Соколова", daysCreatedAgo: 3, hoursSeenAgo: 0.5, hasReferral: true, referredByCode: "LAMODA-0001", subscribedToChannel: true, completedGame: true, promoCode: "TEST-LAMODA-0002" }),
+    createMockPlayer({ id: 1, username: "mila.design", firstName: "Мила", lastName: "Иванова", daysCreatedAgo: 1, hoursSeenAgo: 0.15, subscribedToChannel: true, gameCompletionState: "completed", raffleWon: true, codeId: "12345678", promoCode: "TEST-LAMODA-0001" }),
+    createMockPlayer({ id: 2, username: "roma.runner", firstName: "Роман", lastName: "Петров", daysCreatedAgo: 2, hoursSeenAgo: 1.2, gameCompletionState: "time-ended", raffleWon: false }),
+    createMockPlayer({ id: 3, username: "katya.style", firstName: "Катя", lastName: "Соколова", daysCreatedAgo: 3, hoursSeenAgo: 0.5, hasReferral: true, referredByCode: "LAMODA-0001", subscribedToChannel: true, gameCompletionState: "completed", promoCode: "TEST-LAMODA-0002" }),
     createMockPlayer({ id: 4, username: "nikita.arc", firstName: "Никита", lastName: "Орлов", daysCreatedAgo: 4, hoursSeenAgo: 5.2 }),
-    createMockPlayer({ id: 5, username: "dasha.wave", firstName: "Дарья", lastName: "Морозова", daysCreatedAgo: 5, hoursSeenAgo: 0.35, hasReferral: true, referredByCode: "LAMODA-0003", subscribedToChannel: true, completedGame: true, promoCode: "TEST-LAMODA-0003" }),
+    createMockPlayer({ id: 5, username: "dasha.wave", firstName: "Дарья", lastName: "Морозова", daysCreatedAgo: 5, hoursSeenAgo: 0.35, hasReferral: true, referredByCode: "LAMODA-0003", subscribedToChannel: true, gameCompletionState: "completed-after-time", promoCode: "TEST-LAMODA-0003" }),
     createMockPlayer({ id: 6, username: "artem.k", firstName: "Артем", lastName: "Кузнецов", daysCreatedAgo: 6, hoursSeenAgo: 13 }),
-    createMockPlayer({ id: 7, username: "vika.move", firstName: "Вика", lastName: "Семенова", daysCreatedAgo: 7, hoursSeenAgo: 0.8, timeExpired: true }),
+    createMockPlayer({ id: 7, username: "vika.move", firstName: "Вика", lastName: "Семенова", daysCreatedAgo: 7, hoursSeenAgo: 0.8, gameCompletionState: "time-ended" }),
     createMockPlayer({ id: 8, username: "alex.kick", firstName: "Алексей", lastName: "Федоров", daysCreatedAgo: 8, hoursSeenAgo: 24 }),
-    createMockPlayer({ id: 9, username: "sonya.sun", firstName: "Соня", lastName: "Лебедева", daysCreatedAgo: 9, hoursSeenAgo: 1.7, subscribedToChannel: true, completedGame: true, promoCode: "TEST-LAMODA-0004" }),
+    createMockPlayer({ id: 9, username: "sonya.sun", firstName: "Соня", lastName: "Лебедева", daysCreatedAgo: 9, hoursSeenAgo: 1.7, subscribedToChannel: true, gameCompletionState: "completed", raffleWon: false, promoCode: "TEST-LAMODA-0004" }),
     createMockPlayer({ id: 10, username: "tim.trail", firstName: "Тимур", lastName: "Егоров", daysCreatedAgo: 10, hoursSeenAgo: 33 }),
     createMockPlayer({ id: 11, username: "lena.run", firstName: "Елена", lastName: "Новикова", daysCreatedAgo: 11, hoursSeenAgo: 0.4 }),
     createMockPlayer({ id: 12, username: "max.field", firstName: "Максим", lastName: "Громов", daysCreatedAgo: 14, hoursSeenAgo: 8 }),
@@ -143,6 +164,23 @@ const mockState = {
     createMockLog({ id: 1011, playerId: 10, gameSessionId: 110, action: "start", details: { source: "unity" }, hoursAgoValue: 101 }),
     createMockLog({ id: 1012, playerId: 11, gameSessionId: 111, action: "pause", details: { count: 1 }, hoursAgoValue: 121 }),
     createMockLog({ id: 1013, playerId: 12, gameSessionId: 112, action: "finish", details: { reason: "time-ended" }, hoursAgoValue: 147 }),
+  ],
+  utmVisits: [
+    { id: 2001, playerId: 1, utmSlug: "test", wasExistingPlayer: false, createdAt: hoursAgo(3) },
+    { id: 2002, playerId: 3, utmSlug: "test", wasExistingPlayer: true, createdAt: hoursAgo(12) },
+    { id: 2003, playerId: 5, utmSlug: "test", wasExistingPlayer: true, createdAt: hoursAgo(30) },
+    { id: 2004, playerId: 2, utmSlug: "summerdrop", wasExistingPlayer: false, createdAt: hoursAgo(18) },
+    { id: 2005, playerId: 7, utmSlug: "summerdrop", wasExistingPlayer: true, createdAt: hoursAgo(40) },
+    { id: 2006, playerId: 9, utmSlug: "story", wasExistingPlayer: false, createdAt: hoursAgo(5) },
+    { id: 2007, playerId: 9, utmSlug: "story", wasExistingPlayer: true, createdAt: hoursAgo(2) },
+  ],
+  promoCodes: [
+    createMockPromoCode({ id: 3001, code: "TEST-LAMODA-0001", assignedPlayerId: 1, hoursCreatedAgo: 60, hoursAssignedAgo: 48 }),
+    createMockPromoCode({ id: 3002, code: "TEST-LAMODA-0002", assignedPlayerId: 3, hoursCreatedAgo: 58, hoursAssignedAgo: 40 }),
+    createMockPromoCode({ id: 3003, code: "TEST-LAMODA-0003", assignedPlayerId: 5, hoursCreatedAgo: 52, hoursAssignedAgo: 24 }),
+    createMockPromoCode({ id: 3004, code: "TEST-LAMODA-0004", assignedPlayerId: 9, hoursCreatedAgo: 46, hoursAssignedAgo: 18 }),
+    createMockPromoCode({ id: 3005, code: "FRESH-LAMODA-0005", hoursCreatedAgo: 8 }),
+    createMockPromoCode({ id: 3006, code: "FRESH-LAMODA-0006", hoursCreatedAgo: 2 }),
   ],
 };
 
@@ -261,6 +299,218 @@ function buildPlayerView(player) {
     displayName: buildDisplayName(player),
     isOnline: Date.now() - new Date(player.lastSeenAt).getTime() <= 15 * 1000,
     ...getPlayerStats(player.id),
+  };
+}
+
+function buildUtmResponse(payload = {}) {
+  const search = normalizeSearch(payload?.search);
+  const grouped = new Map();
+
+  for (const visit of mockState.utmVisits) {
+    if (!grouped.has(visit.utmSlug)) {
+      grouped.set(visit.utmSlug, []);
+    }
+
+    grouped.get(visit.utmSlug).push(visit);
+  }
+
+  let items = Array.from(grouped.entries()).map(([utmSlug, visits]) => ({
+    utmSlug,
+    uniqueUsersCount: new Set(visits.map((visit) => visit.playerId)).size,
+    returningUsersCount: new Set(
+      visits.filter((visit) => visit.wasExistingPlayer).map((visit) => visit.playerId),
+    ).size,
+    totalClicksCount: visits.length,
+    lastClickAt: visits
+      .slice()
+      .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))[0]?.createdAt ?? null,
+  }));
+
+  if (search) {
+    items = items.filter((item) => item.utmSlug.toLowerCase().includes(search));
+  }
+
+  items.sort((left, right) => right.totalClicksCount - left.totalClicksCount || left.utmSlug.localeCompare(right.utmSlug));
+
+  return {
+    items,
+    summary: {
+      totalUtmsCount: items.length,
+      totalClicksCount: items.reduce((sum, item) => sum + item.totalClicksCount, 0),
+      totalUniqueUsersCount: items.reduce((sum, item) => sum + item.uniqueUsersCount, 0),
+    },
+  };
+}
+
+function buildPromoCodesResponse(payload = {}) {
+  const search = normalizeSearch(payload?.search);
+  const status = payload?.status === "issued" || payload?.status === "new" ? payload.status : "all";
+  let items = mockState.promoCodes.map((promoCode) => {
+    const player = promoCode.assignedPlayerId
+      ? buildPlayerView(mockState.players.find((item) => item.id === promoCode.assignedPlayerId))
+      : null;
+
+    return {
+      ...promoCode,
+      player,
+    };
+  });
+
+  if (search) {
+    items = items.filter((item) => {
+      const haystack = [
+        item.code,
+        item.player?.displayName,
+        item.player?.username,
+        item.player?.telegramUserId,
+      ].join(" ").toLowerCase();
+
+      return haystack.includes(search);
+    });
+  }
+
+  if (status === "issued") {
+    items = items.filter((item) => item.assignedPlayerId);
+  }
+
+  if (status === "new") {
+    items = items.filter((item) => !item.assignedPlayerId);
+  }
+
+  items.sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt));
+
+  return {
+    items,
+    summary: {
+      totalCodesCount: items.length,
+      issuedCodesCount: items.filter((item) => item.assignedPlayerId).length,
+      newCodesCount: items.filter((item) => !item.assignedPlayerId).length,
+    },
+  };
+}
+
+function createPromoCode(body = {}) {
+  const code = String(body?.code || "").trim();
+
+  if (!code) {
+    throw new Error("code is required");
+  }
+
+  const existingPromoCode = mockState.promoCodes.find((item) => item.code === code);
+
+  if (existingPromoCode) {
+    return {
+      created: false,
+      promoCode: existingPromoCode,
+    };
+  }
+
+  const nextPromoCode = createMockPromoCode({
+    id: Math.max(0, ...mockState.promoCodes.map((item) => item.id)) + 1,
+    code,
+    hoursCreatedAgo: 0,
+  });
+
+  mockState.promoCodes.unshift(nextPromoCode);
+
+  return {
+    created: true,
+    promoCode: nextPromoCode,
+  };
+}
+
+function deleteAllPromoCodes() {
+  const deletedCount = mockState.promoCodes.length;
+  mockState.promoCodes = [];
+
+  return {
+    deletedCount,
+  };
+}
+
+function createMockCodeId() {
+  return String(Math.floor(10_000_000 + Math.random() * 90_000_000));
+}
+
+function buildRafflePlayersResponse(body = {}) {
+  const search = normalizeSearch(body?.search);
+  const outcome = ["all", "won", "lost", "pending"].includes(body?.outcome) ? body.outcome : "all";
+  let items = mockState.players
+    .filter((player) => player.gameCompletionState === "completed")
+    .map((player) => ({
+      ...player,
+      displayName: buildDisplayName(player),
+    }));
+
+  if (search) {
+    items = items.filter((player) => {
+      const haystack = [
+        player.telegramUserId,
+        player.username,
+      ].join(" ").toLowerCase();
+
+      return haystack.includes(search);
+    });
+  }
+
+  if (outcome === "won") {
+    items = items.filter((player) => player.raffleWon === true);
+  }
+
+  if (outcome === "lost") {
+    items = items.filter((player) => player.raffleWon === false);
+  }
+
+  if (outcome === "pending") {
+    items = items.filter((player) => player.raffleWon == null);
+  }
+
+  items.sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt));
+
+  return {
+    items,
+    summary: {
+      totalParticipantsCount: items.length,
+      winnersCount: items.filter((player) => player.raffleWon === true).length,
+      losersCount: items.filter((player) => player.raffleWon === false).length,
+      pendingCount: items.filter((player) => player.raffleWon == null).length,
+    },
+  };
+}
+
+function markRaffleWinner(body = {}) {
+  const playerId = Number(body?.playerId);
+  const player = mockState.players.find((item) => item.id === playerId && item.gameCompletionState === "completed");
+
+  if (!player) {
+    throw new Error("Raffle player not found");
+  }
+
+  player.raffleWon = true;
+  player.codeId = player.codeId || createMockCodeId();
+  player.updatedAt = new Date().toISOString();
+
+  return {
+    player: {
+      ...player,
+      displayName: buildDisplayName(player),
+    },
+  };
+}
+
+function finishRaffle() {
+  let updatedCount = 0;
+
+  for (const player of mockState.players) {
+    if (player.gameCompletionState === "completed" && player.raffleWon == null) {
+      player.raffleWon = false;
+      player.updatedAt = new Date().toISOString();
+      updatedCount += 1;
+    }
+  }
+
+  return {
+    updatedCount,
   };
 }
 
@@ -490,6 +740,34 @@ export function resolveMockAdminResponse(path, body = {}) {
 
   if (path === "/api/analytics/player") {
     return buildPlayerDetails(body);
+  }
+
+  if (path === "/api/analytics/utm") {
+    return buildUtmResponse(body);
+  }
+
+  if (path === "/api/promo-codes/list") {
+    return buildPromoCodesResponse(body);
+  }
+
+  if (path === "/api/promo-codes/create") {
+    return createPromoCode(body);
+  }
+
+  if (path === "/api/promo-codes/delete-all") {
+    return deleteAllPromoCodes();
+  }
+
+  if (path === "/api/raffle/players") {
+    return buildRafflePlayersResponse(body);
+  }
+
+  if (path === "/api/raffle/winner") {
+    return markRaffleWinner(body);
+  }
+
+  if (path === "/api/raffle/finish") {
+    return finishRaffle();
   }
 
   if (path === "/api/logs/user") {

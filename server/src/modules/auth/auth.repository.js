@@ -3,7 +3,7 @@ export function createAuthRepository({ pool }) {
     async findPlayerByTelegramUserId(telegramUserId) {
       const result = await pool.query(
         `SELECT id, telegram_user_id, username, first_name, last_name,
-                auth_provider, referral_code, referred_by_code, has_referral,
+                auth_provider, referral_code, referred_by_code, has_referral, utm_slug,
                 game_completion_state, raffle_won, code_id, subscribed_to_channel,
                 auth_token, auth_token_expires_at,
                 last_seen_at, created_at, updated_at
@@ -18,7 +18,7 @@ export function createAuthRepository({ pool }) {
     async findPlayerByAuthToken(authToken) {
       const result = await pool.query(
         `SELECT id, telegram_user_id, username, first_name, last_name,
-                auth_provider, referral_code, referred_by_code, has_referral,
+                auth_provider, referral_code, referred_by_code, has_referral, utm_slug,
                 game_completion_state, raffle_won, code_id, subscribed_to_channel,
                 auth_token, auth_token_expires_at,
                 last_seen_at, created_at, updated_at
@@ -33,7 +33,7 @@ export function createAuthRepository({ pool }) {
     async findPlayerByReferralCode(referralCode) {
       const result = await pool.query(
         `SELECT id, telegram_user_id, username, first_name, last_name,
-                auth_provider, referral_code, referred_by_code, has_referral,
+                auth_provider, referral_code, referred_by_code, has_referral, utm_slug,
                 game_completion_state, raffle_won, code_id, subscribed_to_channel,
                 auth_token, auth_token_expires_at,
                 last_seen_at, created_at, updated_at
@@ -51,7 +51,7 @@ export function createAuthRepository({ pool }) {
          SET last_seen_at = NOW(), updated_at = NOW()
          WHERE id = $1
          RETURNING id, telegram_user_id, username, first_name, last_name,
-                   auth_provider, referral_code, referred_by_code, has_referral,
+                   auth_provider, referral_code, referred_by_code, has_referral, utm_slug,
                    game_completion_state, raffle_won, code_id, subscribed_to_channel,
                    auth_token, auth_token_expires_at,
                    last_seen_at, created_at, updated_at`,
@@ -76,10 +76,10 @@ export function createAuthRepository({ pool }) {
       const result = await pool.query(
         `INSERT INTO players (
            telegram_user_id, username, first_name, last_name, auth_provider,
-           referral_code, referred_by_code, has_referral, auth_token,
+           referral_code, referred_by_code, has_referral, utm_slug, auth_token,
            auth_token_expires_at, last_seen_at
          )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
          ON CONFLICT (telegram_user_id)
          DO UPDATE SET
            username = EXCLUDED.username,
@@ -89,12 +89,13 @@ export function createAuthRepository({ pool }) {
            referral_code = COALESCE(players.referral_code, EXCLUDED.referral_code),
            referred_by_code = COALESCE(players.referred_by_code, EXCLUDED.referred_by_code),
            has_referral = players.has_referral OR EXCLUDED.has_referral,
+           utm_slug = COALESCE(EXCLUDED.utm_slug, players.utm_slug),
            auth_token = EXCLUDED.auth_token,
            auth_token_expires_at = EXCLUDED.auth_token_expires_at,
            last_seen_at = EXCLUDED.last_seen_at,
            updated_at = NOW()
          RETURNING id, telegram_user_id, username, first_name, last_name,
-                   auth_provider, referral_code, referred_by_code, has_referral,
+                   auth_provider, referral_code, referred_by_code, has_referral, utm_slug,
                    game_completion_state, raffle_won, code_id, subscribed_to_channel,
                    auth_token, auth_token_expires_at,
                    last_seen_at, created_at, updated_at`,
@@ -107,6 +108,7 @@ export function createAuthRepository({ pool }) {
           player.referralCode ?? null,
           player.referredByCode ?? null,
           player.hasReferral,
+          player.utmSlug ?? null,
           player.authToken,
           player.authTokenExpiresAt,
           player.lastSeenAt,
@@ -114,6 +116,14 @@ export function createAuthRepository({ pool }) {
       );
 
       return result.rows[0];
+    },
+
+    async trackPlayerUtmVisit(playerId, utmSlug, wasExistingPlayer) {
+      await pool.query(
+        `INSERT INTO player_utm_visits (player_id, utm_slug, was_existing_player)
+         VALUES ($1, $2, $3)`,
+        [playerId, utmSlug, Boolean(wasExistingPlayer)],
+      );
     },
 
   };

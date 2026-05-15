@@ -31,6 +31,7 @@ function createPlayerResponse(overrides = {}) {
     authProvider: "telegram_unverified",
     referralCode: "PLAYER42ABCD",
     referredByCode: null,
+    utmSlug: null,
     referralLink: "https://t.me/lamoda_games_bot/search?startapp=PLAYER42ABCD",
     hasReferral: false,
     gameCompletionState: null,
@@ -87,6 +88,7 @@ test("POST /api/auth/session reads Telegram initData only from headers", async (
   assert.equal(response.body.data.player.gameCompletionState, null);
   assert.equal(response.body.data.player.raffleWon, null);
   assert.equal(response.body.data.player.codeId, null);
+  assert.equal(response.body.data.player.utmSlug, null);
   assert.equal(response.body.data.lifecycle, "idle");
   assert.equal(response.body.data.session, null);
 });

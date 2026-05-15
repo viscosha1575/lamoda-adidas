@@ -41,7 +41,7 @@ async function request(pathname, {
 export async function createAuthSession() {
   const webApp = getTelegramWebApp()
   const initData = getTelegramInitData()
-  const referralCode = getTelegramStartParam()
+  const startParam = getTelegramStartParam()
 
   console.log('Telegram initData before auth session:', initData ?? null)
   console.log('Telegram initDataUnsafe before auth session:', webApp?.initDataUnsafe ?? null)
@@ -56,7 +56,7 @@ export async function createAuthSession() {
       'X-Telegram-Init-Data': initData,
     },
     body: {
-      referralCode,
+      startParam,
     },
   })
 }
