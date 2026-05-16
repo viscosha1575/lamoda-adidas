@@ -308,6 +308,59 @@ test("logActivity stores source and action and refreshes online activity", async
   assert.equal(result.session.isOnline, true);
 });
 
+test("logActivity returns latest finished session instead of null after game completion", async () => {
+  const finishedSession = {
+    id: 31,
+    playerId: 5,
+    status: "finished",
+    remainingSeconds: 12,
+    foundSneakerNumbers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    startedAt: new Date("2026-05-16T10:00:00.000Z"),
+    lastResumedAt: null,
+    lastHeartbeatAt: new Date("2026-05-16T10:04:00.000Z"),
+    finishedAt: new Date("2026-05-16T10:04:30.000Z"),
+    completionReason: "completed",
+  };
+
+  const rewardAwareRepository = withRewardRepository({
+    async findLatestOpenSessionByPlayerId() {
+      return null;
+    },
+    async findLatestSessionByPlayerId(playerId) {
+      assert.equal(playerId, 5);
+      return finishedSession;
+    },
+    async createActivityLog(activityLog) {
+      assert.equal(activityLog.playerId, 5);
+      assert.equal(activityLog.gameSessionId, 31);
+      assert.equal(activityLog.source, "game");
+      assert.equal(activityLog.action, "click");
+      return {
+        id: 100,
+        ...activityLog,
+        createdAt: new Date(),
+      };
+    },
+    async updateSession() {
+      throw new Error("should not update finished session during activity log");
+    },
+  });
+
+  const gameService = createGameServiceForTest(rewardAwareRepository.repository);
+  const result = await gameService.logActivity(5, {
+    source: "game",
+    action: "click",
+    details: {},
+  });
+
+  assert.equal(result.logged, true);
+  assert.equal(result.lifecycle, "finished");
+  assert.equal(result.activityLog.gameSessionId, 31);
+  assert.equal(result.session?.id, 31);
+  assert.equal(result.session?.status, "finished");
+  assert.equal(result.session?.canCollect, false);
+});
+
 test("restartSessionForReferral resets timer and found sneakers", async () => {
   const session = {
     id: 35,

@@ -678,7 +678,7 @@ export function createGameService({
       const now = new Date();
       const openSession = await getOpenSession(playerId);
 
-      let session = openSession;
+      let session = openSession ?? await gameRepository.findLatestSessionByPlayerId(playerId);
 
       if (openSession?.status === "active") {
         const runningState = openSession.lastResumedAt
