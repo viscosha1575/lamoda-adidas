@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <meta
+      name="description"
+      content="Standalone loading screen for the Lamoda x Adidas experience."
+    />
+    <title>GAME</title>
+    <link rel="shortcut icon" href="TemplateData/favicon.ico">
+    <link rel="stylesheet" href="TemplateData/style.css">
+
+    <!-- Скрипты интеграции из html2 -->
+    <script src="./TemplateData/vk-bridge.js"></script>
+    <script src="./TemplateData/telegram-web-app.js"></script>
+
+    <style>
+      @font-face {
+        font-family: "VCR OSD Mono [NolivantNT Edit]";
+        src: url("./TemplateData/VCROSDMONO[NOLIVANTNTEDIT]-REGULAR.TTF") format("truetype");
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
+      }
+
+      :root {
+        color-scheme: dark;
+        --font-display: "VCR OSD Mono [NolivantNT Edit]", monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        width: 100%;
+        overflow: hidden;
+        background: #000;
+      }
+
+      body {
+        font-family: var(--font-display);
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      main {
+        position: fixed;
+        inset: 0;
+        z-index: 10; /* Поверх канваса Юнити */
+        min-height: 100svh;
+        overflow: hidden;
+        background: #000;
+        color: #fff;
+      }
+
+      .screen {
+        position: relative;
+        display: flex;
+        min-height: 100svh;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+
+      .screen-bg,
+      .screen-overlay {
+        position: absolute;
+        inset: 0;
+      }
+
+      .screen-bg {
+        background: url("./TemplateData/back-loading.webp") center / cover no-repeat;
+      }
+
+      .screen-overlay {
+        background:
+          linear-gradient(
+            180deg,
+            rgba(8, 8, 8, 0.28) 0%,
+            rgba(10, 10, 10, 0.06) 34%,
+            rgba(6, 6, 6, 0.28) 68%,
+            rgba(0, 0, 0, 0.82) 100%
+          );
+      }
+
+      .content {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        min-height: 100svh;
+        width: 100%;
+        max-width: 390px;
+        flex-direction: column;
+        align-items: center;
+        padding: 15vh 32px 9vh;
+      }
+
+      .loading-title {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        line-height: 1;
+        text-align: center;
+        color: #fff;
+      }
+
+      .loading-title-top {
+        display: block;
+        width: min(20.25rem, 82vw);
+        text-shadow: 0 min(5.581px, 1.431vw) min(5.581px, 1.431vw) rgba(0, 0, 0, 0.34);
+        font-size: min(62px, 15.9vw);
+        font-weight: 400;
+        line-height: normal;
+        white-space: nowrap;
+      }
+
+      .loading-title-bottom {
+        display: block;
+        width: min(20.25rem, 82vw);
+        text-shadow: 0 min(6.47px, 1.659vw) min(6.47px, 1.659vw) rgba(0, 0, 0, 0.34);
+        font-size: min(112.528px, 28.853vw);
+        font-weight: 400;
+        line-height: normal;
+      }
+
+      .progress-area {
+        margin-top: auto;
+        display: flex;
+        width: 100%;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+      }
+
+      .loading-progress-frame {
+        width: 100%;
+        max-width: 30rem;
+        border: 3px solid #000;
+        background: #f0e8d6;
+        padding: 4px;
+        box-shadow:
+          0 14px 32px rgba(0, 0, 0, 0.24),
+          inset 0 2px 0 rgba(255, 255, 255, 0.28),
+          inset 0 -2px 0 rgba(83, 66, 41, 0.24),
+          inset 2px 0 0 rgba(255, 255, 255, 0.1),
+          inset -2px 0 0 rgba(83, 66, 41, 0.12);
+      }
+
+      .loading-progress-track {
+        height: 18px;
+        width: 100%;
+        overflow: hidden;
+        background: #f0e8d6;
+        box-shadow:
+          inset 0 2px 0 rgba(255, 255, 255, 0.22),
+          inset 0 -2px 0 rgba(137, 118, 88, 0.24),
+          inset 2px 0 0 rgba(255, 255, 255, 0.08),
+          inset -2px 0 0 rgba(137, 118, 88, 0.14);
+      }
+
+      .loading-progress-fill {
+        position: relative;
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(180deg, #97d96f 0%, #73b74d 58%, #5a9739 100%);
+        box-shadow:
+          inset 0 2px 0 rgba(255, 255, 255, 0.26),
+          inset 0 -2px 0 rgba(49, 89, 24, 0.36);
+        transition: width 200ms ease-out;
+        will-change: width;
+      }
+
+      .loading-progress-fill::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        width: 28%;
+        background:
+          linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 255, 255, 0.24) 48%,
+            rgba(255, 255, 255, 0) 100%
+          );
+        animation: loading-bar-glint 1.9s ease-in-out infinite;
+        pointer-events: none;
+      }
+
+      .loading-caption {
+        margin: 0;
+        text-align: center;
+        text-shadow: 0 6px 18px rgba(0, 0, 0, 0.34);
+        font-size: clamp(1.4rem, 6vw, 2rem);
+        line-height: 1;
+      }
+
+      @keyframes loading-bar-glint {
+        0% {
+          transform: translateX(-180%);
+        }
+
+        100% {
+          transform: translateX(440%);
+        }
+      }
+
+      @media (max-width: 420px) {
+        .content {
+          padding-left: 24px;
+          padding-right: 24px;
+        }
+      }
+
+      /* Стили для холста Unity из html2 */
+      #unity-container {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        left: 0;
+        top: 0;
+        z-index: 1;
+      }
+      #unity-canvas {
+        width: 100%;
+        height: 100%;
+        background: url('./TemplateData/bg.png') center center / auto 100% fixed;
+      }
+      #unity-warning {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 20;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="./TemplateData/init-apps.js"></script>
+    <!-- Контейнер самой игры Юнити -->
+    <div id="unity-container">
+      <canvas id="unity-canvas" width="960" height="600"></canvas>
+      <div id="unity-warning"></div>
+    </div>
+
+    <!-- Полностью сохраненный визуальный экран из html1 -->
+    <main id="loading-screen">
+      <section class="screen">
+        <div class="screen-bg" aria-hidden="true"></div>
+        <div class="screen-overlay" aria-hidden="true"></div>
+
+        <div class="content">
+          <h1 class="loading-title">
+            <span class="loading-title-top">В ПОИСКАХ</span>
+            <!-- Оставляем оригинальный текст СТИЛЯ, как просили -->
+            <span class="loading-title-bottom">СТИЛЯ</span>
+          </h1>
+
+          <div class="progress-area">
+            <div class="loading-progress-frame">
+              <div class="loading-progress-track">
+                <!-- Оставлен оригинальный прогресс-бар 'loading-fill' -->
+                <div class="loading-progress-fill" id="loading-fill"></div>
+              </div>
+            </div>
+
+            <!-- Сюда будем выводить проценты или статус -->
+            <p class="loading-caption" id="loading-text">Уже почти...</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      var canvas = document.querySelector("#unity-canvas");
+      var loadingScreen = document.querySelector("#loading-screen");
+      var fill = document.getElementById("loading-fill");
+      var captionText = document.getElementById("loading-text");
+      var unityInstance = null;
+
+      function unityShowBanner(msg, type) {
+        var warningBanner = document.querySelector("#unity-warning");
+        function updateBannerVisibility() {
+          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+        }
+        var div = document.createElement('div');
+        div.innerHTML = msg;
+        warningBanner.appendChild(div);
+        if (type == 'error') div.style = 'background: red; padding: 10px; color: white;';
+        else {
+          if (type == 'warning') div.style = 'background: yellow; padding: 10px; color: black;';
+          setTimeout(function() {
+            warningBanner.removeChild(div);
+            updateBannerVisibility();
+          }, 5000);
+        }
+        updateBannerVisibility();
+      }
+
+      var buildUrl = "Build";
+      var loaderUrl = buildUrl + "/FinalBuild.loader.js";
+      var config = {
+        arguments: [],
+        dataUrl: buildUrl + "/FinalBuild.data",
+        frameworkUrl: buildUrl + "/FinalBuild.framework.js",
+        codeUrl: buildUrl + "/FinalBuild.wasm",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "Maracoon",
+        productName: "PlayGame",
+        productVersion: "1",
+        showBanner: unityShowBanner,
+      };
+
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        var meta = document.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+        document.getElementsByTagName('head')[0].appendChild(meta);
+        document.querySelector("#unity-container").className = "unity-mobile";
+        canvas.className = "unity-mobile";
+      } else {
+        canvas.style.width = window.innerHeight + "px";
+        canvas.style.height = window.innerHeight + "px";
+      }
+
+      // Запуск загрузчика Unity
+      var script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {
+            var currentPercent = progressFloatToInt(100 * progress);
+
+            // Используем оригинальный созданный прогресс бар из html1
+            fill.style.width = currentPercent + "%";
+
+            // Меняем текст снизу на проценты загрузки
+            //captionText.textContent = "Загрузка: " + currentPercent + "%";
+          }).then((instance) => {
+                unityInstance = instance;
+                // Полностью скрываем экран загрузки, когда игра готова
+                loadingScreen.style.display = "none";
+            }).catch((message) => {
+                window.location.reload(true);
+            });
+        };
+      document.body.appendChild(script);
+
+      function progressFloatToInt(progr){
+        var a = Math.floor(progr);
+        if (a > 94) a = 94;
+        return a;
+      }
+
+      /// Accelerometer access
+      function requestAccessAccelerometer() {
+          if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+              DeviceOrientationEvent.requestPermission().then(response => {
+                      if (response == 'granted') {
+                          window.addEventListener('deviceorientation', handleOrientation);
+                      }
+              }).catch(console.error);
+          } else {
+              window.addEventListener('deviceorientation', handleOrientation);
+          }
+      }
+
+      /// Accelerometer data
+      function handleOrientation(event) {
+          var tilt = event.gamma / 90;
+          if (Math.abs(tilt) > 0.05) {
+            if (unityInstance) { unityInstance.SendMessage('Manager', 'AccelerometerData', tilt); }
+          }
+      }
+    </script>
+  </body>
+</html>
