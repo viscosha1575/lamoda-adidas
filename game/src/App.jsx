@@ -365,6 +365,15 @@ function createUnityConfig(showBanner) {
   }
 }
 
+function shouldBypassSubscriptionCheckOnLocalhost() {
+  if (typeof window === 'undefined') {
+    return false
+  }
+
+  const localHostnames = new Set(['localhost', '127.0.0.1', '::1'])
+  return localHostnames.has(window.location.hostname)
+}
+
 function shouldUseDesktopIntroLayout() {
   if (typeof window === 'undefined') {
     return false
@@ -5257,6 +5266,12 @@ function App() {
 
   const handleSubscriptionCheck = useCallback(async () => {
     if (isCheckingSubscription) {
+      return
+    }
+
+    if (shouldBypassSubscriptionCheckOnLocalhost()) {
+      setIsSubscriptionConfirmed(true)
+      openUnityGame()
       return
     }
 
