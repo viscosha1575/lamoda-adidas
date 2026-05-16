@@ -5135,6 +5135,7 @@ function App() {
   const [shouldMountUnityLayer, setShouldMountUnityLayer] = useState(false)
   const [unityLoadError, setUnityLoadError] = useState('')
   const [useDesktopIntroLayout, setUseDesktopIntroLayout] = useState(() => shouldUseDesktopIntroLayout())
+  const shouldSkipSubscriptionIntro = Boolean(backendBootstrap.player?.isExisting)
   const slide = typeof activeIndex === 'number' ? slides[activeIndex] : null
   const isAlertSlide = slide?.id === 'alert'
   const isUnityScreen = screen === 'unity'
@@ -5264,6 +5265,18 @@ function App() {
     requestTelegramFullscreen()
   }, [])
 
+  useEffect(() => {
+    if (screen !== 'intro' || !shouldSkipSubscriptionIntro || activeIndex < 1) {
+      return
+    }
+
+    logGameDebug('app:skip-extra-intro-for-existing-player', {
+      activeIndex,
+      playerId: backendBootstrap.player?.id ?? null,
+    })
+    openUnityGame()
+  }, [activeIndex, backendBootstrap.player?.id, openUnityGame, screen, shouldSkipSubscriptionIntro])
+
   const handleSubscriptionCheck = useCallback(async () => {
     if (isCheckingSubscription) {
       return
@@ -5383,7 +5396,17 @@ function App() {
                       <RibbonButton
                         key={action.label}
                         label={action.label}
-                        onClick={() => navigateTo(action.next)}
+                        onClick={() => {
+                          if (slide.id === 'alert' && shouldSkipSubscriptionIntro) {
+                            logGameDebug('app:existing-player-open-game-from-alert', {
+                              playerId: backendBootstrap.player?.id ?? null,
+                            })
+                            openUnityGame()
+                            return
+                          }
+
+                          navigateTo(action.next)
+                        }}
                       />
                     )
                   }
