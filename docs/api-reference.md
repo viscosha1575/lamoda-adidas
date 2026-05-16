@@ -297,66 +297,6 @@ Request example:
 }
 ```
 
-Response example:
-
-```json
-{
-  "data": {
-    "logged": true,
-    "activityLog": {
-      "id": 99,
-      "playerId": 7,
-      "gameSessionId": 15,
-      "source": "unity",
-      "action": "swipe",
-      "details": {
-        "direction": "left"
-      },
-      "createdAt": "2026-05-12T10:00:10.000Z"
-    },
-    "player": {
-      "id": 7,
-      "telegramUserId": 123456789,
-      "username": "player_one",
-      "displayName": "Alex Player",
-      "authProvider": "telegram_unverified",
-      "referralCode": "A1B2C3D4E5F6",
-      "referredByCode": null,
-      "utmSlug": null,
-      "referralLink": "https://t.me/lamoda_games_bot/search?startapp=A1B2C3D4E5F6",
-      "hasReferral": false,
-      "subscribedToChannel": false,
-      "gameCompletionState": null,
-      "raffleWon": null,
-      "codeId": null,
-      "isOnline": true,
-      "lastSeenAt": "2026-05-12T10:00:10.000Z"
-    },
-    "session": {
-      "id": 15,
-      "status": "active",
-      "remainingSeconds": 587,
-      "foundSneakers": [
-        { "sneakerNumber": 1, "found": true },
-        { "sneakerNumber": 2, "found": true },
-        { "sneakerNumber": 3, "found": false }
-      ],
-      "pauseCount": 0,
-      "startedAt": "2026-05-12T10:00:00.000Z",
-      "lastResumedAt": "2026-05-12T10:00:00.000Z",
-      "lastPausedAt": null,
-      "lastHeartbeatAt": "2026-05-12T10:00:10.000Z",
-      "finishedAt": null,
-      "expiredAt": null,
-      "canCollect": true,
-      "isOnline": true,
-      "promoCode": null
-    },
-    "lifecycle": "active"
-  }
-}
-```
-
 ### `POST /api/game/found-sneaker`
 
 Marks sneaker as found.
