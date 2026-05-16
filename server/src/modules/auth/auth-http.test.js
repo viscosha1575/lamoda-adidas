@@ -94,14 +94,22 @@ test("POST /api/auth/session reads Telegram initData only from headers", async (
 });
 
 test("POST /api/auth/session restarts inviter session after applying referral", async () => {
+  let markedReferralPlayerId = null;
   const authService = {
     async createSession(payload) {
       assert.equal(payload.referralCode, "PLAYER42");
       return createPlayerResponse({
-        hasReferral: true,
+        hasReferral: false,
         referredByCode: "PLAYER42",
         referredPlayerId: 42,
         referralApplied: true,
+      });
+    },
+    async markReferralUnlockedForPlayer(playerId) {
+      markedReferralPlayerId = playerId;
+      return createPlayerResponse({
+        id: playerId,
+        hasReferral: true,
       });
     },
     async deletePlayerById() {
@@ -139,6 +147,7 @@ test("POST /api/auth/session restarts inviter session after applying referral", 
   assert.equal(response.statusCode, 201);
   assert.equal(response.body.data.player.referredByCode, "PLAYER42");
   assert.equal(response.body.data.lifecycle, "idle");
+  assert.equal(markedReferralPlayerId, 42);
 });
 
 test("POST /api/auth/session rejects initData in body", async () => {
@@ -227,6 +236,7 @@ test("auth middleware rejects bearer-only requests without Telegram initData", a
 });
 
 test("PATCH /api/auth/current/referral updates current player referral status using Telegram initData", async () => {
+  let markedReferralPlayerId = null;
   let restartedReferralPlayerId = null;
   const authService = {
     async createSession() {
@@ -235,12 +245,21 @@ test("PATCH /api/auth/current/referral updates current player referral status us
     async deletePlayerById() {
       return { deleted: true };
     },
+    async markReferralUnlockedForPlayer(playerId) {
+      markedReferralPlayerId = playerId;
+
+      return createPlayerResponse({
+        id: playerId,
+        hasReferral: true,
+        referredByCode: null,
+      });
+    },
     async simulateReferralForPlayer(playerId) {
       assert.equal(playerId, 55);
 
       return createPlayerResponse({
         id: 55,
-        hasReferral: false,
+        hasReferral: true,
         referredByCode: null,
       });
     },
@@ -276,7 +295,8 @@ test("PATCH /api/auth/current/referral updates current player referral status us
 
   assert.equal(response.statusCode, 200);
   assert.equal(response.body.data.player.id, 55);
-  assert.equal(response.body.data.player.hasReferral, false);
+  assert.equal(response.body.data.player.hasReferral, true);
   assert.equal(response.body.data.player.referredByCode, null);
+  assert.equal(markedReferralPlayerId, 55);
   assert.equal(restartedReferralPlayerId, 55);
 });

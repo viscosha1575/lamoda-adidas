@@ -80,7 +80,7 @@ curl -X POST http://localhost:3001/api/auth/session \
       "referralCode": "A1B2C3D4E5F6",
       "referredByCode": "PLAYER42",
       "referralLink": "https://t.me/lamoda_games_bot/search?startapp=A1B2C3D4E5F6",
-      "hasReferral": true,
+      "hasReferral": false,
       "subscribedToChannel": false,
       "isOnline": true,
       "lastSeenAt": "2026-05-12T12:00:00.000Z",
@@ -115,10 +115,11 @@ curl -X POST http://localhost:3001/api/auth/session \
 
 - If `referralCode` is empty or absent, `hasReferral` is `false`.
 - If `referralCode` is present, server treats it as inbound referral and stores it as `referredByCode`.
+- Inbound referral does not set `hasReferral` for the invited player.
 - Server generates separate personal `referralCode` for the player.
 - Server returns ready-to-share `referralLink`.
 - Full links like `https://t.me/lamoda_games_bot/search?startapp=PLAYER42` become `referredByCode = PLAYER42`.
-- On later logins without referral, previous `hasReferral` stays `true`.
+- On later logins without referral, previously unlocked inviter bonus keeps `hasReferral = true`.
 
 ### `DELETE /api/auth/current`
 
@@ -154,8 +155,9 @@ Behavior:
 
 - Request body is not required.
 - Server treats the current player as the inviter, not the invited player.
+- Server permanently marks the inviter with `hasReferral: true`.
 - Server resets the current player's latest game session so they can pass the game again.
-- The player's own referral fields are not reassigned by this endpoint.
+- `referredByCode` is not reassigned by this endpoint.
 
 Example response:
 

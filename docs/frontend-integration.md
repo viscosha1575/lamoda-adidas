@@ -101,7 +101,7 @@ Content-Type: application/json
 - обновляет игрока, если он уже есть
 - генерирует личный `referralCode`
 - собирает `referralLink`
-- если был входящий реферал, ставит `hasReferral: true`
+- если был входящий реферал, заполняет `referredByCode`, но не ставит `hasReferral`
 
 Пример ответа:
 
@@ -119,7 +119,7 @@ Content-Type: application/json
       "referralCode": "A1B2C3D4E5F6",
       "referredByCode": "PLAYER42",
       "referralLink": "https://t.me/lamoda_games_bot/search?startapp=A1B2C3D4E5F6",
-      "hasReferral": true,
+      "hasReferral": false,
       "isOnline": true,
       "lastSeenAt": "2026-05-12T12:00:00.000Z",
       "isExisting": false

@@ -16,7 +16,7 @@ Columns:
 - `auth_provider`
 - `referral_code` - personal unique referral code of the player
 - `referred_by_code` - inbound referral code used by this player
-- `has_referral` - boolean flag for referral presence
+- `has_referral` - boolean flag that the inviter referral bonus is unlocked for the player
 - `subscribed_to_channel` - boolean flag set to `true` after successful Telegram channel subscription check
 - `auth_token` - unique bearer token
 - `auth_token_expires_at`
@@ -29,6 +29,7 @@ Rules:
 - Player is upserted by Telegram user id.
 - `referral_code` is the player's own share code.
 - `referred_by_code` stores who referred the player.
+- `has_referral` becomes `true` only for inviters whose referral reward was unlocked.
 - Once `has_referral` becomes `true`, it stays `true`.
 - Once `subscribed_to_channel` becomes `true`, it stays `true`.
 

@@ -43,7 +43,7 @@ test("createSession marks Telegram player with referredByCode when referralCode 
     async upsertTelegramPlayer(player) {
       assert.equal(player.telegramUserId, 123456789);
       assert.equal(player.referredByCode, "PLAYER42");
-      assert.equal(player.hasReferral, true);
+      assert.equal(player.hasReferral, false);
       assert.equal(player.authProvider, "telegram_unverified");
       assert.match(player.referralCode, /^[A-Z0-9]{12}$/);
 
@@ -74,7 +74,7 @@ test("createSession marks Telegram player with referredByCode when referralCode 
     referralCode: "https://t.me/lamoda_games_bot/search?startapp=player42",
   });
 
-  assert.equal(result.hasReferral, true);
+  assert.equal(result.hasReferral, false);
   assert.equal(result.referredByCode, "PLAYER42");
   assert.match(result.referralCode, /^[A-Z0-9]{12}$/);
   assert.equal(result.referralLink, `https://t.me/lamoda_games_bot/search?startapp=${result.referralCode}`);
@@ -291,6 +291,57 @@ test("simulateReferralForPlayer returns current player without reassigning refer
   assert.equal(player.hasReferral, false);
   assert.equal(player.referredByCode, null);
   assert.equal(player.referralCode, "ABCDEF123456");
+});
+
+test("markReferralUnlockedForPlayer persists hasReferral for inviter", async () => {
+  const authRepository = {
+    async markPlayerHasReferral(playerId) {
+      assert.equal(playerId, 17);
+      return {
+        id: playerId,
+        telegram_user_id: 123456789,
+        username: "lamoda_player",
+        first_name: "Mila",
+        last_name: "Test",
+        auth_provider: "telegram_unverified",
+        referral_code: "ABCDEF123456",
+        referred_by_code: null,
+        has_referral: true,
+        utm_slug: null,
+        subscribed_to_channel: false,
+        raffle_won: null,
+        code_id: null,
+        auth_token: "token-123",
+        auth_token_expires_at: "2026-06-15T10:00:00.000Z",
+        last_seen_at: "2026-05-15T10:00:00.000Z",
+      };
+    },
+  };
+
+  const authService = createAuthServiceForTest(authRepository);
+  const player = await authService.markReferralUnlockedForPlayer(17);
+
+  assert.equal(player.id, 17);
+  assert.equal(player.hasReferral, true);
+  assert.equal(player.referredByCode, null);
+});
+
+test("markReferralUnlockedForPlayer fails when current player is missing", async () => {
+  const authRepository = {
+    async markPlayerHasReferral(playerId) {
+      assert.equal(playerId, 18);
+      return null;
+    },
+  };
+
+  const authService = createAuthServiceForTest(authRepository);
+
+  await assert.rejects(
+    () => authService.markReferralUnlockedForPlayer(18),
+    {
+      message: "Player not found",
+    },
+  );
 });
 
 test("simulateReferralForPlayer keeps existing referral fields untouched", async () => {

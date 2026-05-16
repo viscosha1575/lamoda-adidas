@@ -10,6 +10,7 @@ export function createAuthController({ authService, gameService }) {
       const player = await authService.createSession(payload);
 
       if (player.referralApplied && player.referredPlayerId) {
+        await authService.markReferralUnlockedForPlayer(player.referredPlayerId);
         await gameService.restartSessionForReferral(player.referredPlayerId);
       }
 
@@ -51,6 +52,7 @@ export function createAuthController({ authService, gameService }) {
     },
 
     async updateCurrentPlayerReferralStatus(request, response) {
+      await authService.markReferralUnlockedForPlayer(request.player.id);
       await gameService.restartSessionForReferral(request.player.id);
       const player = await authService.simulateReferralForPlayer(request.player.id);
 

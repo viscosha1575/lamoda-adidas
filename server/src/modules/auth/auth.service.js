@@ -174,7 +174,7 @@ export function createAuthService({
         : null;
       const referredByCode = referralOwner ? referralCodeCandidate : null;
       const utmSlug = referredByCode ? null : sanitizeUtmSlug(startParam);
-      const hasReferral = Boolean(referredByCode);
+      const hasReferral = false;
       const isNewReferral = Boolean(referredByCode) && !existingPlayer?.referred_by_code;
 
       const player = await authRepository.upsertTelegramPlayer({
@@ -279,6 +279,19 @@ export function createAuthService({
       return {
         deleted: true,
       };
+    },
+
+    async markReferralUnlockedForPlayer(playerId) {
+      const player = await authRepository.markPlayerHasReferral(playerId);
+
+      if (!player) {
+        throw new HttpError(404, "Player not found");
+      }
+
+      return normalizePlayer(player, {
+        onlineWindowSeconds: playerOnlineWindowSeconds,
+        telegramAppUrl,
+      });
     },
 
     async simulateReferralForPlayer(playerId) {

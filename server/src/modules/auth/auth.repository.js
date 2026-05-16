@@ -78,6 +78,22 @@ export function createAuthRepository({ pool }) {
       return result.rows[0] ?? null;
     },
 
+    async markPlayerHasReferral(playerId) {
+      const result = await pool.query(
+        `UPDATE players
+         SET has_referral = TRUE, updated_at = NOW()
+         WHERE id = $1
+         RETURNING id, telegram_user_id, username, first_name, last_name,
+                   auth_provider, referral_code, referred_by_code, has_referral, utm_slug,
+                   game_completion_state, raffle_won, code_id, subscribed_to_channel,
+                   auth_token, auth_token_expires_at,
+                   last_seen_at, created_at, updated_at`,
+        [playerId],
+      );
+
+      return result.rows[0] ?? null;
+    },
+
     async deletePlayerById(playerId) {
       return deletePlayerWithRelations(pool, playerId);
     },
