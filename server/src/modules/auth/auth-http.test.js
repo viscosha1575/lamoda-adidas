@@ -225,3 +225,51 @@ test("auth middleware rejects bearer-only requests without Telegram initData", a
   assert.equal(response.statusCode, 401);
   assert.equal(response.body.error.message, "Telegram initData header is required");
 });
+
+test("PATCH /api/auth/current/referral updates current player referral status using Telegram initData", async () => {
+  const authService = {
+    async createSession() {
+      throw new Error("should not be called");
+    },
+    async deletePlayerById() {
+      return { deleted: true };
+    },
+    async markPlayerHasReferral(playerId) {
+      assert.equal(playerId, 55);
+
+      return createPlayerResponse({
+        id: 55,
+        hasReferral: true,
+        referredByCode: null,
+      });
+    },
+    async getPlayerByToken() {
+      return null;
+    },
+    async getPlayerByInitData() {
+      return {
+        id: 55,
+        telegramUserId: 123456789,
+      };
+    },
+  };
+  const gameService = {};
+
+  const app = express();
+  app.use(express.json());
+  app.use("/api/auth", createAuthRouter({
+    authController: createAuthController({ authService, gameService }),
+    authMiddleware: createAuthMiddleware({ authService }),
+  }));
+  app.use(errorHandler);
+
+  const response = await request(app)
+    .patch("/api/auth/current/referral")
+    .set("X-Telegram-Init-Data", createInitDataHeader())
+    .send();
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.data.player.id, 55);
+  assert.equal(response.body.data.player.hasReferral, true);
+  assert.equal(response.body.data.player.referredByCode, null);
+});

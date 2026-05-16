@@ -259,3 +259,37 @@ test("createSession stores lowercase startapp as utm slug and tracks visit", asy
     wasExistingPlayer: true,
   });
 });
+
+test("markPlayerHasReferral sets hasReferral true and clears referredByCode", async () => {
+  let updatedPlayerId = null;
+  const authRepository = {
+    async markPlayerHasReferralById(playerId) {
+      updatedPlayerId = playerId;
+      return {
+        id: playerId,
+        telegram_user_id: 123456789,
+        username: "lamoda_player",
+        first_name: "Mila",
+        last_name: "Test",
+        auth_provider: "telegram_unverified",
+        referral_code: "ABCDEF123456",
+        referred_by_code: null,
+        has_referral: true,
+        utm_slug: null,
+        subscribed_to_channel: false,
+        raffle_won: null,
+        code_id: null,
+        auth_token: "token-123",
+        auth_token_expires_at: "2026-06-15T10:00:00.000Z",
+        last_seen_at: "2026-05-15T10:00:00.000Z",
+      };
+    },
+  };
+
+  const authService = createAuthServiceForTest(authRepository);
+  const player = await authService.markPlayerHasReferral(7);
+
+  assert.equal(updatedPlayerId, 7);
+  assert.equal(player.hasReferral, true);
+  assert.equal(player.referredByCode, null);
+});

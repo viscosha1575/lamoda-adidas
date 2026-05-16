@@ -8,6 +8,7 @@ export function createAuthRouter({ authController, authMiddleware }) {
   const router = Router();
 
   router.post("/session", asyncHandler(authController.createSession));
+  router.patch("/current/referral", authMiddleware, asyncHandler(authController.updateCurrentPlayerReferralStatus));
   router.delete("/current", authMiddleware, asyncHandler(authController.deleteCurrentPlayer));
 
   router.use((error, _request, _response, next) => {

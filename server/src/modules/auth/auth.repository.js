@@ -1,3 +1,5 @@
+import { deletePlayerWithRelations } from "../../lib/delete-player.js";
+
 export function createAuthRepository({ pool }) {
   return {
     async findPlayerByTelegramUserId(telegramUserId) {
@@ -62,14 +64,25 @@ export function createAuthRepository({ pool }) {
     },
 
     async deletePlayerById(playerId) {
+      return deletePlayerWithRelations(pool, playerId);
+    },
+
+    async markPlayerHasReferralById(playerId) {
       const result = await pool.query(
-        `DELETE FROM players
+        `UPDATE players
+         SET has_referral = TRUE,
+             referred_by_code = NULL,
+             updated_at = NOW()
          WHERE id = $1
-         RETURNING id`,
+         RETURNING id, telegram_user_id, username, first_name, last_name,
+                   auth_provider, referral_code, referred_by_code, has_referral, utm_slug,
+                   game_completion_state, raffle_won, code_id, subscribed_to_channel,
+                   auth_token, auth_token_expires_at,
+                   last_seen_at, created_at, updated_at`,
         [playerId],
       );
 
-      return result.rowCount > 0;
+      return result.rows[0] ?? null;
     },
 
     async upsertTelegramPlayer(player) {

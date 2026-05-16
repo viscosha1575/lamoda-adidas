@@ -280,5 +280,18 @@ export function createAuthService({
         deleted: true,
       };
     },
+
+    async markPlayerHasReferral(playerId) {
+      const player = await authRepository.markPlayerHasReferralById(playerId);
+
+      if (!player) {
+        throw new HttpError(404, "Player not found");
+      }
+
+      return normalizePlayer(player, {
+        onlineWindowSeconds: playerOnlineWindowSeconds,
+        telegramAppUrl,
+      });
+    },
   };
 }

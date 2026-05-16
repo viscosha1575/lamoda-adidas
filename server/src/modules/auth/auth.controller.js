@@ -49,5 +49,32 @@ export function createAuthController({ authService, gameService }) {
         data: result,
       });
     },
+
+    async updateCurrentPlayerReferralStatus(request, response) {
+      const player = await authService.markPlayerHasReferral(request.player.id);
+
+      response.json({
+        data: {
+          player: {
+            id: player.id,
+            telegramUserId: player.telegramUserId,
+            username: player.username,
+            displayName: player.displayName,
+            authProvider: player.authProvider,
+            referralCode: player.referralCode,
+            referredByCode: player.referredByCode,
+            utmSlug: player.utmSlug,
+            referralLink: player.referralLink,
+            hasReferral: player.hasReferral,
+            subscribedToChannel: player.subscribedToChannel,
+            gameCompletionState: player.gameCompletionState,
+            raffleWon: player.raffleWon,
+            codeId: player.codeId,
+            isOnline: player.isOnline,
+            lastSeenAt: player.lastSeenAt,
+          },
+        },
+      });
+    },
   };
 }

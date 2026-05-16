@@ -140,6 +140,49 @@ Example response:
 }
 ```
 
+### `PATCH /api/auth/current/referral`
+
+Marks current player as having a referral by Telegram initData.
+
+Headers:
+
+```text
+X-Telegram-Init-Data: <initData>
+```
+
+Behavior:
+
+- Request body is not required.
+- Server always sets `hasReferral = true`.
+- Server clears `referredByCode`.
+
+Example response:
+
+```json
+{
+  "data": {
+    "player": {
+      "id": 7,
+      "telegramUserId": 123456789,
+      "username": "player_one",
+      "displayName": "Alex Player",
+      "authProvider": "telegram_unverified",
+      "referralCode": "A1B2C3D4E5F6",
+      "referredByCode": "PLAYER42",
+      "utmSlug": null,
+      "referralLink": "https://t.me/lamoda_games_bot/search?startapp=A1B2C3D4E5F6",
+      "hasReferral": true,
+      "subscribedToChannel": false,
+      "gameCompletionState": null,
+      "raffleWon": null,
+      "codeId": null,
+      "isOnline": true,
+      "lastSeenAt": "2026-05-12T12:00:00.000Z"
+    }
+  }
+}
+```
+
 ## Game
 
 All `/api/game/*` endpoints require Telegram initData in headers:

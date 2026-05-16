@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { deletePlayerWithRelations } from "../../lib/delete-player.js";
 
 function mapPlayerRow(row) {
   return {
@@ -64,7 +65,7 @@ function mapActivityLogRow(row) {
 function mapUtmSummaryRow(row) {
   return {
     utmSlug: row.utm_slug ?? null,
-    uniqueUsersCount: Number(row.unique_users_count ?? 0),
+    newUsersCount: Number(row.new_users_count ?? 0),
     returningUsersCount: Number(row.returning_users_count ?? 0),
     totalClicksCount: Number(row.total_clicks_count ?? 0),
     lastClickAt: row.last_click_at ?? null,
@@ -351,7 +352,7 @@ export function createAdminRepository({ pool }) {
       const result = await pool.query(
         `SELECT utm_slug,
                 COUNT(*)::int AS total_clicks_count,
-                COUNT(DISTINCT player_id)::int AS unique_users_count,
+                COUNT(DISTINCT player_id) FILTER (WHERE NOT was_existing_player)::int AS new_users_count,
                 COUNT(DISTINCT player_id) FILTER (WHERE was_existing_player)::int AS returning_users_count,
                 MAX(created_at) AS last_click_at
            FROM player_utm_visits
@@ -548,14 +549,7 @@ export function createAdminRepository({ pool }) {
     },
 
     async deletePlayerById(playerId) {
-      const result = await pool.query(
-        `DELETE FROM players
-          WHERE id = $1
-          RETURNING id`,
-        [playerId],
-      );
-
-      return result.rowCount > 0;
+      return deletePlayerWithRelations(pool, playerId);
     },
   };
 }
