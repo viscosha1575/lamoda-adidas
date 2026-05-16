@@ -49,7 +49,7 @@ export default function UtmPage() {
     summary: {
       totalUtmsCount: 0,
       totalClicksCount: 0,
-      totalUniqueUsersCount: 0,
+      totalNewUsersCount: 0,
     },
   });
   const [loading, setLoading] = useState(true);
@@ -82,7 +82,7 @@ export default function UtmPage() {
             summary: nextResponse?.summary ?? {
               totalUtmsCount: 0,
               totalClicksCount: 0,
-              totalUniqueUsersCount: 0,
+              totalNewUsersCount: 0,
             },
           });
         }
@@ -111,9 +111,9 @@ export default function UtmPage() {
       value: formatNumber(response.summary?.totalUtmsCount ?? 0),
     },
     {
-      key: "totalUniqueUsersCount",
-      label: "Уникальных юзеров",
-      value: formatNumber(response.summary?.totalUniqueUsersCount ?? 0),
+      key: "totalNewUsersCount",
+      label: "Новые юзеры",
+      value: formatNumber(response.summary?.totalNewUsersCount ?? 0),
     },
     {
       key: "totalClicksCount",
@@ -183,7 +183,7 @@ export default function UtmPage() {
                 <Thead>
                   <Tr>
                     <Th color={textColorSecondary}>UTM</Th>
-                    <Th color={textColorSecondary}>Уникальные юзеры</Th>
+                    <Th color={textColorSecondary}>Новые юзеры</Th>
                     <Th color={textColorSecondary}>Зашли, уже играя раньше</Th>
                     <Th color={textColorSecondary}>Всего кликов</Th>
                     <Th color={textColorSecondary}>Последний клик</Th>
@@ -199,7 +199,7 @@ export default function UtmPage() {
                       </Td>
                       <Td borderColor={borderColor}>
                         <Text color={textColor} fontSize="sm" fontWeight="700">
-                          {formatNumber(item.uniqueUsersCount)}
+                          {formatNumber(item.newUsersCount)}
                         </Text>
                       </Td>
                       <Td borderColor={borderColor}>

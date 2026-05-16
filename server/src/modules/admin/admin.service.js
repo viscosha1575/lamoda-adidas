@@ -369,8 +369,8 @@ export function createAdminService({
             (sum, row) => sum + Number(row.totalClicksCount ?? 0),
             0,
           ),
-          totalUniqueUsersCount: rows.reduce(
-            (sum, row) => sum + Number(row.uniqueUsersCount ?? 0),
+          totalNewUsersCount: rows.reduce(
+            (sum, row) => sum + Number(row.newUsersCount ?? 0),
             0,
           ),
         },

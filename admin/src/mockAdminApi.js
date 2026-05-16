@@ -316,7 +316,9 @@ function buildUtmResponse(payload = {}) {
 
   let items = Array.from(grouped.entries()).map(([utmSlug, visits]) => ({
     utmSlug,
-    uniqueUsersCount: new Set(visits.map((visit) => visit.playerId)).size,
+    newUsersCount: new Set(
+      visits.filter((visit) => !visit.wasExistingPlayer).map((visit) => visit.playerId),
+    ).size,
     returningUsersCount: new Set(
       visits.filter((visit) => visit.wasExistingPlayer).map((visit) => visit.playerId),
     ).size,
@@ -337,7 +339,7 @@ function buildUtmResponse(payload = {}) {
     summary: {
       totalUtmsCount: items.length,
       totalClicksCount: items.reduce((sum, item) => sum + item.totalClicksCount, 0),
-      totalUniqueUsersCount: items.reduce((sum, item) => sum + item.uniqueUsersCount, 0),
+      totalNewUsersCount: items.reduce((sum, item) => sum + item.newUsersCount, 0),
     },
   };
 }
