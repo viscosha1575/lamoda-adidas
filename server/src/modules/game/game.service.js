@@ -472,7 +472,7 @@ export function createGameService({
     async restartSessionForReferral(playerId) {
       const session = await gameRepository.findLatestSessionByPlayerId(playerId);
 
-      if (!session) {
+      if (!session || resolveCompletionReason(session) === PLAYER_GAME_COMPLETION_STATE.COMPLETED) {
         return null;
       }
 

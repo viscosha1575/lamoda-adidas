@@ -421,7 +421,7 @@ test("restartSessionForReferral resets timer and found sneakers", async () => {
   assert.equal(result.session.canCollect, true);
 });
 
-test("restartSessionForReferral resets completed session for replay", async () => {
+test("restartSessionForReferral does not reset completed session when all sneakers were collected in time", async () => {
   const session = {
     id: 44,
     playerId: 11,
@@ -435,11 +435,47 @@ test("restartSessionForReferral resets completed session for replay", async () =
     completionReason: "completed",
   };
 
+  const rewardAwareRepository = withRewardRepository({
+    async findLatestSessionByPlayerId(playerId) {
+      assert.equal(playerId, 11);
+      return session;
+    },
+    async deleteGameResultBySessionId() {
+      throw new Error("should not delete game result for completed session");
+    },
+    async updateSession() {
+      throw new Error("should not reset completed session");
+    },
+    async markPlayerOutcome() {
+      throw new Error("should not update player outcome for completed session");
+    },
+  });
+
+  const gameService = createGameServiceForTest(rewardAwareRepository.repository);
+  const result = await gameService.restartSessionForReferral(11);
+
+  assert.equal(result, null);
+});
+
+test("restartSessionForReferral resets completed-after-time session for replay", async () => {
+  const session = {
+    id: 45,
+    playerId: 12,
+    status: "finished",
+    remainingSeconds: 0,
+    foundSneakerNumbers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    startedAt: new Date("2026-05-12T10:00:00.000Z"),
+    lastResumedAt: new Date("2026-05-12T10:03:00.000Z"),
+    lastHeartbeatAt: new Date("2026-05-12T10:03:02.000Z"),
+    finishedAt: new Date("2026-05-12T10:05:00.000Z"),
+    completionReason: "completed-after-time",
+  };
+
   let deletedGameResultId = null;
   let markedOutcomePlayerId = null;
   const rewardAwareRepository = withRewardRepository({
     async findLatestSessionByPlayerId(playerId) {
-      assert.equal(playerId, 11);
+      assert.equal(playerId, 12);
       return session;
     },
     async deleteGameResultBySessionId(gameSessionId) {
@@ -472,10 +508,10 @@ test("restartSessionForReferral resets completed session for replay", async () =
   });
 
   const gameService = createGameServiceForTest(rewardAwareRepository.repository);
-  const result = await gameService.restartSessionForReferral(11);
+  const result = await gameService.restartSessionForReferral(12);
 
-  assert.equal(deletedGameResultId, 44);
-  assert.equal(markedOutcomePlayerId, 11);
+  assert.equal(deletedGameResultId, 45);
+  assert.equal(markedOutcomePlayerId, 12);
   assert.equal(result.lifecycle, "active");
   assert.equal(result.reason, "referral-reset");
   assert.equal(result.session.remainingSeconds, 300);
