@@ -22,7 +22,12 @@ export function createGameController({ gameService }) {
 
     async logActivity(request, response) {
       const result = await gameService.logActivity(request.player.id, request.body);
-      response.status(201).json({ data: result });
+      response.status(201).json({
+        data: {
+          ...result,
+          player: request.player,
+        },
+      });
     },
   };
 }

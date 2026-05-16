@@ -296,6 +296,47 @@ Request example:
 }
 ```
 
+Response example:
+
+```json
+{
+  "data": {
+    "logged": true,
+    "activityLog": {
+      "id": 99,
+      "playerId": 7,
+      "gameSessionId": 15,
+      "source": "unity",
+      "action": "swipe",
+      "details": {
+        "direction": "left"
+      },
+      "createdAt": "2026-05-12T10:00:10.000Z"
+    },
+    "player": {
+      "id": 7,
+      "telegramUserId": 123456789,
+      "username": "player_one",
+      "displayName": "Alex Player",
+      "authProvider": "telegram_unverified",
+      "referralCode": "A1B2C3D4E5F6",
+      "referredByCode": null,
+      "utmSlug": null,
+      "referralLink": "https://t.me/lamoda_games_bot/search?startapp=A1B2C3D4E5F6",
+      "hasReferral": false,
+      "subscribedToChannel": false,
+      "gameCompletionState": null,
+      "raffleWon": null,
+      "codeId": null,
+      "isOnline": true,
+      "lastSeenAt": "2026-05-12T10:00:10.000Z"
+    },
+    "session": null,
+    "lifecycle": "idle"
+  }
+}
+```
+
 ### `POST /api/game/found-sneaker`
 
 Marks sneaker as found.
