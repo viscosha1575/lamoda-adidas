@@ -27,6 +27,7 @@ const UNITY_DATA_URL = `${UNITY_BUILD_BASE_URL}/FinalBuild.data`
 const UNITY_WASM_URL = `${UNITY_BUILD_BASE_URL}/FinalBuild.wasm`
 const UNITY_LOADING_BACKGROUND_URL = `${UNITY_TEMPLATE_BASE_URL}/back-loading.webp`
 const UNITY_FONT_URL = `${UNITY_TEMPLATE_BASE_URL}/VCROSDMONO[NOLIVANTNTEDIT]-REGULAR.TTF`
+const UNITY_TELEGRAM_AVATAR_PLACEHOLDER_URL = `${UNITY_TEMPLATE_BASE_URL}/webmemd-icon.png`
 const UNITY_MOBILE_DEVICE_PATTERN = /iPhone|iPad|iPod|Android/i
 const TUTORIAL_MAP_OVERSCAN_X = 1.12
 const TUTORIAL_MAP_TOP_CROP_RATIO = 0.1
@@ -46,6 +47,7 @@ const TG_SAFE_INTRO_TOP = `calc(${TG_SAFE_UI_TOP} + 1rem)`
 let unityLoaderPromise = null
 let unityWarmupStarted = false
 const warmedUnityAssets = new Set()
+let unityTelegramAvatarPatchApplied = false
 let phaserSceneDebugId = 0
 const tutorialSneakerObject = {
   key: 'tutorial-sneaker-10',
@@ -175,6 +177,96 @@ function ensureUnityLoaderScript() {
   return unityLoaderPromise
 }
 
+function rewriteUnityRemoteAssetUrl(value) {
+  if (typeof value !== 'string' || !value) {
+    return value
+  }
+
+  try {
+    const parsedUrl = new URL(value, window.location.href)
+    const isTelegramUserpic = parsedUrl.hostname === 't.me'
+      && parsedUrl.pathname.startsWith('/i/userpic/')
+
+    return isTelegramUserpic ? UNITY_TELEGRAM_AVATAR_PLACEHOLDER_URL : value
+  } catch {
+    return value
+  }
+}
+
+function sanitizeTelegramInitDataForUnity() {
+  const webApp = getTelegramWebApp()
+  const unsafeData = webApp?.initDataUnsafe
+
+  if (!unsafeData || typeof unsafeData !== 'object') {
+    return
+  }
+
+  const sanitizePhotoUrl = (entity) => {
+    if (!entity || typeof entity !== 'object' || !('photo_url' in entity)) {
+      return
+    }
+
+    entity.photo_url = UNITY_TELEGRAM_AVATAR_PLACEHOLDER_URL
+  }
+
+  sanitizePhotoUrl(unsafeData.user)
+  sanitizePhotoUrl(unsafeData.receiver)
+  sanitizePhotoUrl(unsafeData.chat)
+}
+
+function patchTelegramAvatarLoadingForUnity() {
+  if (typeof window === 'undefined' || unityTelegramAvatarPatchApplied) {
+    return
+  }
+
+  unityTelegramAvatarPatchApplied = true
+  sanitizeTelegramInitDataForUnity()
+
+  if (typeof window.fetch === 'function') {
+    const originalFetch = window.fetch.bind(window)
+    window.fetch = (input, init) => {
+      if (typeof input === 'string' || input instanceof URL) {
+        return originalFetch(rewriteUnityRemoteAssetUrl(String(input)), init)
+      }
+
+      if (input instanceof Request) {
+        const nextUrl = rewriteUnityRemoteAssetUrl(input.url)
+
+        if (nextUrl !== input.url) {
+          return originalFetch(new Request(nextUrl, input), init)
+        }
+      }
+
+      return originalFetch(input, init)
+    }
+  }
+
+  if (typeof XMLHttpRequest !== 'undefined') {
+    const originalOpen = XMLHttpRequest.prototype.open
+    XMLHttpRequest.prototype.open = function patchedOpen(method, url, ...rest) {
+      const nextUrl = typeof url === 'string' ? rewriteUnityRemoteAssetUrl(url) : url
+      return originalOpen.call(this, method, nextUrl, ...rest)
+    }
+  }
+
+  if (typeof HTMLImageElement !== 'undefined') {
+    const imageSrcDescriptor = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src')
+
+    if (imageSrcDescriptor?.configurable && imageSrcDescriptor.set && imageSrcDescriptor.get) {
+      Object.defineProperty(HTMLImageElement.prototype, 'src', {
+        configurable: true,
+        enumerable: imageSrcDescriptor.enumerable ?? true,
+        get() {
+          return imageSrcDescriptor.get.call(this)
+        },
+        set(nextValue) {
+          imageSrcDescriptor.set.call(this, rewriteUnityRemoteAssetUrl(nextValue))
+        },
+      })
+    }
+  }
+}
+
 function warmImageAsset(url, { hintRel = 'prefetch', fetchPriority = 'low' } = {}) {
   if (typeof window === 'undefined' || !url || warmedUnityAssets.has(url)) {
     return
@@ -217,6 +309,7 @@ function warmUnityInBackground() {
       hintRel: 'preload',
       fetchPriority: 'high',
     })
+    warmImageAsset(UNITY_TELEGRAM_AVATAR_PLACEHOLDER_URL)
     warmUnityFont()
 
     ensureResourceHint({
@@ -950,6 +1043,8 @@ function UnityPlayer({ preload = false, isVisible = false, onLoadError }) {
     if (!canvas || !container || !warningBanner) {
       return undefined
     }
+
+    patchTelegramAvatarLoadingForUnity()
 
     if (isUnityMobileDevice()) {
       container.classList.add('unity-mobile')
@@ -5153,6 +5248,7 @@ function App() {
   }, [activeIndex])
 
   const openUnityGame = useCallback(() => {
+    patchTelegramAvatarLoadingForUnity()
     setUnityLoadError('')
     setShouldMountUnityLayer(true)
     setScreen('unity')
