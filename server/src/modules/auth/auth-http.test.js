@@ -240,10 +240,8 @@ test("PATCH /api/auth/current/referral updates current player referral status us
 
       return createPlayerResponse({
         id: 55,
-        hasReferral: true,
-        referredByCode: "PLAYER42",
-        referralApplied: true,
-        referredPlayerId: 77,
+        hasReferral: false,
+        referredByCode: null,
       });
     },
     async getPlayerByToken() {
@@ -278,7 +276,7 @@ test("PATCH /api/auth/current/referral updates current player referral status us
 
   assert.equal(response.statusCode, 200);
   assert.equal(response.body.data.player.id, 55);
-  assert.equal(response.body.data.player.hasReferral, true);
-  assert.equal(response.body.data.player.referredByCode, "PLAYER42");
-  assert.equal(restartedReferralPlayerId, 77);
+  assert.equal(response.body.data.player.hasReferral, false);
+  assert.equal(response.body.data.player.referredByCode, null);
+  assert.equal(restartedReferralPlayerId, 55);
 });

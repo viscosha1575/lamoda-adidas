@@ -368,6 +368,66 @@ test("restartSessionForReferral resets timer and found sneakers", async () => {
   assert.equal(result.session.canCollect, true);
 });
 
+test("restartSessionForReferral resets completed session for replay", async () => {
+  const session = {
+    id: 44,
+    playerId: 11,
+    status: "finished",
+    remainingSeconds: 0,
+    foundSneakerNumbers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    startedAt: new Date("2026-05-12T10:00:00.000Z"),
+    lastResumedAt: new Date("2026-05-12T10:03:00.000Z"),
+    lastHeartbeatAt: new Date("2026-05-12T10:03:02.000Z"),
+    finishedAt: new Date("2026-05-12T10:05:00.000Z"),
+    completionReason: "completed",
+  };
+
+  let deletedGameResultId = null;
+  let markedOutcomePlayerId = null;
+  const rewardAwareRepository = withRewardRepository({
+    async findLatestSessionByPlayerId(playerId) {
+      assert.equal(playerId, 11);
+      return session;
+    },
+    async deleteGameResultBySessionId(gameSessionId) {
+      deletedGameResultId = gameSessionId;
+    },
+    async updateSession(_sessionId, valuesToUpdate) {
+      assert.equal(valuesToUpdate.status, "active");
+      assert.equal(valuesToUpdate.remaining_seconds, 300);
+      assert.deepEqual(valuesToUpdate.found_sneaker_numbers, [1]);
+      assert.equal(valuesToUpdate.finished_at, null);
+      assert.equal(valuesToUpdate.completion_reason, null);
+
+      return {
+        ...session,
+        status: "active",
+        remainingSeconds: valuesToUpdate.remaining_seconds,
+        foundSneakerNumbers: valuesToUpdate.found_sneaker_numbers,
+        lastResumedAt: valuesToUpdate.last_resumed_at,
+        lastHeartbeatAt: valuesToUpdate.last_heartbeat_at,
+        finishedAt: null,
+        completionReason: null,
+      };
+    },
+    async markPlayerOutcome(playerId, payload) {
+      markedOutcomePlayerId = playerId;
+      assert.deepEqual(payload, {
+        gameCompletionState: null,
+      });
+    },
+  });
+
+  const gameService = createGameServiceForTest(rewardAwareRepository.repository);
+  const result = await gameService.restartSessionForReferral(11);
+
+  assert.equal(deletedGameResultId, 44);
+  assert.equal(markedOutcomePlayerId, 11);
+  assert.equal(result.lifecycle, "active");
+  assert.equal(result.reason, "referral-reset");
+  assert.equal(result.session.remainingSeconds, 300);
+});
+
 test("collectSneaker finishes timed-out active session and assigns promo code on tenth sneaker", async () => {
   const timedOutSession = {
     id: 42,

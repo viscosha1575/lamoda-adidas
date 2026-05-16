@@ -51,11 +51,8 @@ export function createAuthController({ authService, gameService }) {
     },
 
     async updateCurrentPlayerReferralStatus(request, response) {
+      await gameService.restartSessionForReferral(request.player.id);
       const player = await authService.simulateReferralForPlayer(request.player.id);
-
-      if (player.referralApplied && player.referredPlayerId) {
-        await gameService.restartSessionForReferral(player.referredPlayerId);
-      }
 
       response.json({
         data: {

@@ -82,42 +82,6 @@ export function createAuthRepository({ pool }) {
       return deletePlayerWithRelations(pool, playerId);
     },
 
-    async findReferralOwnerForSimulation(excludedPlayerId) {
-      const result = await pool.query(
-        `SELECT id, telegram_user_id, username, first_name, last_name,
-                auth_provider, referral_code, referred_by_code, has_referral, utm_slug,
-                game_completion_state, raffle_won, code_id, subscribed_to_channel,
-                auth_token, auth_token_expires_at,
-                last_seen_at, created_at, updated_at
-           FROM players
-          WHERE id <> $1
-            AND referral_code IS NOT NULL
-          ORDER BY created_at ASC, id ASC
-          LIMIT 1`,
-        [excludedPlayerId],
-      );
-
-      return result.rows[0] ?? null;
-    },
-
-    async applyReferralById(playerId, referredByCode) {
-      const result = await pool.query(
-        `UPDATE players
-         SET has_referral = TRUE,
-             referred_by_code = $2,
-             updated_at = NOW()
-         WHERE id = $1
-         RETURNING id, telegram_user_id, username, first_name, last_name,
-                   auth_provider, referral_code, referred_by_code, has_referral, utm_slug,
-                   game_completion_state, raffle_won, code_id, subscribed_to_channel,
-                   auth_token, auth_token_expires_at,
-                   last_seen_at, created_at, updated_at`,
-        [playerId, referredByCode],
-      );
-
-      return result.rows[0] ?? null;
-    },
-
     async upsertTelegramPlayer(player) {
       const result = await pool.query(
         `INSERT INTO players (

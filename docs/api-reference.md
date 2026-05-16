@@ -142,7 +142,7 @@ Example response:
 
 ### `PATCH /api/auth/current/referral`
 
-Simulates a real inbound referral for current player by Telegram initData.
+Simulates that the current player has invited someone and unlocks a fresh game run.
 
 Headers:
 
@@ -153,10 +153,9 @@ X-Telegram-Init-Data: <initData>
 Behavior:
 
 - Request body is not required.
-- Server finds another player with a `referralCode` and applies that code to the current player as `referredByCode`.
-- Server sets `hasReferral = true`.
-- If this is the first applied referral for the current player, server also triggers the same referral reset flow for the inviter as in the normal `POST /api/auth/session` flow.
-- If there is no other player available to act as referral owner, server returns `409`.
+- Server treats the current player as the inviter, not the invited player.
+- Server resets the current player's latest game session so they can pass the game again.
+- The player's own referral fields are not reassigned by this endpoint.
 
 Example response:
 
