@@ -17,6 +17,17 @@ const MOBILE_CANVAS_WIDTH = 390
 const MOBILE_CANVAS_HEIGHT = 844
 const MAP_IMAGE_WIDTH = 786
 const MAP_IMAGE_HEIGHT = 1704
+const UNITY_ROOT = '/unity'
+const UNITY_BUILD_BASE_URL = `${UNITY_ROOT}/Build`
+const UNITY_TEMPLATE_BASE_URL = `${UNITY_ROOT}/TemplateData`
+const UNITY_LOADER_SCRIPT_ID = 'unity-loader-script'
+const UNITY_LOADER_URL = `${UNITY_BUILD_BASE_URL}/FinalBuild.loader.js`
+const UNITY_FRAMEWORK_URL = `${UNITY_BUILD_BASE_URL}/FinalBuild.framework.js`
+const UNITY_DATA_URL = `${UNITY_BUILD_BASE_URL}/FinalBuild.data`
+const UNITY_WASM_URL = `${UNITY_BUILD_BASE_URL}/FinalBuild.wasm`
+const UNITY_LOADING_BACKGROUND_URL = `${UNITY_TEMPLATE_BASE_URL}/back-loading.webp`
+const UNITY_FONT_URL = `${UNITY_TEMPLATE_BASE_URL}/VCROSDMONO[NOLIVANTNTEDIT]-REGULAR.TTF`
+const UNITY_MOBILE_DEVICE_PATTERN = /iPhone|iPad|iPod|Android/i
 const TUTORIAL_MAP_OVERSCAN_X = 1.12
 const TUTORIAL_MAP_TOP_CROP_RATIO = 0.1
 const GAME_MAP_SCALE = MOBILE_CANVAS_WIDTH / MAP_IMAGE_WIDTH
@@ -32,6 +43,9 @@ const TG_SAFE_CONTENT_LEFT = 'var(--tg-content-safe-area-inset-left, env(safe-ar
 const TG_SAFE_CONTENT_RIGHT = 'var(--tg-content-safe-area-inset-right, env(safe-area-inset-right, 0px))'
 const TG_SAFE_UI_TOP = 'max(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)), var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px)))'
 const TG_SAFE_INTRO_TOP = `calc(${TG_SAFE_UI_TOP} + 1rem)`
+let unityLoaderPromise = null
+let unityWarmupStarted = false
+const warmedUnityAssets = new Set()
 let phaserSceneDebugId = 0
 const tutorialSneakerObject = {
   key: 'tutorial-sneaker-10',
@@ -90,6 +104,172 @@ function readSafeInsetPx(cssVarName) {
   const parsedValue = Number.parseFloat(rawValue)
 
   return Number.isFinite(parsedValue) ? parsedValue : 0
+}
+
+function ensureResourceHint({ href, rel, as, type }) {
+  if (typeof document === 'undefined' || !href || !rel) {
+    return
+  }
+
+  const selector = `link[rel="${rel}"][href="${href}"]`
+
+  if (document.head.querySelector(selector)) {
+    return
+  }
+
+  const link = document.createElement('link')
+  link.rel = rel
+  link.href = href
+
+  if (as) {
+    link.as = as
+  }
+
+  if (type) {
+    link.type = type
+  }
+
+  document.head.appendChild(link)
+}
+
+function loadExternalScript({ id, src }) {
+  const existingScript = document.getElementById(id)
+
+  if (existingScript) {
+    if (existingScript.dataset.loaded === 'true') {
+      return Promise.resolve()
+    }
+
+    return new Promise((resolve, reject) => {
+      existingScript.addEventListener('load', () => resolve(), { once: true })
+      existingScript.addEventListener(
+        'error',
+        () => reject(new Error(`Failed to load script: ${src}`)),
+        { once: true },
+      )
+    })
+  }
+
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script')
+    script.id = id
+    script.src = src
+    script.async = true
+    script.onload = () => {
+      script.dataset.loaded = 'true'
+      resolve()
+    }
+    script.onerror = () => reject(new Error(`Failed to load script: ${src}`))
+    document.body.appendChild(script)
+  })
+}
+
+function ensureUnityLoaderScript() {
+  if (!unityLoaderPromise) {
+    unityLoaderPromise = loadExternalScript({
+      id: UNITY_LOADER_SCRIPT_ID,
+      src: UNITY_LOADER_URL,
+    })
+  }
+
+  return unityLoaderPromise
+}
+
+function warmImageAsset(url, { hintRel = 'prefetch', fetchPriority = 'low' } = {}) {
+  if (typeof window === 'undefined' || !url || warmedUnityAssets.has(url)) {
+    return
+  }
+
+  warmedUnityAssets.add(url)
+  ensureResourceHint({
+    href: url,
+    rel: hintRel,
+    as: 'image',
+  })
+
+  const image = new Image()
+  image.decoding = 'async'
+  image.loading = 'eager'
+  image.fetchPriority = fetchPriority
+  image.src = url
+}
+
+function warmUnityFont() {
+  ensureResourceHint({
+    href: UNITY_FONT_URL,
+    rel: 'preload',
+    as: 'font',
+    type: 'font/ttf',
+  })
+
+  fetch(UNITY_FONT_URL, { cache: 'force-cache' }).catch(() => null)
+}
+
+function warmUnityInBackground() {
+  if (typeof window === 'undefined' || unityWarmupStarted) {
+    return
+  }
+
+  unityWarmupStarted = true
+
+  const runWarmup = () => {
+    warmImageAsset(UNITY_LOADING_BACKGROUND_URL, {
+      hintRel: 'preload',
+      fetchPriority: 'high',
+    })
+    warmUnityFont()
+
+    ensureResourceHint({
+      href: UNITY_LOADER_URL,
+      rel: 'preload',
+      as: 'script',
+    })
+    ensureResourceHint({
+      href: UNITY_FRAMEWORK_URL,
+      rel: 'prefetch',
+      as: 'fetch',
+    })
+    ensureResourceHint({
+      href: UNITY_DATA_URL,
+      rel: 'prefetch',
+      as: 'fetch',
+    })
+    ensureResourceHint({
+      href: UNITY_WASM_URL,
+      rel: 'prefetch',
+      as: 'fetch',
+      type: 'application/wasm',
+    })
+
+    ensureUnityLoaderScript().catch((error) => {
+      console.warn('Unity background warmup failed', error)
+    })
+  }
+
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(runWarmup, { timeout: 900 })
+    return
+  }
+
+  window.setTimeout(runWarmup, 120)
+}
+
+function isUnityMobileDevice() {
+  return UNITY_MOBILE_DEVICE_PATTERN.test(window.navigator.userAgent)
+}
+
+function createUnityConfig(showBanner) {
+  return {
+    arguments: [],
+    dataUrl: UNITY_DATA_URL,
+    frameworkUrl: UNITY_FRAMEWORK_URL,
+    codeUrl: UNITY_WASM_URL,
+    streamingAssetsUrl: `${UNITY_ROOT}/StreamingAssets`,
+    companyName: 'Maracoon',
+    productName: 'PlayGame',
+    productVersion: '1',
+    showBanner,
+  }
 }
 
 function shouldUseDesktopIntroLayout() {
@@ -696,6 +876,298 @@ function HiddenMapWarmupImage() {
       loading="eager"
       className="pointer-events-none fixed left-0 top-0 h-px w-px opacity-0"
     />
+  )
+}
+
+function UnityPlayer({ preload = false, isVisible = false, onLoadError }) {
+  const canvasRef = useRef(null)
+  const containerRef = useRef(null)
+  const warningBannerRef = useRef(null)
+  const unityInstanceRef = useRef(null)
+  const hasBootedRef = useRef(false)
+  const bootUnityRef = useRef(() => {})
+  const onLoadErrorRef = useRef(onLoadError)
+  const [progress, setProgress] = useState(0)
+  const [isReady, setIsReady] = useState(false)
+  const [loadingHint, setLoadingHint] = useState('Уже почти...')
+
+  useEffect(() => {
+    onLoadErrorRef.current = onLoadError
+  }, [onLoadError])
+
+  useEffect(() => {
+    function handleOrientation(event) {
+      const instance = unityInstanceRef.current
+
+      if (!instance || typeof instance.SendMessage !== 'function') {
+        return
+      }
+
+      const tilt = Number(event?.gamma || 0) / 90
+
+      if (Math.abs(tilt) > 0.05) {
+        instance.SendMessage('Manager', 'AccelerometerData', tilt)
+      }
+    }
+
+    function requestAccessAccelerometer() {
+      if (
+        typeof DeviceOrientationEvent !== 'undefined'
+        && typeof DeviceOrientationEvent.requestPermission === 'function'
+      ) {
+        DeviceOrientationEvent.requestPermission()
+          .then((response) => {
+            if (response === 'granted') {
+              window.addEventListener('deviceorientation', handleOrientation)
+            }
+          })
+          .catch((error) => {
+            console.warn('Accelerometer permission failed', error)
+          })
+
+        return
+      }
+
+      window.addEventListener('deviceorientation', handleOrientation)
+    }
+
+    window.requestAccessAccelerometer = requestAccessAccelerometer
+
+    return () => {
+      window.removeEventListener('deviceorientation', handleOrientation)
+
+      if (window.requestAccessAccelerometer === requestAccessAccelerometer) {
+        delete window.requestAccessAccelerometer
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    const container = containerRef.current
+    const warningBanner = warningBannerRef.current
+
+    if (!canvas || !container || !warningBanner) {
+      return undefined
+    }
+
+    if (isUnityMobileDevice()) {
+      container.classList.add('unity-mobile')
+      canvas.classList.add('unity-mobile')
+    } else {
+      container.classList.add('unity-desktop')
+    }
+
+    function showBanner(message, type) {
+      if (type === 'warning') {
+        console.warn('Unity warning:', message)
+        return
+      }
+
+      const bannerEntry = document.createElement('div')
+      bannerEntry.innerHTML = message
+      warningBanner.appendChild(bannerEntry)
+
+      if (type === 'error') {
+        bannerEntry.style.background = '#f4383e'
+        bannerEntry.style.color = '#fff'
+        bannerEntry.style.padding = '10px 12px'
+      } else {
+        window.setTimeout(() => {
+          if (warningBanner.contains(bannerEntry)) {
+            warningBanner.removeChild(bannerEntry)
+            warningBanner.style.display = warningBanner.children.length ? 'block' : 'none'
+          }
+        }, 5000)
+      }
+
+      warningBanner.style.display = warningBanner.children.length ? 'block' : 'none'
+    }
+
+    function toUnityProgress(nextProgress) {
+      const normalizedProgress = Math.floor(nextProgress)
+      return normalizedProgress > 94 ? 94 : normalizedProgress
+    }
+
+    let loadingHintIntervalId = null
+
+    function renderSlowLoadHint() {
+      setLoadingHint('Если долго грузится: отключи VPN и перезапусти mini app')
+    }
+
+    function renderPatienceHint() {
+      setLoadingHint('Уже почти...')
+    }
+
+    function stopLoadingHints() {
+      window.clearTimeout(loadingHintTimeoutId)
+
+      if (loadingHintIntervalId !== null) {
+        window.clearInterval(loadingHintIntervalId)
+        loadingHintIntervalId = null
+      }
+    }
+
+    const loadingHintTimeoutId = window.setTimeout(() => {
+      renderSlowLoadHint()
+
+      let toggle = false
+      loadingHintIntervalId = window.setInterval(() => {
+        if (toggle) {
+          renderSlowLoadHint()
+        } else {
+          renderPatienceHint()
+        }
+
+        toggle = !toggle
+      }, 7000)
+    }, 7000)
+
+    let isDisposed = false
+
+    function bootUnity() {
+      if (hasBootedRef.current) {
+        return
+      }
+
+      hasBootedRef.current = true
+      setIsReady(false)
+      setProgress(0)
+      renderPatienceHint()
+
+      const runUnity = () => {
+        const config = createUnityConfig(showBanner)
+
+        window
+          .createUnityInstance(canvas, config, (nextProgress) => {
+            setProgress(toUnityProgress(nextProgress * 100))
+          })
+          .then((instance) => {
+            if (isDisposed) {
+              instance.Quit?.().catch(() => {})
+              return
+            }
+
+            unityInstanceRef.current = instance
+            window.unityInstance = instance
+            stopLoadingHints()
+            setProgress(100)
+            setIsReady(true)
+            onLoadErrorRef.current?.('')
+          })
+          .catch((error) => {
+            hasBootedRef.current = false
+            stopLoadingHints()
+            console.error('Unity boot failed', error)
+            onLoadErrorRef.current?.('Не удалось загрузить игру. Попробуй обновить страницу.')
+          })
+      }
+
+      if (typeof window.createUnityInstance === 'function') {
+        runUnity()
+        return
+      }
+
+      ensureUnityLoaderScript()
+        .then(runUnity)
+        .catch((error) => {
+          hasBootedRef.current = false
+          stopLoadingHints()
+          console.error('Unity loader failed', error)
+          onLoadErrorRef.current?.('Не удалось загрузить Unity loader.')
+        })
+    }
+
+    bootUnityRef.current = bootUnity
+
+    if (preload || isVisible) {
+      bootUnity()
+    }
+
+    return () => {
+      isDisposed = true
+      stopLoadingHints()
+
+      if (
+        unityInstanceRef.current
+        && typeof unityInstanceRef.current.Quit === 'function'
+      ) {
+        unityInstanceRef.current.Quit().catch(() => {})
+      }
+
+      if (window.unityInstance === unityInstanceRef.current) {
+        window.unityInstance = null
+      }
+
+      unityInstanceRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    if (preload || isVisible) {
+      bootUnityRef.current()
+    }
+
+    if (isVisible) {
+      requestTelegramFullscreen()
+    }
+  }, [preload, isVisible])
+
+  return (
+    <section className="unity-screen">
+      <div id="unity-container" ref={containerRef} className="unity-shell">
+        <canvas
+          id="unity-canvas"
+          ref={canvasRef}
+          className="unity-canvas"
+          width="960"
+          height="600"
+          tabIndex={-1}
+          style={{
+            background: `#000 url('${UNITY_LOADING_BACKGROUND_URL}') center / cover no-repeat`,
+          }}
+        />
+
+        <div className={`unity-loading-overlay${isReady ? ' unity-loading-overlay--hidden' : ''}`}>
+          <section className="relative flex min-h-svh items-center justify-center overflow-hidden">
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 bg-cover bg-center"
+              style={{ backgroundImage: `url('${UNITY_LOADING_BACKGROUND_URL}')` }}
+            />
+
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,8,8,0.28)_0%,rgba(10,10,10,0.06)_34%,rgba(6,6,6,0.28)_68%,rgba(0,0,0,0.82)_100%)]"
+            />
+
+            <div className="relative z-10 flex min-h-svh w-full max-w-[390px] flex-col items-center px-8 pt-[15vh] pb-[9vh]">
+              <h1 className="loading-title text-center font-display leading-none text-white">
+                <span className="loading-title-top block whitespace-nowrap">В ПОИСКАХ</span>
+                <span className="loading-title-bottom block">СТИЛЯ</span>
+              </h1>
+
+              <div className="mt-auto flex w-full flex-col items-center gap-4">
+                <div className="loading-progress-frame w-full max-w-[30rem] border-[3px] border-black bg-[#f0e8d6] p-[4px]">
+                  <div className="loading-progress-track">
+                    <div
+                      className="loading-progress-fill"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </div>
+
+                <p className="loading-caption text-center font-display text-[clamp(1.4rem,6vw,2rem)] leading-[1.05] text-white">
+                  {loadingHint}
+                </p>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div id="unity-warning" ref={warningBannerRef} className="unity-warning" />
+      </div>
+    </section>
   )
 }
 
@@ -4552,12 +5024,16 @@ const slides = [
 function App() {
   const backendBootstrap = useBackendBootstrap()
   const [activeIndex, setActiveIndex] = useState(0)
+  const [screen, setScreen] = useState('intro')
   const [subscriptionChannelUrl, setSubscriptionChannelUrl] = useState(defaultChannelUrl)
   const [isCheckingSubscription, setIsCheckingSubscription] = useState(false)
   const [isSubscriptionConfirmed, setIsSubscriptionConfirmed] = useState(false)
+  const [shouldMountUnityLayer, setShouldMountUnityLayer] = useState(false)
+  const [unityLoadError, setUnityLoadError] = useState('')
   const [useDesktopIntroLayout, setUseDesktopIntroLayout] = useState(() => shouldUseDesktopIntroLayout())
   const slide = typeof activeIndex === 'number' ? slides[activeIndex] : null
   const isAlertSlide = slide?.id === 'alert'
+  const isUnityScreen = screen === 'unity'
 
   useEffect(() => {
     logGameDebug('app:state-snapshot', {
@@ -4608,6 +5084,48 @@ function App() {
   }, [backendBootstrap.player?.subscribedToChannel])
 
   useEffect(() => {
+    if (shouldMountUnityLayer) {
+      return undefined
+    }
+
+    let timeoutId = 0
+    let idleCallbackId = null
+    let isCancelled = false
+
+    const startUnityWarmup = () => {
+      if (isCancelled) {
+        return
+      }
+
+      warmUnityInBackground()
+      setShouldMountUnityLayer(true)
+    }
+
+    if (typeof window.requestIdleCallback === 'function') {
+      idleCallbackId = window.requestIdleCallback(startUnityWarmup, {
+        timeout: 900,
+      })
+    } else {
+      timeoutId = window.setTimeout(startUnityWarmup, 120)
+    }
+
+    return () => {
+      isCancelled = true
+
+      if (
+        idleCallbackId !== null
+        && typeof window.cancelIdleCallback === 'function'
+      ) {
+        window.cancelIdleCallback(idleCallbackId)
+      }
+
+      if (timeoutId) {
+        window.clearTimeout(timeoutId)
+      }
+    }
+  }, [shouldMountUnityLayer])
+
+  useEffect(() => {
     if (backendBootstrap.status !== 'error') {
       return
     }
@@ -4634,6 +5152,13 @@ function App() {
     setActiveIndex(nextIndex)
   }, [activeIndex])
 
+  const openUnityGame = useCallback(() => {
+    setUnityLoadError('')
+    setShouldMountUnityLayer(true)
+    setScreen('unity')
+    requestTelegramFullscreen()
+  }, [])
+
   const handleSubscriptionCheck = useCallback(async () => {
     if (isCheckingSubscription) {
       return
@@ -4650,6 +5175,7 @@ function App() {
 
       if (result?.subscribed) {
         setIsSubscriptionConfirmed(true)
+        openUnityGame()
         logGameDebug('app:subscription-confirmed', {
           memberStatus: result?.memberStatus ?? null,
           available: result?.available ?? true,
@@ -4669,43 +5195,25 @@ function App() {
     } finally {
       setIsCheckingSubscription(false)
     }
-  }, [isCheckingSubscription, navigateTo])
+  }, [isCheckingSubscription, navigateTo, openUnityGame])
 
   return (
-    <main className="relative min-h-svh overflow-hidden bg-[#3d5064] text-white">
+    <div className={`unity-app-shell${isUnityScreen ? ' unity-app-shell--immersive' : ''}`}>
       <HiddenMapWarmupImage />
-      {typeof activeIndex === 'number' ? (
-        <section className="relative z-40 flex w-full flex-col items-center">
-        <article
-          key={slide.id}
-          className="screen-grain relative flex h-svh w-full flex-col overflow-hidden rounded-none bg-[#3d5064] px-6 sm:px-8"
-          style={{
-            paddingTop: TG_SAFE_UI_TOP,
-            paddingBottom: `calc(${TG_SAFE_CONTENT_BOTTOM} + 2rem)`,
-          }}
-        >
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-[134px] bg-[linear-gradient(180deg,_#000000_0%,_rgba(0,0,0,0)_100%)]" />
-
-          {slide.badge && !isAlertSlide ? (
-            <div className="intro-grid-item intro-grid-item-1 relative flex w-full justify-center">
-              <span
-                data-text={slide.badge}
-                className="attention-badge font-display text-center text-[36px] font-normal leading-normal tracking-normal text-white"
-              >
-                {slide.badge}
-              </span>
-            </div>
-          ) : null}
-
-          <div
-            className="relative flex flex-1 w-full items-center justify-center"
-          >
-            <div
-              className={`relative flex w-full flex-col items-center justify-center ${
-                isAlertSlide ? 'gap-8' : 'gap-6'
-              }`}
+      {!isUnityScreen && typeof activeIndex === 'number' ? (
+        <main className="relative z-40 min-h-svh overflow-hidden bg-[#3d5064] text-white">
+          <section className="relative z-40 flex w-full flex-col items-center">
+            <article
+              key={slide.id}
+              className="screen-grain relative flex h-svh w-full flex-col overflow-hidden rounded-none bg-[#3d5064] px-6 sm:px-8"
+              style={{
+                paddingTop: TG_SAFE_UI_TOP,
+                paddingBottom: `calc(${TG_SAFE_CONTENT_BOTTOM} + 2rem)`,
+              }}
             >
-              {slide.badge && isAlertSlide ? (
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-[134px] bg-[linear-gradient(180deg,_#000000_0%,_rgba(0,0,0,0)_100%)]" />
+
+              {slide.badge && !isAlertSlide ? (
                 <div className="intro-grid-item intro-grid-item-1 relative flex w-full justify-center">
                   <span
                     data-text={slide.badge}
@@ -4717,107 +5225,148 @@ function App() {
               ) : null}
 
               <div
-                className={`intro-grid-item ${isAlertSlide ? 'intro-grid-item-2' : 'intro-grid-item-1'} relative flex w-full items-center justify-center`}
+                className="relative flex flex-1 w-full items-center justify-center"
               >
-                {slide.art}
+                <div
+                  className={`relative flex w-full flex-col items-center justify-center ${
+                    isAlertSlide ? 'gap-8' : 'gap-6'
+                  }`}
+                >
+                  {slide.badge && isAlertSlide ? (
+                    <div className="intro-grid-item intro-grid-item-1 relative flex w-full justify-center">
+                      <span
+                        data-text={slide.badge}
+                        className="attention-badge font-display text-center text-[36px] font-normal leading-normal tracking-normal text-white"
+                      >
+                        {slide.badge}
+                      </span>
+                    </div>
+                  ) : null}
+
+                  <div
+                    className={`intro-grid-item ${isAlertSlide ? 'intro-grid-item-2' : 'intro-grid-item-1'} relative flex w-full items-center justify-center`}
+                  >
+                    {slide.art}
+                  </div>
+
+                  <div
+                    className={`intro-grid-item ${isAlertSlide ? 'intro-grid-item-3' : 'intro-grid-item-2'} relative flex w-full justify-center text-center ${
+                      isAlertSlide ? 'max-w-sm self-center -mt-5 md:-mt-8' : 'pt-[clamp(0.75rem,4vh,2rem)]'
+                    }`}
+                  >
+                    {slide.body}
+                  </div>
+                </div>
               </div>
 
               <div
-                className={`intro-grid-item ${isAlertSlide ? 'intro-grid-item-3' : 'intro-grid-item-2'} relative flex w-full justify-center text-center ${
-                  isAlertSlide ? 'max-w-sm self-center -mt-5 md:-mt-8' : 'pt-[clamp(0.75rem,4vh,2rem)]'
+                className={`intro-grid-item ${isAlertSlide ? 'intro-grid-item-4' : 'intro-grid-item-3'} relative mt-auto h-[106px] ${
+                  isAlertSlide
+                    ? `grid w-full content-end gap-y-3 px-2 ${useDesktopIntroLayout ? 'grid-rows-[47px]' : 'grid-rows-[47px_47px]'}`
+                    : 'grid w-full content-end gap-y-3 px-2'
                 }`}
               >
-                {slide.body}
-              </div>
-            </div>
-          </div>
+                {slide.actions.map((action) => {
+                  if (action.variant === 'intro') {
+                    return (
+                      <RibbonButton
+                        key={action.label}
+                        label={action.label}
+                        onClick={() => navigateTo(action.next)}
+                      />
+                    )
+                  }
 
-          <div
-            className={`intro-grid-item ${isAlertSlide ? 'intro-grid-item-4' : 'intro-grid-item-3'} relative mt-auto h-[106px] ${
-              isAlertSlide
-                ? `grid w-full content-end gap-y-3 px-2 ${useDesktopIntroLayout ? 'grid-rows-[47px]' : 'grid-rows-[47px_47px]'}`
-                : 'grid w-full content-end gap-y-3 px-2'
-            }`}
-          >
-            {slide.actions.map((action) => {
-              if (action.variant === 'intro') {
-                return (
-                  <RibbonButton
-                    key={action.label}
-                    label={action.label}
-                    onClick={() => navigateTo(action.next)}
-                  />
-                )
-              }
+                  if (action.variant === 'dark') {
+                    const isSubscriptionAction = action.kind === 'check-subscription'
+                    const buttonLabel = isSubscriptionAction
+                      ? (isCheckingSubscription
+                          ? 'Проверяем...'
+                          : (isSubscriptionConfirmed ? 'Подписка найдена' : action.label))
+                      : action.label
 
-              if (action.variant === 'dark') {
-                const isSubscriptionAction = action.kind === 'check-subscription'
-                const buttonLabel = isSubscriptionAction
-                  ? (isCheckingSubscription
-                      ? 'Проверяем...'
-                      : (isSubscriptionConfirmed ? 'Подписка найдена' : action.label))
-                  : action.label
+                    return (
+                      <button
+                        key={action.label}
+                        type="button"
+                        className="pixel-button-svg"
+                        disabled={isCheckingSubscription}
+                        onClick={() => {
+                          if (isSubscriptionAction) {
+                            if (isSubscriptionConfirmed) {
+                              openUnityGame()
+                              return
+                            }
 
-                return (
-                  <button
-                    key={action.label}
-                    type="button"
-                    className="pixel-button-svg"
-                    disabled={isCheckingSubscription}
-                    onClick={() => {
-                      if (isSubscriptionAction) {
-                        void handleSubscriptionCheck()
-                        return
-                      }
+                            void handleSubscriptionCheck()
+                            return
+                          }
 
-                      navigateTo(action.next)
-                    }}
-                  >
-                    <ButtonSvg
-                      width="100%"
-                      className="absolute inset-0 h-full w-full"
-                    />
-                    <span className="button-text-dark relative z-10">
-                      {buttonLabel}
-                    </span>
-                  </button>
-                )
-              }
+                          navigateTo(action.next)
+                        }}
+                      >
+                        <ButtonSvg
+                          width="100%"
+                          className="absolute inset-0 h-full w-full"
+                        />
+                        <span className="button-text-dark relative z-10">
+                          {buttonLabel}
+                        </span>
+                      </button>
+                    )
+                  }
 
-              if (action.kind === 'open-channel') {
-                return (
-                  <a
-                    key={action.label}
-                    href={subscriptionChannelUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="pixel-button-svg-light"
-                  >
-                    <ButtonSvgLight width="100%" className="absolute inset-0 h-full w-full" />
-                    <span className="button-text-light relative z-10">
+                  if (action.kind === 'open-channel') {
+                    return (
+                      <a
+                        key={action.label}
+                        href={subscriptionChannelUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="pixel-button-svg-light"
+                      >
+                        <ButtonSvgLight width="100%" className="absolute inset-0 h-full w-full" />
+                        <span className="button-text-light relative z-10">
+                          {action.label}
+                        </span>
+                      </a>
+                    )
+                  }
+
+                  return (
+                    <button
+                      key={action.label}
+                      type="button"
+                      className="pixel-button"
+                      onClick={() => navigateTo(action.next)}
+                    >
                       {action.label}
-                    </span>
-                  </a>
-                )
-              }
+                    </button>
+                  )
+                })}
+                {isAlertSlide && !useDesktopIntroLayout ? <div aria-hidden="true" /> : null}
 
-              return (
-                <button
-                  key={action.label}
-                  type="button"
-                  className="pixel-button"
-                  onClick={() => navigateTo(action.next)}
-                >
-                  {action.label}
-                </button>
-              )
-            })}
-            {isAlertSlide && !useDesktopIntroLayout ? <div aria-hidden="true" /> : null}
-          </div>
-        </article>
-        </section>
+                {unityLoadError ? (
+                  <p className="unity-inline-error text-center">
+                    {unityLoadError}
+                  </p>
+                ) : null}
+              </div>
+            </article>
+          </section>
+        </main>
       ) : null}
-    </main>
+
+      {shouldMountUnityLayer ? (
+        <div className={`unity-layer${isUnityScreen ? ' unity-layer--visible' : ''}`}>
+          <UnityPlayer
+            preload={shouldMountUnityLayer}
+            isVisible={isUnityScreen}
+            onLoadError={setUnityLoadError}
+          />
+        </div>
+      ) : null}
+    </div>
   )
 }
 
