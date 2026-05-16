@@ -227,6 +227,7 @@ test("auth middleware rejects bearer-only requests without Telegram initData", a
 });
 
 test("PATCH /api/auth/current/referral updates current player referral status using Telegram initData", async () => {
+  let restartedReferralPlayerId = null;
   const authService = {
     async createSession() {
       throw new Error("should not be called");
@@ -234,13 +235,15 @@ test("PATCH /api/auth/current/referral updates current player referral status us
     async deletePlayerById() {
       return { deleted: true };
     },
-    async markPlayerHasReferral(playerId) {
+    async simulateReferralForPlayer(playerId) {
       assert.equal(playerId, 55);
 
       return createPlayerResponse({
         id: 55,
         hasReferral: true,
-        referredByCode: null,
+        referredByCode: "PLAYER42",
+        referralApplied: true,
+        referredPlayerId: 77,
       });
     },
     async getPlayerByToken() {
@@ -253,7 +256,12 @@ test("PATCH /api/auth/current/referral updates current player referral status us
       };
     },
   };
-  const gameService = {};
+  const gameService = {
+    async restartSessionForReferral(playerId) {
+      restartedReferralPlayerId = playerId;
+      return null;
+    },
+  };
 
   const app = express();
   app.use(express.json());
@@ -271,5 +279,6 @@ test("PATCH /api/auth/current/referral updates current player referral status us
   assert.equal(response.statusCode, 200);
   assert.equal(response.body.data.player.id, 55);
   assert.equal(response.body.data.player.hasReferral, true);
-  assert.equal(response.body.data.player.referredByCode, null);
+  assert.equal(response.body.data.player.referredByCode, "PLAYER42");
+  assert.equal(restartedReferralPlayerId, 77);
 });

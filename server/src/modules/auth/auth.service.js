@@ -281,17 +281,44 @@ export function createAuthService({
       };
     },
 
-    async markPlayerHasReferral(playerId) {
-      const player = await authRepository.markPlayerHasReferralById(playerId);
+    async simulateReferralForPlayer(playerId) {
+      const currentPlayer = await authRepository.findPlayerById(playerId);
+
+      if (!currentPlayer) {
+        throw new HttpError(404, "Player not found");
+      }
+
+      if (currentPlayer.referred_by_code) {
+        return {
+          ...normalizePlayer(currentPlayer, {
+            onlineWindowSeconds: playerOnlineWindowSeconds,
+            telegramAppUrl,
+          }),
+          referredPlayerId: null,
+          referralApplied: false,
+        };
+      }
+
+      const referralOwner = await authRepository.findReferralOwnerForSimulation(playerId);
+
+      if (!referralOwner?.referral_code) {
+        throw new HttpError(409, "No referral owner available for simulation");
+      }
+
+      const player = await authRepository.applyReferralById(playerId, referralOwner.referral_code);
 
       if (!player) {
         throw new HttpError(404, "Player not found");
       }
 
-      return normalizePlayer(player, {
-        onlineWindowSeconds: playerOnlineWindowSeconds,
-        telegramAppUrl,
-      });
+      return {
+        ...normalizePlayer(player, {
+          onlineWindowSeconds: playerOnlineWindowSeconds,
+          telegramAppUrl,
+        }),
+        referredPlayerId: Number(referralOwner.id),
+        referralApplied: true,
+      };
     },
   };
 }

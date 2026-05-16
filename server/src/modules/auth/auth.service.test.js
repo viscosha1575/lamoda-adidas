@@ -260,11 +260,11 @@ test("createSession stores lowercase startapp as utm slug and tracks visit", asy
   });
 });
 
-test("markPlayerHasReferral sets hasReferral true and clears referredByCode", async () => {
-  let updatedPlayerId = null;
+test("simulateReferralForPlayer applies another player's referral code and marks current player", async () => {
+  let appliedReferral = null;
   const authRepository = {
-    async markPlayerHasReferralById(playerId) {
-      updatedPlayerId = playerId;
+    async findPlayerById(playerId) {
+      assert.equal(playerId, 7);
       return {
         id: playerId,
         telegram_user_id: 123456789,
@@ -274,6 +274,34 @@ test("markPlayerHasReferral sets hasReferral true and clears referredByCode", as
         auth_provider: "telegram_unverified",
         referral_code: "ABCDEF123456",
         referred_by_code: null,
+        has_referral: false,
+        utm_slug: null,
+        subscribed_to_channel: false,
+        raffle_won: null,
+        code_id: null,
+        auth_token: "token-123",
+        auth_token_expires_at: "2026-06-15T10:00:00.000Z",
+        last_seen_at: "2026-05-15T10:00:00.000Z",
+      };
+    },
+    async findReferralOwnerForSimulation(excludedPlayerId) {
+      assert.equal(excludedPlayerId, 7);
+      return {
+        id: 15,
+        referral_code: "PLAYER42",
+      };
+    },
+    async applyReferralById(playerId, referredByCode) {
+      appliedReferral = { playerId, referredByCode };
+      return {
+        id: playerId,
+        telegram_user_id: 123456789,
+        username: "lamoda_player",
+        first_name: "Mila",
+        last_name: "Test",
+        auth_provider: "telegram_unverified",
+        referral_code: "ABCDEF123456",
+        referred_by_code: referredByCode,
         has_referral: true,
         utm_slug: null,
         subscribed_to_channel: false,
@@ -287,9 +315,95 @@ test("markPlayerHasReferral sets hasReferral true and clears referredByCode", as
   };
 
   const authService = createAuthServiceForTest(authRepository);
-  const player = await authService.markPlayerHasReferral(7);
+  const player = await authService.simulateReferralForPlayer(7);
 
-  assert.equal(updatedPlayerId, 7);
+  assert.deepEqual(appliedReferral, {
+    playerId: 7,
+    referredByCode: "PLAYER42",
+  });
   assert.equal(player.hasReferral, true);
-  assert.equal(player.referredByCode, null);
+  assert.equal(player.referredByCode, "PLAYER42");
+  assert.equal(player.referredPlayerId, 15);
+  assert.equal(player.referralApplied, true);
+});
+
+test("simulateReferralForPlayer does not reapply referral when player already has one", async () => {
+  const authRepository = {
+    async findPlayerById(playerId) {
+      assert.equal(playerId, 8);
+      return {
+        id: playerId,
+        telegram_user_id: 123456789,
+        username: "lamoda_player",
+        first_name: "Mila",
+        last_name: "Test",
+        auth_provider: "telegram_unverified",
+        referral_code: "ABCDEF123456",
+        referred_by_code: "PLAYER42",
+        has_referral: true,
+        utm_slug: null,
+        subscribed_to_channel: false,
+        raffle_won: null,
+        code_id: null,
+        auth_token: "token-123",
+        auth_token_expires_at: "2026-06-15T10:00:00.000Z",
+        last_seen_at: "2026-05-15T10:00:00.000Z",
+      };
+    },
+    async findReferralOwnerForSimulation() {
+      throw new Error("should not search referral owner when referral already exists");
+    },
+    async applyReferralById() {
+      throw new Error("should not reapply referral");
+    },
+  };
+
+  const authService = createAuthServiceForTest(authRepository);
+  const player = await authService.simulateReferralForPlayer(8);
+
+  assert.equal(player.hasReferral, true);
+  assert.equal(player.referredByCode, "PLAYER42");
+  assert.equal(player.referredPlayerId, null);
+  assert.equal(player.referralApplied, false);
+});
+
+test("simulateReferralForPlayer fails when there is no referral owner for simulation", async () => {
+  const authRepository = {
+    async findPlayerById(playerId) {
+      assert.equal(playerId, 9);
+      return {
+        id: playerId,
+        telegram_user_id: 123456789,
+        username: "lamoda_player",
+        first_name: "Mila",
+        last_name: "Test",
+        auth_provider: "telegram_unverified",
+        referral_code: "ABCDEF123456",
+        referred_by_code: null,
+        has_referral: false,
+        utm_slug: null,
+        subscribed_to_channel: false,
+        raffle_won: null,
+        code_id: null,
+        auth_token: "token-123",
+        auth_token_expires_at: "2026-06-15T10:00:00.000Z",
+        last_seen_at: "2026-05-15T10:00:00.000Z",
+      };
+    },
+    async findReferralOwnerForSimulation() {
+      return null;
+    },
+    async applyReferralById() {
+      throw new Error("should not apply referral without owner");
+    },
+  };
+
+  const authService = createAuthServiceForTest(authRepository);
+
+  await assert.rejects(
+    () => authService.simulateReferralForPlayer(9),
+    {
+      message: "No referral owner available for simulation",
+    },
+  );
 });
