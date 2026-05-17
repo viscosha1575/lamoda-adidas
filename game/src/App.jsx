@@ -21,10 +21,7 @@ const UNITY_ROOT = '/unity'
 const UNITY_BUILD_BASE_URL = `${UNITY_ROOT}/Build`
 const UNITY_TEMPLATE_BASE_URL = `${UNITY_ROOT}/TemplateData`
 const UNITY_LOADER_SCRIPT_ID = 'unity-loader-script'
-const UNITY_LOADER_URL = `${UNITY_BUILD_BASE_URL}/FinalBuild.loader.js`
-const UNITY_FRAMEWORK_URL = `${UNITY_BUILD_BASE_URL}/FinalBuild.framework.js`
-const UNITY_DATA_URL = `${UNITY_BUILD_BASE_URL}/FinalBuild.data`
-const UNITY_WASM_URL = `${UNITY_BUILD_BASE_URL}/FinalBuild.wasm`
+const UNITY_BUILD_VERSION = import.meta.env.VITE_UNITY_BUILD_VERSION ?? 'dev'
 const UNITY_LOADING_BACKGROUND_URL = `${UNITY_TEMPLATE_BASE_URL}/back-loading.webp`
 const UNITY_FONT_URL = `${UNITY_TEMPLATE_BASE_URL}/VCROSDMONO[NOLIVANTNTEDIT]-REGULAR.TTF`
 const UNITY_TELEGRAM_AVATAR_PLACEHOLDER_URL = `${UNITY_TEMPLATE_BASE_URL}/webmemd-icon.png`
@@ -107,6 +104,16 @@ function readSafeInsetPx(cssVarName) {
 
   return Number.isFinite(parsedValue) ? parsedValue : 0
 }
+
+function buildVersionedAssetUrl(assetPath) {
+  const separator = assetPath.includes('?') ? '&' : '?'
+  return `${assetPath}${separator}v=${encodeURIComponent(UNITY_BUILD_VERSION)}`
+}
+
+const UNITY_LOADER_URL = buildVersionedAssetUrl(`${UNITY_BUILD_BASE_URL}/FinalBuild.loader.js`)
+const UNITY_FRAMEWORK_URL = buildVersionedAssetUrl(`${UNITY_BUILD_BASE_URL}/FinalBuild.framework.js`)
+const UNITY_DATA_URL = buildVersionedAssetUrl(`${UNITY_BUILD_BASE_URL}/FinalBuild.data`)
+const UNITY_WASM_URL = buildVersionedAssetUrl(`${UNITY_BUILD_BASE_URL}/FinalBuild.wasm`)
 
 function ensureResourceHint({ href, rel, as, type }) {
   if (typeof document === 'undefined' || !href || !rel) {
