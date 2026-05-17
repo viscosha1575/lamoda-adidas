@@ -3879,6 +3879,10 @@ function MapTutorialScreen({
 }
 
 function requestMiniAppFullscreen() {
+  if (!isUnityMobileDevice()) {
+    return
+  }
+
   requestTelegramFullscreen()
 
   const root = document.documentElement

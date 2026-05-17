@@ -265,7 +265,7 @@ export function bootstrapTelegram() {
 export function requestTelegramFullscreen() {
   const webApp = getTelegramWebApp()
 
-  if (!webApp) {
+  if (!webApp || !isMobileDevice()) {
     return
   }
 
