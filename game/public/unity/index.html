@@ -139,6 +139,7 @@
         flex-direction: column;
         align-items: center;
         gap: 16px;
+        min-height: 110px;
       }
 
       .loading-progress-frame {
@@ -197,10 +198,16 @@
 
       .loading-caption {
         margin: 0;
+        display: flex;
+        min-height: 2.2em;
+        width: 100%;
+        align-items: center;
+        justify-content: center;
         text-align: center;
         text-shadow: 0 6px 18px rgba(0, 0, 0, 0.34);
         font-size: clamp(1.4rem, 6vw, 2rem);
         line-height: 1;
+        font-variant-numeric: tabular-nums;
       }
 
       @keyframes loading-bar-glint {
