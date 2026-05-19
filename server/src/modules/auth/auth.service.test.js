@@ -1,13 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 
 import { createAuthService } from "./auth.service.js";
 
-function createAuthServiceForTest(authRepository) {
+function createAuthServiceForTest(authRepository, overrides = {}) {
   return createAuthService({
     authRepository,
-    telegramBotToken: null,
-    trustTelegramClientUser: true,
+    telegramBotToken: overrides.telegramBotToken ?? null,
+    trustTelegramClientUser: overrides.trustTelegramClientUser ?? true,
     telegramAppUrl: "https://t.me/lamoda_games_bot/search",
     authTokenTtlDays: 30,
     playerOnlineWindowSeconds: 15,
@@ -30,6 +31,22 @@ function createInitData(overrides = {}) {
     }),
     auth_date: "1710000000",
   }).toString();
+}
+
+function createSignedInitData(botToken, overrides = {}) {
+  const params = new URLSearchParams(createInitData(overrides));
+  const entries = Array.from(params.entries())
+    .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
+    .map(([key, value]) => `${key}=${value}`)
+    .join("\n");
+  const secretKey = crypto.createHmac("sha256", "WebAppData").update(botToken).digest();
+  const hash = crypto
+    .createHmac("sha256", secretKey)
+    .update(entries)
+    .digest("hex");
+
+  params.set("hash", hash);
+  return params.toString();
 }
 
 test("createSession marks Telegram player with referredByCode when referralCode is provided", async () => {
@@ -311,6 +328,76 @@ test("createSession rejects requests without Telegram initData", async () => {
     () => authService.createSession({ referralCode: "PLAYER42" }),
     {
       message: "Telegram initData is required",
+    },
+  );
+});
+
+test("createSession validates Telegram initData signature when client trust is disabled", async () => {
+  const botToken = "123456:telegram-test-token";
+  const authRepository = {
+    async findPlayerByTelegramUserId() {
+      return null;
+    },
+    async findPlayerByReferralCode() {
+      throw new Error("should not load referral owner without inbound referral");
+    },
+    async upsertTelegramPlayer(player) {
+      return {
+        id: 19,
+        telegram_user_id: player.telegramUserId,
+        username: player.username,
+        first_name: player.firstName,
+        last_name: player.lastName,
+        auth_provider: player.authProvider,
+        referral_code: player.referralCode,
+        referred_by_code: player.referredByCode,
+        has_referral: player.hasReferral,
+        utm_slug: null,
+        subscribed_to_channel: false,
+        raffle_won: null,
+        code_id: null,
+        auth_token: player.authToken,
+        auth_token_expires_at: player.authTokenExpiresAt,
+        last_seen_at: player.lastSeenAt,
+      };
+    },
+  };
+
+  const authService = createAuthServiceForTest(authRepository, {
+    telegramBotToken: botToken,
+    trustTelegramClientUser: false,
+  });
+  const result = await authService.createSession({
+    initData: createSignedInitData(botToken),
+  });
+
+  assert.equal(result.telegramUserId, 123456789);
+});
+
+test("createSession rejects invalid Telegram initData signature when client trust is disabled", async () => {
+  const authService = createAuthServiceForTest({}, {
+    telegramBotToken: "123456:telegram-test-token",
+    trustTelegramClientUser: false,
+  });
+
+  await assert.rejects(
+    () => authService.createSession({ initData: createInitData() }),
+    {
+      message: "Invalid Telegram initData signature",
+    },
+  );
+});
+
+test("createSession fails when Telegram client trust is disabled without bot token", async () => {
+  const authService = createAuthServiceForTest({}, {
+    telegramBotToken: null,
+    trustTelegramClientUser: false,
+  });
+
+  await assert.rejects(
+    () => authService.createSession({ initData: createInitData() }),
+    {
+      message: "TELEGRAM_BOT_TOKEN is required when Telegram client trust is disabled",
     },
   );
 });

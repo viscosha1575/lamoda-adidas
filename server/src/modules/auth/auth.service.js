@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 
 import { HttpError } from "../../lib/http-error.js";
 import { authSessionSchema } from "./auth.schema.js";
-import { extractTelegramUserFromInitData } from "./telegram.js";
+import { extractTelegramUserFromInitData, validateTelegramInitData } from "./telegram.js";
 
 function buildTokenExpiry(ttlDays) {
   return new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000);
@@ -127,9 +127,19 @@ function withPlayerStatus(player, { isExisting, onlineWindowSeconds, telegramApp
 
 function verifyAndExtractTelegramUser({
   initData,
-  telegramBotToken: _telegramBotToken,
-  trustTelegramClientUser: _trustTelegramClientUser,
+  telegramBotToken,
+  trustTelegramClientUser,
 }) {
+  if (!trustTelegramClientUser) {
+    if (!telegramBotToken) {
+      throw new HttpError(500, "TELEGRAM_BOT_TOKEN is required when Telegram client trust is disabled");
+    }
+
+    if (!validateTelegramInitData(initData, telegramBotToken)) {
+      throw new HttpError(401, "Invalid Telegram initData signature");
+    }
+  }
+
   const telegramUser = extractTelegramUserFromInitData(initData);
 
   if (!telegramUser?.id) {
