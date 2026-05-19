@@ -14,6 +14,10 @@ function createAuthServiceForTest(authRepository) {
   });
 }
 
+function createRaffleFinishedAt() {
+  return new Date("2026-05-19T12:00:00.000Z");
+}
+
 function createInitData(overrides = {}) {
   return new URLSearchParams({
     query_id: "AAExample",
@@ -138,6 +142,113 @@ test("createSession keeps hasReferral false when referralCode is missing", async
   assert.equal(result.codeId, null);
   assert.equal(result.referralApplied, false);
   assert.equal(result.referredPlayerId, null);
+});
+
+test("createSession marks new player as raffle lost after raffle is finished", async () => {
+  const authRepository = {
+    async findPlayerByTelegramUserId() {
+      return null;
+    },
+    async findPlayerByReferralCode() {
+      throw new Error("should not load referral owner without inbound referral");
+    },
+    async getRaffleFinishedAt() {
+      return createRaffleFinishedAt();
+    },
+    async upsertTelegramPlayer(player) {
+      assert.equal(player.raffleWon, false);
+
+      return {
+        id: 88,
+        telegram_user_id: player.telegramUserId,
+        username: player.username,
+        first_name: player.firstName,
+        last_name: player.lastName,
+        auth_provider: player.authProvider,
+        referral_code: player.referralCode,
+        referred_by_code: player.referredByCode,
+        has_referral: player.hasReferral,
+        utm_slug: null,
+        subscribed_to_channel: false,
+        raffle_won: false,
+        code_id: null,
+        auth_token: player.authToken,
+        auth_token_expires_at: player.authTokenExpiresAt,
+        last_seen_at: player.lastSeenAt,
+      };
+    },
+  };
+
+  const authService = createAuthServiceForTest(authRepository);
+  const result = await authService.createSession({
+    initData: createInitData(),
+  });
+
+  assert.equal(result.raffleWon, false);
+});
+
+test("createSession marks existing pending player as raffle lost after raffle is finished", async () => {
+  let receivedRaffleWon = "unset";
+  const authRepository = {
+    async findPlayerByTelegramUserId() {
+      return {
+        id: 21,
+        telegram_user_id: 123456789,
+        username: "lamoda_player",
+        first_name: "Mila",
+        last_name: "Test",
+        auth_provider: "telegram_unverified",
+        referral_code: "ABCDEF123456",
+        referred_by_code: null,
+        has_referral: false,
+        utm_slug: null,
+        subscribed_to_channel: true,
+        raffle_won: null,
+        code_id: null,
+        auth_token: "token-123",
+        auth_token_expires_at: "2026-06-15T10:00:00.000Z",
+        last_seen_at: "2026-05-15T10:00:00.000Z",
+        created_at: "2026-05-18T10:00:00.000Z",
+      };
+    },
+    async findPlayerByReferralCode() {
+      throw new Error("should not load referral owner without inbound referral");
+    },
+    async getRaffleFinishedAt() {
+      return createRaffleFinishedAt();
+    },
+    async upsertTelegramPlayer(player) {
+      receivedRaffleWon = player.raffleWon;
+
+      return {
+        id: 21,
+        telegram_user_id: player.telegramUserId,
+        username: player.username,
+        first_name: player.firstName,
+        last_name: player.lastName,
+        auth_provider: player.authProvider,
+        referral_code: "ABCDEF123456",
+        referred_by_code: null,
+        has_referral: false,
+        utm_slug: null,
+        subscribed_to_channel: true,
+        raffle_won: false,
+        code_id: null,
+        auth_token: player.authToken,
+        auth_token_expires_at: player.authTokenExpiresAt,
+        last_seen_at: player.lastSeenAt,
+        created_at: "2026-05-18T10:00:00.000Z",
+      };
+    },
+  };
+
+  const authService = createAuthServiceForTest(authRepository);
+  const result = await authService.createSession({
+    initData: createInitData(),
+  });
+
+  assert.equal(receivedRaffleWon, false);
+  assert.equal(result.raffleWon, false);
 });
 
 test("createSession accepts raw Telegram initData without hash validation", async () => {

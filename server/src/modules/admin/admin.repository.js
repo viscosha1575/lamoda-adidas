@@ -655,16 +655,39 @@ export function createAdminRepository({ pool }) {
     },
 
     async finishRaffle() {
-      const result = await pool.query(
-        `UPDATE players
-            SET raffle_won = FALSE,
-                updated_at = NOW()
-          WHERE game_completion_state = 'completed'
-            AND raffle_won IS NULL
-        RETURNING id`,
-      );
+      const client = await pool.connect();
 
-      return Number(result.rowCount ?? 0);
+      try {
+        await client.query("BEGIN");
+
+        const finishedAt = new Date();
+        const result = await client.query(
+          `UPDATE players
+              SET raffle_won = FALSE,
+                  updated_at = $1
+            WHERE raffle_won IS NULL
+          RETURNING id`,
+          [finishedAt],
+        );
+
+        await client.query(
+          `INSERT INTO app_settings (key, value, updated_at)
+           VALUES ('raffle_finished_at', $1, $2)
+           ON CONFLICT (key)
+           DO UPDATE SET
+             value = EXCLUDED.value,
+             updated_at = EXCLUDED.updated_at`,
+          [finishedAt.toISOString(), finishedAt],
+        );
+
+        await client.query("COMMIT");
+        return Number(result.rowCount ?? 0);
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
     },
 
     async deletePlayerById(playerId) {

@@ -147,6 +147,24 @@ export function createAuthService({
   authTokenTtlDays,
   playerOnlineWindowSeconds,
 }) {
+  async function resolveRaffleWonForUpsert(existingPlayer) {
+    const raffleFinishedAt = await authRepository.getRaffleFinishedAt?.();
+
+    if (!raffleFinishedAt) {
+      return null;
+    }
+
+    if (!existingPlayer) {
+      return false;
+    }
+
+    if (typeof existingPlayer.raffle_won === "boolean") {
+      return null;
+    }
+
+    return false;
+  }
+
   return {
     async createSession(payload) {
       const input = authSessionSchema.parse(payload);
@@ -176,6 +194,7 @@ export function createAuthService({
       const utmSlug = referredByCode ? null : sanitizeUtmSlug(startParam);
       const hasReferral = false;
       const isNewReferral = Boolean(referredByCode) && !existingPlayer?.referred_by_code;
+      const raffleWon = await resolveRaffleWonForUpsert(existingPlayer);
 
       const player = await authRepository.upsertTelegramPlayer({
         telegramUserId: telegramUser.id,
@@ -187,6 +206,7 @@ export function createAuthService({
         referredByCode,
         hasReferral,
         utmSlug,
+        raffleWon,
         authToken,
         authTokenExpiresAt,
         lastSeenAt,
@@ -249,6 +269,7 @@ export function createAuthService({
 
       const authToken = crypto.randomUUID();
       const authTokenExpiresAt = buildTokenExpiry(authTokenTtlDays);
+      const raffleWon = await resolveRaffleWonForUpsert(null);
       const createdPlayer = await authRepository.upsertTelegramPlayer({
         telegramUserId: telegramUser.id,
         username: telegramUser.username,
@@ -258,6 +279,7 @@ export function createAuthService({
         referralCode: createPersonalReferralCode(),
         referredByCode: null,
         hasReferral: false,
+        raffleWon,
         authToken,
         authTokenExpiresAt,
         lastSeenAt: new Date(),

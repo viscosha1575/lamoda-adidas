@@ -102,10 +102,10 @@ export function createAuthRepository({ pool }) {
       const result = await pool.query(
         `INSERT INTO players (
            telegram_user_id, username, first_name, last_name, auth_provider,
-           referral_code, referred_by_code, has_referral, utm_slug, auth_token,
-           auth_token_expires_at, last_seen_at
+           referral_code, referred_by_code, has_referral, utm_slug, raffle_won,
+           auth_token, auth_token_expires_at, last_seen_at
          )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
          ON CONFLICT (telegram_user_id)
          DO UPDATE SET
            username = EXCLUDED.username,
@@ -116,6 +116,7 @@ export function createAuthRepository({ pool }) {
            referred_by_code = COALESCE(players.referred_by_code, EXCLUDED.referred_by_code),
            has_referral = players.has_referral OR EXCLUDED.has_referral,
            utm_slug = COALESCE(EXCLUDED.utm_slug, players.utm_slug),
+           raffle_won = COALESCE(players.raffle_won, EXCLUDED.raffle_won),
            auth_token = EXCLUDED.auth_token,
            auth_token_expires_at = EXCLUDED.auth_token_expires_at,
            last_seen_at = EXCLUDED.last_seen_at,
@@ -135,6 +136,7 @@ export function createAuthRepository({ pool }) {
           player.referredByCode ?? null,
           player.hasReferral,
           player.utmSlug ?? null,
+          typeof player.raffleWon === "boolean" ? player.raffleWon : null,
           player.authToken,
           player.authTokenExpiresAt,
           player.lastSeenAt,
@@ -142,6 +144,24 @@ export function createAuthRepository({ pool }) {
       );
 
       return result.rows[0];
+    },
+
+    async getRaffleFinishedAt() {
+      const result = await pool.query(
+        `SELECT value
+           FROM app_settings
+          WHERE key = 'raffle_finished_at'
+          LIMIT 1`,
+      );
+
+      const rawValue = result.rows[0]?.value ?? null;
+
+      if (!rawValue) {
+        return null;
+      }
+
+      const parsedDate = new Date(rawValue);
+      return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
     },
 
     async trackPlayerUtmVisit(playerId, utmSlug, wasExistingPlayer) {
