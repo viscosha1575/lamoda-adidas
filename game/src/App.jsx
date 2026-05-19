@@ -5147,7 +5147,7 @@ function App() {
   const [shouldMountUnityLayer, setShouldMountUnityLayer] = useState(false)
   const [unityLoadError, setUnityLoadError] = useState('')
   const [useDesktopIntroLayout, setUseDesktopIntroLayout] = useState(() => shouldUseDesktopIntroLayout())
-  const shouldSkipSubscriptionIntro = Boolean(backendBootstrap.player?.isExisting)
+  const shouldSkipSubscriptionIntro = Boolean(backendBootstrap.player?.subscribedToChannel)
   const slide = typeof activeIndex === 'number' ? slides[activeIndex] : null
   const isAlertSlide = slide?.id === 'alert'
   const isUnityScreen = screen === 'unity'
@@ -5373,7 +5373,7 @@ function App() {
       activeIndex,
       playerId: backendBootstrap.player?.id ?? null,
     })
-    logGameDebug('app:skip-extra-intro-for-existing-player', {
+    logGameDebug('app:skip-subscription-intro-for-subscribed-player', {
       activeIndex,
       playerId: backendBootstrap.player?.id ?? null,
     })
@@ -5543,7 +5543,7 @@ function App() {
                           })
 
                           if (slide.id === 'alert' && shouldSkipSubscriptionIntro) {
-                            logGameDebug('app:existing-player-open-game-from-alert', {
+                            logGameDebug('app:subscribed-player-open-game-from-alert', {
                               playerId: backendBootstrap.player?.id ?? null,
                             })
                             openUnityGame({ logSubscriptionPassed: true })
