@@ -97,6 +97,7 @@ test("POST /api/auth/session reads Telegram initData only from headers", async (
 
 test("POST /api/auth/session restarts inviter session after applying referral", async () => {
   let markedReferralPlayerId = null;
+  let restartedReferralPlayerId = null;
   const authService = {
     async createSession(payload) {
       assert.equal(payload.referralCode, "PLAYER42");
@@ -112,6 +113,15 @@ test("POST /api/auth/session restarts inviter session after applying referral", 
       return createPlayerResponse({
         id: playerId,
         hasReferral: true,
+        subscribedToChannel: true,
+      });
+    },
+    async simulateReferralForPlayer(playerId) {
+      assert.equal(playerId, 42);
+      return createPlayerResponse({
+        id: 42,
+        hasReferral: true,
+        subscribedToChannel: true,
       });
     },
     async deletePlayerById() {
@@ -126,7 +136,7 @@ test("POST /api/auth/session restarts inviter session after applying referral", 
   };
   const gameService = {
     async restartSessionForReferral(playerId) {
-      assert.equal(playerId, 42);
+      restartedReferralPlayerId = playerId;
       return null;
     },
   };
@@ -150,6 +160,71 @@ test("POST /api/auth/session restarts inviter session after applying referral", 
   assert.equal(response.body.data.player.referredByCode, "PLAYER42");
   assert.equal(response.body.data.lifecycle, "idle");
   assert.equal(markedReferralPlayerId, 42);
+  assert.equal(restartedReferralPlayerId, 42);
+});
+
+test("POST /api/auth/session does not unlock inviter referral when inviter is not subscribed", async () => {
+  let markedReferralPlayerId = null;
+  let restartedReferralPlayerId = null;
+  const authService = {
+    async createSession() {
+      return createPlayerResponse({
+        hasReferral: false,
+        referredByCode: "PLAYER42",
+        referredPlayerId: 42,
+        referralApplied: true,
+      });
+    },
+    async markReferralUnlockedForPlayer(playerId) {
+      markedReferralPlayerId = playerId;
+      return createPlayerResponse({
+        id: playerId,
+        hasReferral: true,
+      });
+    },
+    async simulateReferralForPlayer(playerId) {
+      assert.equal(playerId, 42);
+      return createPlayerResponse({
+        id: 42,
+        hasReferral: false,
+        subscribedToChannel: false,
+      });
+    },
+    async deletePlayerById() {
+      return { deleted: true };
+    },
+    async getPlayerByToken() {
+      return null;
+    },
+    async getPlayerByInitData() {
+      return null;
+    },
+  };
+  const gameService = {
+    async restartSessionForReferral(playerId) {
+      restartedReferralPlayerId = playerId;
+      return null;
+    },
+  };
+
+  const app = express();
+  app.use(express.json());
+  app.use("/api/auth", createAuthRouter({
+    authController: createAuthController({ authService, gameService }),
+    authMiddleware: createAuthMiddleware({ authService }),
+  }));
+  app.use(errorHandler);
+
+  const response = await request(app)
+    .post("/api/auth/session")
+    .set("X-Telegram-Init-Data", createInitDataHeader())
+    .send({
+      referralCode: "PLAYER42",
+    });
+
+  assert.equal(response.statusCode, 201);
+  assert.equal(markedReferralPlayerId, null);
+  assert.equal(restartedReferralPlayerId, null);
 });
 
 test("POST /api/auth/session rejects initData in body", async () => {
@@ -254,6 +329,7 @@ test("PATCH /api/auth/current/referral updates current player referral status us
         id: playerId,
         hasReferral: true,
         referredByCode: null,
+        subscribedToChannel: true,
       });
     },
     async simulateReferralForPlayer(playerId) {
@@ -263,6 +339,7 @@ test("PATCH /api/auth/current/referral updates current player referral status us
         id: 55,
         hasReferral: true,
         referredByCode: null,
+        subscribedToChannel: true,
       });
     },
     async getPlayerByToken() {
@@ -301,4 +378,68 @@ test("PATCH /api/auth/current/referral updates current player referral status us
   assert.equal(response.body.data.player.referredByCode, null);
   assert.equal(markedReferralPlayerId, 55);
   assert.equal(restartedReferralPlayerId, 55);
+});
+
+test("PATCH /api/auth/current/referral does not unlock referral when current player is not subscribed", async () => {
+  let markedReferralPlayerId = null;
+  let restartedReferralPlayerId = null;
+  const authService = {
+    async createSession() {
+      throw new Error("should not be called");
+    },
+    async deletePlayerById() {
+      return { deleted: true };
+    },
+    async markReferralUnlockedForPlayer(playerId) {
+      markedReferralPlayerId = playerId;
+      return createPlayerResponse({
+        id: playerId,
+        hasReferral: true,
+      });
+    },
+    async simulateReferralForPlayer(playerId) {
+      assert.equal(playerId, 55);
+
+      return createPlayerResponse({
+        id: 55,
+        hasReferral: false,
+        referredByCode: null,
+        subscribedToChannel: false,
+      });
+    },
+    async getPlayerByToken() {
+      return null;
+    },
+    async getPlayerByInitData() {
+      return {
+        id: 55,
+        telegramUserId: 123456789,
+      };
+    },
+  };
+  const gameService = {
+    async restartSessionForReferral(playerId) {
+      restartedReferralPlayerId = playerId;
+      return null;
+    },
+  };
+
+  const app = express();
+  app.use(express.json());
+  app.use("/api/auth", createAuthRouter({
+    authController: createAuthController({ authService, gameService }),
+    authMiddleware: createAuthMiddleware({ authService }),
+  }));
+  app.use(errorHandler);
+
+  const response = await request(app)
+    .patch("/api/auth/current/referral")
+    .set("X-Telegram-Init-Data", createInitDataHeader())
+    .send();
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.data.player.id, 55);
+  assert.equal(response.body.data.player.hasReferral, false);
+  assert.equal(markedReferralPlayerId, null);
+  assert.equal(restartedReferralPlayerId, null);
 });

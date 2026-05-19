@@ -1,6 +1,19 @@
 import { getTelegramInitDataFromHeadersOnly } from "./init-data.js";
 
 export function createAuthController({ authService, gameService }) {
+  async function unlockReferralIfSubscribed(playerId) {
+    const player = await authService.simulateReferralForPlayer(playerId);
+
+    if (!player.subscribedToChannel) {
+      return player;
+    }
+
+    await authService.markReferralUnlockedForPlayer(playerId);
+    await gameService.restartSessionForReferral(playerId);
+
+    return authService.simulateReferralForPlayer(playerId);
+  }
+
   return {
     async createSession(request, response) {
       const initData = getTelegramInitDataFromHeadersOnly(request);
@@ -10,8 +23,7 @@ export function createAuthController({ authService, gameService }) {
       const player = await authService.createSession(payload);
 
       if (player.referralApplied && player.referredPlayerId) {
-        await authService.markReferralUnlockedForPlayer(player.referredPlayerId);
-        await gameService.restartSessionForReferral(player.referredPlayerId);
+        await unlockReferralIfSubscribed(player.referredPlayerId);
       }
 
       response.status(201).json({
@@ -53,9 +65,7 @@ export function createAuthController({ authService, gameService }) {
     },
 
     async updateCurrentPlayerReferralStatus(request, response) {
-      await authService.markReferralUnlockedForPlayer(request.player.id);
-      await gameService.restartSessionForReferral(request.player.id);
-      const player = await authService.simulateReferralForPlayer(request.player.id);
+      const player = await unlockReferralIfSubscribed(request.player.id);
 
       response.json({
         data: {
