@@ -118,9 +118,16 @@ export function createAdminRepository({ pool }) {
             (SELECT COUNT(*)::int
                FROM players
               WHERE ($1::timestamptz IS NULL OR created_at >= $1)) AS new_players_count,
+            (SELECT COUNT(DISTINCT player_id)::int
+               FROM game_activity_logs
+              WHERE action = 'app-opened'
+                AND ($1::timestamptz IS NULL OR created_at >= $1)) AS app_opened_players_count,
             (SELECT COUNT(*)::int
                FROM game_sessions
               WHERE ($1::timestamptz IS NULL OR started_at >= $1)) AS sessions_started_count,
+            (SELECT COUNT(DISTINCT player_id)::int
+               FROM game_sessions
+              WHERE ($1::timestamptz IS NULL OR started_at >= $1)) AS sessions_started_players_count,
             (SELECT COUNT(*)::int
                FROM game_sessions
               WHERE status = 'finished'
@@ -136,6 +143,105 @@ export function createAdminRepository({ pool }) {
             (SELECT COUNT(*)::int
                FROM players
               WHERE referred_by_code IS NOT NULL) AS total_referred_players_count,
+            (SELECT COUNT(DISTINCT player_id)::int
+               FROM game_activity_logs
+              WHERE action = 'subscription-stage-passed'
+                AND ($1::timestamptz IS NULL OR created_at >= $1)) AS passed_subscription_stage_players_count,
+            (SELECT COUNT(DISTINCT player_id)::int
+               FROM game_activity_logs
+              WHERE action = 'subscription-stage-failed'
+                AND ($1::timestamptz IS NULL OR created_at >= $1)) AS not_subscribed_before_players_count,
+            (SELECT COUNT(DISTINCT passed_log.player_id)::int
+               FROM game_activity_logs passed_log
+              WHERE passed_log.action = 'subscription-stage-passed'
+                AND ($1::timestamptz IS NULL OR passed_log.created_at >= $1)
+                AND EXISTS (
+                  SELECT 1
+                    FROM game_activity_logs failed_log
+                   WHERE failed_log.player_id = passed_log.player_id
+                     AND failed_log.action = 'subscription-stage-failed'
+                     AND failed_log.created_at <= passed_log.created_at
+                )) AS subscribed_after_not_subscribed_players_count,
+            (SELECT COUNT(DISTINCT player_id)::int
+               FROM game_activity_logs
+              WHERE action = 'entered-game'
+                AND ($1::timestamptz IS NULL OR created_at >= $1)) AS entered_game_players_count,
+            (SELECT COUNT(DISTINCT player_id)::int
+               FROM game_activity_logs
+              WHERE action = 'lamoda-link-click'
+                AND ($1::timestamptz IS NULL OR created_at >= $1)) AS lamoda_transitions_players_count,
+            (SELECT COUNT(DISTINCT session_pairs.player_id)::int
+               FROM (
+                 SELECT player_id,
+                        game_session_id,
+                        1 + COUNT(DISTINCT CASE
+                          WHEN action = 'found-sneaker'
+                            THEN (details->>'sneakerNumber')::int
+                          ELSE NULL
+                        END) AS found_pairs_count
+                   FROM game_activity_logs
+                  WHERE game_session_id IS NOT NULL
+                    AND action IN ('session-started', 'found-sneaker')
+                    AND ($1::timestamptz IS NULL OR created_at >= $1)
+                  GROUP BY player_id, game_session_id
+               ) AS session_pairs
+              WHERE session_pairs.found_pairs_count >= 3) AS found_three_pairs_players_count,
+            (SELECT COUNT(DISTINCT session_pairs.player_id)::int
+               FROM (
+                 SELECT player_id,
+                        game_session_id,
+                        1 + COUNT(DISTINCT CASE
+                          WHEN action = 'found-sneaker'
+                            THEN (details->>'sneakerNumber')::int
+                          ELSE NULL
+                        END) AS found_pairs_count
+                   FROM game_activity_logs
+                  WHERE game_session_id IS NOT NULL
+                    AND action IN ('session-started', 'found-sneaker')
+                    AND ($1::timestamptz IS NULL OR created_at >= $1)
+                  GROUP BY player_id, game_session_id
+               ) AS session_pairs
+              WHERE session_pairs.found_pairs_count >= 10) AS found_all_pairs_players_count,
+            (SELECT COALESCE(ROUND(AVG(player_best.best_found_pairs_count)), 0)::int
+               FROM (
+                 SELECT player_id,
+                        MAX(found_pairs_count) AS best_found_pairs_count
+                   FROM (
+                     SELECT player_id,
+                            game_session_id,
+                            1 + COUNT(DISTINCT CASE
+                              WHEN action = 'found-sneaker'
+                                THEN (details->>'sneakerNumber')::int
+                              ELSE NULL
+                            END) AS found_pairs_count
+                       FROM game_activity_logs
+                      WHERE game_session_id IS NOT NULL
+                        AND action IN ('session-started', 'found-sneaker')
+                        AND ($1::timestamptz IS NULL OR created_at >= $1)
+                      GROUP BY player_id, game_session_id
+                   ) AS session_pairs
+                  GROUP BY player_id
+               ) AS player_best) AS average_pairs_per_player_count,
+            (SELECT COUNT(*)::int
+               FROM (
+                 SELECT game_session_id,
+                        1 + COUNT(DISTINCT CASE
+                          WHEN action = 'found-sneaker'
+                            THEN (details->>'sneakerNumber')::int
+                          ELSE NULL
+                        END) AS found_pairs_count
+                   FROM game_activity_logs
+                  WHERE game_session_id IS NOT NULL
+                    AND action IN ('session-started', 'found-sneaker')
+                    AND ($1::timestamptz IS NULL OR created_at >= $1)
+                  GROUP BY game_session_id
+               ) AS session_pairs
+              WHERE session_pairs.found_pairs_count >= 10) AS found_ten_pairs_sessions_count,
+            (SELECT COUNT(DISTINCT game_session_id)::int
+               FROM game_activity_logs
+              WHERE action = 'session-finished'
+                AND details->>'completionReason' = 'completed'
+                AND ($1::timestamptz IS NULL OR created_at >= $1)) AS found_ten_pairs_in_time_sessions_count,
             (SELECT COUNT(*)::int
                FROM players
               WHERE id IN (
@@ -143,12 +249,25 @@ export function createAdminRepository({ pool }) {
                   FROM game_sessions
                  WHERE last_heartbeat_at >= $2
               )) AS currently_online_players_count,
-            (SELECT COALESCE(ROUND(AVG(completed_in_seconds)), 0)::int
-               FROM game_results
-              WHERE ($1::timestamptz IS NULL OR created_at >= $1)) AS average_completion_seconds,
-            (SELECT COALESCE(ROUND(AVG(COALESCE(array_length(found_sneaker_numbers, 1), 0))), 0)::int
-               FROM game_sessions
-              WHERE ($1::timestamptz IS NULL OR started_at >= $1)) AS average_found_sneakers_count`,
+            (SELECT COALESCE(ROUND(AVG((details->>'completedInSeconds')::numeric)), 0)::int
+               FROM game_activity_logs
+              WHERE action = 'session-finished'
+                AND details ? 'completedInSeconds'
+                AND ($1::timestamptz IS NULL OR created_at >= $1)) AS average_completion_seconds,
+            (SELECT COALESCE(ROUND(AVG(session_pairs.found_pairs_count)), 0)::int
+               FROM (
+                 SELECT game_session_id,
+                        1 + COUNT(DISTINCT CASE
+                          WHEN action = 'found-sneaker'
+                            THEN (details->>'sneakerNumber')::int
+                          ELSE NULL
+                        END) AS found_pairs_count
+                   FROM game_activity_logs
+                  WHERE game_session_id IS NOT NULL
+                    AND action IN ('session-started', 'found-sneaker')
+                    AND ($1::timestamptz IS NULL OR created_at >= $1)
+                  GROUP BY game_session_id
+               ) AS session_pairs) AS average_found_sneakers_count`,
         [rangeStart, onlineThreshold],
       );
 

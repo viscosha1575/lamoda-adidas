@@ -55,6 +55,13 @@ function withRewardRepository(overrides = {}) {
         subscribedToChannel = true;
         return subscribedToChannel;
       },
+      async createActivityLog(activityLog) {
+        return {
+          id: 1,
+          ...activityLog,
+          createdAt: new Date(),
+        };
+      },
       setAssignedPromoCode(value) {
         assignedPromoCode = value;
       },
@@ -533,6 +540,7 @@ test("collectSneaker finishes timed-out active session and assigns promo code on
 
   let updateCallCount = 0;
   let markedOutcome = null;
+  const createdActivityLogs = [];
   const rewardAwareRepository = withRewardRepository({
     async findLatestOpenSessionByPlayerId() {
       return timedOutSession;
@@ -589,8 +597,7 @@ test("collectSneaker finishes timed-out active session and assigns promo code on
       return "AFTER-TIME-PROMO";
     },
     async createActivityLog(activityLog) {
-      assert.equal(activityLog.gameSessionId, 42);
-      assert.equal(activityLog.details.sessionStatus, "active");
+      createdActivityLogs.push(activityLog);
       return {
         id: 302,
         ...activityLog,
@@ -618,6 +625,30 @@ test("collectSneaker finishes timed-out active session and assigns promo code on
   assert.equal(result.session.remainingSeconds, 0);
   assert.equal(result.session.promoCode, "AFTER-TIME-PROMO");
   assert.equal(result.session.canCollect, false);
+  assert.deepEqual(createdActivityLogs[0], {
+    playerId: 8,
+    gameSessionId: 42,
+    source: "server",
+    action: "found-sneaker",
+    details: {
+      sneakerNumber: 10,
+      foundSneakerNumbers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      sessionStatus: "active",
+    },
+  });
+  assert.deepEqual(createdActivityLogs[1], {
+    playerId: 8,
+    gameSessionId: 42,
+    source: "server",
+    action: "session-finished",
+    details: {
+      completionReason: "completed-after-time",
+      remainingSeconds: 0,
+      completedInSeconds: 300,
+      foundPairsCount: 10,
+      foundSneakerNumbers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    },
+  });
 });
 
 test("collectSneaker auto-finishes session when the tenth sneaker is found", async () => {
@@ -637,7 +668,7 @@ test("collectSneaker auto-finishes session when the tenth sneaker is found", asy
 
   let updateCallCount = 0;
   let markedOutcome = null;
-  let createdActivityLog = null;
+  const createdActivityLogs = [];
   const rewardAwareRepository = withRewardRepository({
     async findLatestOpenSessionByPlayerId() {
       return openSession;
@@ -689,7 +720,7 @@ test("collectSneaker auto-finishes session when the tenth sneaker is found", asy
       return "PROMO-10";
     },
     async createActivityLog(activityLog) {
-      createdActivityLog = activityLog;
+      createdActivityLogs.push(activityLog);
       return {
         id: 301,
         ...activityLog,
@@ -717,7 +748,7 @@ test("collectSneaker auto-finishes session when the tenth sneaker is found", asy
   assert.equal(result.session.remainingSeconds >= 0, true);
   assert.equal(result.session.promoCode, "PROMO-10");
   assert.equal(result.session.canCollect, false);
-  assert.deepEqual(createdActivityLog, {
+  assert.deepEqual(createdActivityLogs[0], {
     playerId: 7,
     gameSessionId: 41,
     source: "server",
@@ -728,6 +759,13 @@ test("collectSneaker auto-finishes session when the tenth sneaker is found", asy
       sessionStatus: "active",
     },
   });
+  assert.equal(createdActivityLogs[1].playerId, 7);
+  assert.equal(createdActivityLogs[1].gameSessionId, 41);
+  assert.equal(createdActivityLogs[1].source, "server");
+  assert.equal(createdActivityLogs[1].action, "session-finished");
+  assert.equal(createdActivityLogs[1].details.completionReason, "completed");
+  assert.equal(createdActivityLogs[1].details.foundPairsCount, 10);
+  assert.deepEqual(createdActivityLogs[1].details.foundSneakerNumbers, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 });
 
 test("finishSession marks incomplete session as time-ended and keeps it active", async () => {

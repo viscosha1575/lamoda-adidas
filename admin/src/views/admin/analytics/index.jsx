@@ -4,34 +4,17 @@ import {
   Button,
   Flex,
   HStack,
-  Icon,
   Select,
   SimpleGrid,
   Skeleton,
   Stack,
-  Table,
-  Tbody,
-  Td,
   Text,
-  Th,
-  Thead,
-  Tr,
   useColorModeValue,
 } from "@chakra-ui/react";
 import { useEffect, useMemo, useState } from "react";
-import {
-  MdBarChart,
-  MdCheckCircle,
-  MdGroups,
-  MdHourglassTop,
-  MdLogin,
-  MdNetworkCheck,
-} from "react-icons/md";
 import Card from "components/card/Card";
-import MiniStatistics from "components/card/MiniStatistics";
-import IconBox from "components/icons/IconBox";
-import LineChart from "components/charts/LineChart";
 import BarChart from "components/charts/BarChart";
+import LineChart from "components/charts/LineChart";
 import { postJson } from "api";
 
 const RANGE_OPTIONS = [
@@ -55,6 +38,7 @@ const EMPTY_ANALYTICS = {
   summary: {
     totalPlayersCount: 0,
     newPlayersCount: 0,
+    appOpenedCount: 0,
     sessionsStartedCount: 0,
     finishedSessionsCount: 0,
     playersWithFinishedGameCount: 0,
@@ -63,8 +47,17 @@ const EMPTY_ANALYTICS = {
     averageFoundSneakersCount: 0,
     referralsInPeriodCount: 0,
     totalReferredPlayersCount: 0,
+    passedSubscriptionStageCount: 0,
+    notSubscribedBeforeCount: 0,
+    subscribedAfterNotSubscribedCount: 0,
+    enteredGameCount: 0,
+    foundThreePairsCount: 0,
+    foundAllPairsPlayersCount: 0,
+    averagePairsPerUserCount: 0,
+    foundTenPairsCount: 0,
+    foundTenPairsInTimeCount: 0,
+    lamodaTransitionsCount: 0,
   },
-  recentSessions: [],
 };
 
 function formatNumber(value) {
@@ -99,26 +92,6 @@ function formatDuration(seconds) {
   }
 
   return `${restSeconds}с`;
-}
-
-function getSessionStatusLabel(status) {
-  if (status === "active") {
-    return "Активна";
-  }
-
-  if (status === "paused") {
-    return "Пауза";
-  }
-
-  if (status === "finished") {
-    return "Завершена";
-  }
-
-  if (status === "expired") {
-    return "Истекла";
-  }
-
-  return status || "—";
 }
 
 function buildLineChartOptions(categories, color, gridColor, labelColor) {
@@ -308,16 +281,25 @@ function buildBarChartOptions(categories, colors, gridColor, labelColor) {
   };
 }
 
-function AnalyticsMetricList({ title, rows }) {
+function AnalyticsMetricList({ title, description, rows }) {
   const borderColor = useColorModeValue("gray.200", "whiteAlpha.100");
+  const titleColor = useColorModeValue("navy.700", "white");
   const labelColor = useColorModeValue("secondaryGray.600", "secondaryGray.500");
   const valueColor = useColorModeValue("navy.700", "white");
 
   return (
     <Card p={{ base: "18px", md: "24px" }}>
-      <Text color={valueColor} fontSize={{ base: "lg", md: "xl" }} fontWeight="700" mb="18px">
-        {title}
-      </Text>
+      <Box mb="18px">
+        <Text color={titleColor} fontSize={{ base: "lg", md: "xl" }} fontWeight="700">
+          {title}
+        </Text>
+        {description ? (
+          <Text color={labelColor} fontSize="sm" mt="4px">
+            {description}
+          </Text>
+        ) : null}
+      </Box>
+
       <Stack spacing="14px">
         {rows.map((row, index) => (
           <Flex
@@ -325,9 +307,9 @@ function AnalyticsMetricList({ title, rows }) {
             align="start"
             borderTop={index === 0 ? "none" : "1px solid"}
             borderColor={borderColor}
-            pt={index === 0 ? "0px" : "14px"}
-            justify="space-between"
             gap="16px"
+            justify="space-between"
+            pt={index === 0 ? "0px" : "14px"}
           >
             <Box>
               <Text color={labelColor} fontSize="sm" fontWeight="500">
@@ -364,29 +346,18 @@ function AnalyticsChartCard({
   const lineColor = useColorModeValue("rgba(15, 23, 42, 0.92)", "rgba(255, 255, 255, 0.96)");
   const barColors = useColorModeValue(
     [primaryColor, secondaryColor].filter(Boolean),
-    ["rgba(255, 255, 255, 0.96)"]
+    ["rgba(255, 255, 255, 0.96)"],
   );
   const valueBadgeBg = useColorModeValue("secondaryGray.300", "rgba(255, 255, 255, 0.94)");
   const valueBadgeColor = useColorModeValue("navy.700", "navy.700");
   const categories = points.map((point) => point.label);
 
-  const chartData = useMemo(() => {
-    if (chartType === "bar") {
-      return [
-        {
-          name: title,
-          data: points.map((point) => Number(point.value || 0)),
-        },
-      ];
-    }
-
-    return [
-      {
-        name: title,
-        data: points.map((point) => Number(point.value || 0)),
-      },
-    ];
-  }, [chartType, points, title]);
+  const chartData = useMemo(() => [
+    {
+      name: title,
+      data: points.map((point) => Number(point.value || 0)),
+    },
+  ], [points, title]);
 
   const chartOptions = useMemo(() => {
     if (chartType === "bar") {
@@ -398,7 +369,7 @@ function AnalyticsChartCard({
 
   return (
     <Card p={{ base: "18px", md: "24px" }}>
-      <Flex align="start" justify="space-between" mb="18px" gap="16px" direction={{ base: "column", sm: "row" }}>
+      <Flex align="start" direction={{ base: "column", sm: "row" }} gap="16px" justify="space-between" mb="18px">
         <Box>
           <Text color={titleColor} fontSize={{ base: "lg", md: "xl" }} fontWeight="700">
             {title}
@@ -418,6 +389,7 @@ function AnalyticsChartCard({
           {value}
         </Badge>
       </Flex>
+
       <Box h={{ base: "220px", md: "260px" }}>
         {chartType === "bar" ? (
           <BarChart chartData={chartData} chartOptions={chartOptions} />
@@ -436,18 +408,14 @@ export default function AnalyticsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
-  const brandColor = useColorModeValue("brand.500", "white");
-  const boxBg = useColorModeValue("secondaryGray.300", "whiteAlpha.100");
-  const textColor = useColorModeValue("navy.700", "white");
-  const textColorSecondary = useColorModeValue("secondaryGray.600", "secondaryGray.500");
-  const borderColor = useColorModeValue("gray.200", "whiteAlpha.100");
   const toolbarControlBg = useColorModeValue("white", "rgba(255, 255, 255, 0.94)");
   const toolbarControlText = useColorModeValue("navy.700", "navy.700");
   const toolbarControlHoverBg = useColorModeValue("secondaryGray.300", "rgba(255, 255, 255, 0.88)");
   const toolbarControlShadow = useColorModeValue(
     "0px 16px 36px rgba(112, 144, 176, 0.12)",
-    "0px 16px 36px rgba(17, 28, 68, 0.32)"
+    "0px 16px 36px rgba(17, 28, 68, 0.32)",
   );
+  const brandColor = useColorModeValue("brand.500", "white");
   const chartOrange = useColorModeValue("orange.500", "orange.500");
   const chartGreen = useColorModeValue("green.500", "green.500");
   const chartBlue = useColorModeValue("blue.500", "blue.500");
@@ -478,7 +446,6 @@ export default function AnalyticsPage() {
             ...EMPTY_ANALYTICS.summary,
             ...(response?.summary || {}),
           },
-          recentSessions: Array.isArray(response?.recentSessions) ? response.recentSessions : [],
         });
       } catch (requestError) {
         if (!cancelled) {
@@ -518,7 +485,6 @@ export default function AnalyticsPage() {
           ...EMPTY_ANALYTICS.summary,
           ...(response?.summary || {}),
         },
-        recentSessions: Array.isArray(response?.recentSessions) ? response.recentSessions : [],
       });
     } catch (requestError) {
       setError(requestError.message || "Не удалось обновить аналитику");
@@ -528,36 +494,76 @@ export default function AnalyticsPage() {
   }
 
   const summary = analytics.summary;
-  const kpiRows = useMemo(() => ([
+
+  const funnelRows = useMemo(() => ([
     {
-      key: "totalPlayersCount",
-      label: "Всего игроков",
-      value: formatNumber(summary.totalPlayersCount),
+      key: "appOpenedCount",
+      label: "Всего открыли аппку",
+      value: formatNumber(summary.appOpenedCount),
+      subtext: "Уникальные игроки за выбранный период",
     },
     {
-      key: "newPlayersCount",
-      label: "Новых за период",
-      value: formatNumber(summary.newPlayersCount),
+      key: "passedSubscriptionStageCount",
+      label: "Всего прошли этап с подпиской",
+      value: formatNumber(summary.passedSubscriptionStageCount),
+      subtext: "Дошли до игры после подписочного экрана",
     },
     {
-      key: "sessionsStartedCount",
-      label: "Стартов игры",
-      value: formatNumber(summary.sessionsStartedCount),
+      key: "notSubscribedBeforeCount",
+      label: "Всего не были подписаны ранее",
+      value: formatNumber(summary.notSubscribedBeforeCount),
+      subtext: "Проверка подписки не прошла хотя бы один раз",
     },
     {
-      key: "finishedSessionsCount",
-      label: "Завершенных игр",
-      value: formatNumber(summary.finishedSessionsCount),
+      key: "subscribedAfterNotSubscribedCount",
+      label: "Всего из пункта 3 подписались",
+      value: formatNumber(summary.subscribedAfterNotSubscribedCount),
+      subtext: "Сначала не были подписаны, затем прошли этап",
     },
     {
-      key: "playersWithFinishedGameCount",
-      label: "Игроков с финишем",
-      value: formatNumber(summary.playersWithFinishedGameCount),
+      key: "enteredGameCount",
+      label: "Всего перешли в игру",
+      value: formatNumber(summary.enteredGameCount),
+      subtext: "После загрузки игрового экрана",
     },
     {
-      key: "currentlyOnlinePlayersCount",
-      label: "Онлайн сейчас",
-      value: formatNumber(summary.currentlyOnlinePlayersCount),
+      key: "lamodaTransitionsCount",
+      label: "Перешли на Lamoda",
+      value: formatNumber(summary.lamodaTransitionsCount),
+      subtext: "Клики по lamoda-ссылке",
+    },
+  ]), [summary]);
+
+  const progressRows = useMemo(() => ([
+    {
+      key: "foundThreePairsCount",
+      label: "Нашли хотя бы 3 кроссовка",
+      value: formatNumber(summary.foundThreePairsCount),
+      subtext: "Уникальные игроки",
+    },
+    {
+      key: "foundAllPairsPlayersCount",
+      label: "Нашли все пары",
+      value: formatNumber(summary.foundAllPairsPlayersCount),
+      subtext: "Уникальные игроки с полным набором",
+    },
+    {
+      key: "averagePairsPerUserCount",
+      label: "Среднее кол-во пар на юзера",
+      value: formatNumber(summary.averagePairsPerUserCount),
+      subtext: "Средний лучший результат игрока за период",
+    },
+    {
+      key: "foundTenPairsCount",
+      label: "Нашли 10 пар",
+      value: formatNumber(summary.foundTenPairsCount),
+      subtext: "Всего игровых сессий с 10 парами",
+    },
+    {
+      key: "foundTenPairsInTimeCount",
+      label: "Нашли 10 пар вовремя",
+      value: formatNumber(summary.foundTenPairsInTimeCount),
+      subtext: "Успели до тайм-аута",
     },
   ]), [summary]);
 
@@ -585,69 +591,30 @@ export default function AnalyticsPage() {
     },
   ]), [summary]);
 
-  const statCards = useMemo(() => ([
-    {
-      key: "totalPlayersCount",
-      label: "Всего игроков",
-      value: formatNumber(summary.totalPlayersCount),
-      icon: MdGroups,
-    },
-    {
-      key: "newPlayersCount",
-      label: "Новых за период",
-      value: formatNumber(summary.newPlayersCount),
-      icon: MdLogin,
-    },
-    {
-      key: "finishedSessionsCount",
-      label: "Финишей",
-      value: formatNumber(summary.finishedSessionsCount),
-      icon: MdCheckCircle,
-    },
-    {
-      key: "currentlyOnlinePlayersCount",
-      label: "Онлайн сейчас",
-      value: formatNumber(summary.currentlyOnlinePlayersCount),
-      icon: MdNetworkCheck,
-    },
-    {
-      key: "averageCompletionSeconds",
-      label: "Среднее время",
-      value: formatDuration(summary.averageCompletionSeconds),
-      icon: MdHourglassTop,
-    },
-    {
-      key: "sessionsStartedCount",
-      label: "Старты игры",
-      value: formatNumber(summary.sessionsStartedCount),
-      icon: MdBarChart,
-    },
-  ]), [summary]);
-
   const updatedAtLabel = analytics.meta?.cachedAt
     ? formatDateTime(analytics.meta.cachedAt)
     : "—";
 
   return (
     <Box pt={{ base: "0px", md: "80px", xl: "80px" }}>
-      <Flex justify="space-between" align={{ base: "start", lg: "center" }} direction={{ base: "column", lg: "row" }} gap="16px" mb="20px">
+      <Flex align={{ base: "start", lg: "center" }} direction={{ base: "column", lg: "row" }} gap="16px" justify="space-between" mb="20px">
         <Box display={{ base: "block", md: "none" }} w="100%">
           <Select
             h="56px"
             bg={toolbarControlBg}
-            color={toolbarControlText}
             borderColor="transparent"
             borderRadius="20px"
             boxShadow={toolbarControlShadow}
+            color={toolbarControlText}
             fontSize="sm"
             fontWeight="700"
             value={selectedRange}
             onChange={(event) => setSelectedRange(event.target.value)}
-            _hover={{ borderColor: "transparent" }}
             _focusVisible={{
               borderColor: "brand.200",
               boxShadow: `0 0 0 1px var(--chakra-colors-brand-200), ${toolbarControlShadow}`,
             }}
+            _hover={{ borderColor: "transparent" }}
           >
             {RANGE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -657,41 +624,40 @@ export default function AnalyticsPage() {
           </Select>
         </Box>
 
-        <HStack spacing="12px" flexWrap="wrap" w={{ base: "100%", lg: "auto" }} display={{ base: "none", md: "flex" }}>
+        <HStack display={{ base: "none", md: "flex" }} flexWrap="wrap" spacing="12px" w={{ base: "100%", lg: "auto" }}>
           {RANGE_OPTIONS.map((option) => (
             <Button
               key={option.value}
               bg={selectedRange === option.value ? "brand.500" : toolbarControlBg}
-              color={selectedRange === option.value ? "white" : toolbarControlText}
               borderRadius="14px"
               boxShadow={selectedRange === option.value ? "0px 12px 24px rgba(66, 42, 251, 0.18)" : "none"}
+              color={selectedRange === option.value ? "white" : toolbarControlText}
+              flex={{ base: "1 1 calc(50% - 12px)", md: "0 0 auto" }}
               fontSize="sm"
               fontWeight="700"
-              px="18px"
-              flex={{ base: "1 1 calc(50% - 12px)", md: "0 0 auto" }}
               minW={{ base: "calc(50% - 12px)", md: "unset" }}
+              px="18px"
+              onClick={() => setSelectedRange(option.value)}
               _hover={{
                 bg: selectedRange === option.value ? "brand.600" : toolbarControlHoverBg,
               }}
-              onClick={() => setSelectedRange(option.value)}
             >
               {option.label}
             </Button>
           ))}
         </HStack>
 
-        <Stack spacing="12px" direction={{ base: "column", sm: "row" }} w={{ base: "100%", lg: "auto" }}>
+        <Stack direction={{ base: "column", sm: "row" }} spacing="12px" w={{ base: "100%", lg: "auto" }}>
           <Badge
             bg={toolbarControlBg}
             borderRadius="999px"
             color={toolbarControlText}
+            display="flex"
+            justifyContent="center"
+            lineHeight="1.2"
+            minH="42px"
             px="12px"
             py="8px"
-            display="flex"
-            alignItems="center"
-            justifyContent="center"
-            minH="42px"
-            lineHeight="1.2"
             textAlign="center"
             whiteSpace="normal"
           >
@@ -699,11 +665,10 @@ export default function AnalyticsPage() {
           </Badge>
           <Button
             bg={toolbarControlBg}
-            color={toolbarControlText}
             borderRadius="14px"
+            color={toolbarControlText}
             fontSize="sm"
             fontWeight="700"
-            leftIcon={<Icon as={MdBarChart} />}
             isLoading={refreshing}
             loadingText="Обновляем"
             w={{ base: "100%", sm: "auto" }}
@@ -725,39 +690,19 @@ export default function AnalyticsPage() {
 
       {loading ? (
         <Stack spacing="20px">
-          <SimpleGrid columns={{ base: 1, md: 2, xl: 3 }} gap="20px">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <Skeleton key={index} h="98px" borderRadius="20px" />
+          <SimpleGrid columns={{ base: 1, xl: 2 }} gap="20px">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={index} h="360px" borderRadius="20px" />
             ))}
           </SimpleGrid>
-          <SimpleGrid columns={{ base: 1, xl: 2 }} gap="20px">
-            <Skeleton h="360px" borderRadius="20px" />
-            <Skeleton h="360px" borderRadius="20px" />
-            <Skeleton h="360px" borderRadius="20px" />
-            <Skeleton h="360px" borderRadius="20px" />
+          <SimpleGrid columns={{ base: 1, xl: 3 }} gap="20px">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Skeleton key={index} h="340px" borderRadius="20px" />
+            ))}
           </SimpleGrid>
-          <Skeleton h="420px" borderRadius="20px" />
         </Stack>
       ) : (
         <Stack spacing="20px">
-          <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} gap="20px">
-            {statCards.map((card) => (
-              <MiniStatistics
-                key={card.key}
-                startContent={(
-                  <IconBox
-                    w="56px"
-                    h="56px"
-                    bg={boxBg}
-                    icon={<Icon w="30px" h="30px" as={card.icon} color={brandColor} />}
-                  />
-                )}
-                name={card.label}
-                value={card.value}
-              />
-            ))}
-          </SimpleGrid>
-
           <SimpleGrid columns={{ base: 1, xl: 2 }} gap="20px">
             <AnalyticsChartCard
               title="Новые игроки"
@@ -795,66 +740,23 @@ export default function AnalyticsPage() {
             />
           </SimpleGrid>
 
-          <SimpleGrid columns={{ base: 1, xl: 2 }} gap="20px">
-            <AnalyticsMetricList title="Игроки и активность" rows={kpiRows} />
-            <AnalyticsMetricList title="Игровые метрики" rows={gameRows} />
+          <SimpleGrid columns={{ base: 1, xl: 3 }} gap="20px">
+            <AnalyticsMetricList
+              title="Воронка пользователя"
+              description="Основные шаги от входа до перехода в Lamoda"
+              rows={funnelRows}
+            />
+            <AnalyticsMetricList
+              title="Поиск кроссовок"
+              description="Насколько далеко игроки доходят внутри игровой сессии"
+              rows={progressRows}
+            />
+            <AnalyticsMetricList
+              title="Игровые метрики"
+              description="Сводные показатели по игровым сессиям и рефералам"
+              rows={gameRows}
+            />
           </SimpleGrid>
-
-          <Card p={{ base: "18px", md: "24px" }}>
-            <Flex justify="space-between" align={{ base: "start", md: "center" }} direction={{ base: "column", md: "row" }} gap="12px" mb="18px">
-              <Box>
-                <Text color={textColor} fontSize="xl" fontWeight="700">
-                  Последние игровые сессии
-                </Text>
-                <Text color={textColorSecondary} fontSize="sm" mt="4px">
-                  Последние 20 запусков игры в выбранном диапазоне
-                </Text>
-              </Box>
-            </Flex>
-            <Box overflowX="auto">
-              <Table variant="simple" minW="640px">
-                <Thead>
-                  <Tr>
-                    <Th borderColor={borderColor}>Игрок</Th>
-                    <Th borderColor={borderColor}>Статус</Th>
-                    <Th borderColor={borderColor}>Найдено пар</Th>
-                    <Th borderColor={borderColor}>Осталось времени</Th>
-                    <Th borderColor={borderColor}>Старт</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {analytics.recentSessions.length > 0 ? analytics.recentSessions.map((session) => (
-                    <Tr key={session.id}>
-                      <Td borderColor="transparent">
-                        <Text color={textColor} fontSize="sm" fontWeight="700">
-                          {session.player?.displayName || session.player?.username || `#${session.playerId}`}
-                        </Text>
-                      </Td>
-                      <Td borderColor="transparent">
-                        <Badge
-                          colorScheme={session.status === "finished" ? "green" : session.status === "paused" ? "orange" : "blue"}
-                          borderRadius="999px"
-                          px="10px"
-                          py="6px"
-                        >
-                          {getSessionStatusLabel(session.status)}
-                        </Badge>
-                      </Td>
-                      <Td borderColor="transparent">{formatNumber(session.foundSneakersCount)}</Td>
-                      <Td borderColor="transparent">{formatDuration(session.remainingSeconds)}</Td>
-                      <Td borderColor="transparent">{formatDateTime(session.startedAt)}</Td>
-                    </Tr>
-                  )) : (
-                    <Tr>
-                      <Td borderColor="transparent" colSpan={5} color={textColorSecondary}>
-                        За выбранный период игровых сессий нет
-                      </Td>
-                    </Tr>
-                  )}
-                </Tbody>
-              </Table>
-            </Box>
-          </Card>
         </Stack>
       )}
     </Box>

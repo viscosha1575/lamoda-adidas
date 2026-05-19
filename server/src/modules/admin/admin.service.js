@@ -258,6 +258,7 @@ export function createAdminService({
         summary: {
           totalPlayersCount: Number(overview.summary?.total_players_count ?? 0),
           newPlayersCount: Number(overview.summary?.new_players_count ?? 0),
+          appOpenedCount: Number(overview.summary?.app_opened_players_count ?? 0),
           sessionsStartedCount: Number(overview.summary?.sessions_started_count ?? 0),
           finishedSessionsCount: Number(overview.summary?.finished_sessions_count ?? 0),
           playersWithFinishedGameCount: Number(
@@ -277,6 +278,34 @@ export function createAdminService({
           ),
           totalReferredPlayersCount: Number(
             overview.summary?.total_referred_players_count ?? 0,
+          ),
+          passedSubscriptionStageCount: Number(
+            overview.summary?.passed_subscription_stage_players_count ?? 0,
+          ),
+          notSubscribedBeforeCount: Number(
+            overview.summary?.not_subscribed_before_players_count ?? 0,
+          ),
+          subscribedAfterNotSubscribedCount: Number(
+            overview.summary?.subscribed_after_not_subscribed_players_count ?? 0,
+          ),
+          enteredGameCount: Number(overview.summary?.entered_game_players_count ?? 0),
+          foundThreePairsCount: Number(
+            overview.summary?.found_three_pairs_players_count ?? 0,
+          ),
+          foundAllPairsPlayersCount: Number(
+            overview.summary?.found_all_pairs_players_count ?? 0,
+          ),
+          averagePairsPerUserCount: Number(
+            overview.summary?.average_pairs_per_player_count ?? 0,
+          ),
+          foundTenPairsCount: Number(
+            overview.summary?.found_ten_pairs_sessions_count ?? 0,
+          ),
+          foundTenPairsInTimeCount: Number(
+            overview.summary?.found_ten_pairs_in_time_sessions_count ?? 0,
+          ),
+          lamodaTransitionsCount: Number(
+            overview.summary?.lamoda_transitions_players_count ?? 0,
           ),
         },
         series: {

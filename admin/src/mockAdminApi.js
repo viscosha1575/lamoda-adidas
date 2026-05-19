@@ -539,6 +539,26 @@ function buildAnalyticsOverview(payload = {}) {
   const inRangePlayers = players.filter((player) => isInRange(player.createdAt, rangeStart));
   const inRangeSessions = sessions.filter((session) => isInRange(session.startedAt, rangeStart));
   const finishedInRangeSessions = inRangeSessions.filter((session) => session.status === "finished");
+  const inRangeSessionPlayers = new Set(inRangeSessions.map((session) => session.playerId));
+  const playersWithThreePairs = new Set(
+    inRangeSessions
+      .filter((session) => session.foundSneakersCount >= 3)
+      .map((session) => session.playerId)
+  );
+  const playersWithTenPairs = new Set(
+    inRangeSessions
+      .filter((session) => session.foundSneakersCount >= 10)
+      .map((session) => session.playerId)
+  );
+  const bestPairsByPlayer = new Map();
+
+  for (const session of inRangeSessions) {
+    bestPairsByPlayer.set(
+      session.playerId,
+      Math.max(bestPairsByPlayer.get(session.playerId) || 0, session.foundSneakersCount)
+    );
+  }
+
   const totalPlayersSeries = buildSeries(inRangePlayers, "createdAt", range);
   let runningPlayers = players.filter((player) => rangeStart && new Date(player.createdAt) < rangeStart).length;
 
@@ -558,6 +578,7 @@ function buildAnalyticsOverview(payload = {}) {
     summary: {
       totalPlayersCount: players.length,
       newPlayersCount: inRangePlayers.length,
+      appOpenedCount: inRangePlayers.length,
       sessionsStartedCount: inRangeSessions.length,
       finishedSessionsCount: finishedInRangeSessions.length,
       playersWithFinishedGameCount: new Set(finishedInRangeSessions.map((session) => session.playerId)).size,
@@ -570,6 +591,20 @@ function buildAnalyticsOverview(payload = {}) {
         : 0,
       referralsInPeriodCount: inRangePlayers.filter((player) => player.referredByCode).length,
       totalReferredPlayersCount: players.filter((player) => player.referredByCode).length,
+      passedSubscriptionStageCount: inRangeSessionPlayers.size,
+      notSubscribedBeforeCount: inRangePlayers.filter((player) => !player.subscribedToChannel).length,
+      subscribedAfterNotSubscribedCount: inRangePlayers.filter((player) => player.subscribedToChannel && player.referredByCode).length,
+      enteredGameCount: inRangeSessionPlayers.size,
+      foundThreePairsCount: playersWithThreePairs.size,
+      foundAllPairsPlayersCount: playersWithTenPairs.size,
+      averagePairsPerUserCount: bestPairsByPlayer.size > 0
+        ? Math.round(
+          [...bestPairsByPlayer.values()].reduce((sum, value) => sum + value, 0) / bestPairsByPlayer.size
+        )
+        : 0,
+      foundTenPairsCount: inRangeSessions.filter((session) => session.foundSneakersCount >= 10).length,
+      foundTenPairsInTimeCount: finishedInRangeSessions.filter((session) => session.foundSneakersCount >= 10).length,
+      lamodaTransitionsCount: 0,
     },
     series: {
       newPlayers: totalPlayersSeries,

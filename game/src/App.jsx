@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import {
   checkSubscriptionStatus,
   deleteCurrentPlayer,
+  logActivity,
   resetAnonymousId,
 } from './api.js'
 import { logGameDebug } from './debug.js'
@@ -5150,6 +5151,20 @@ function App() {
   const slide = typeof activeIndex === 'number' ? slides[activeIndex] : null
   const isAlertSlide = slide?.id === 'alert'
   const isUnityScreen = screen === 'unity'
+  const hasLoggedAppOpenRef = useRef(false)
+  const hasLoggedEnteredGameRef = useRef(false)
+
+  const sendIntroActivity = useCallback((action, details = {}) => {
+    if (!backendBootstrap.token) {
+      return
+    }
+
+    void logActivity(backendBootstrap.token, {
+      source: 'intro',
+      action,
+      details,
+    }).catch(() => {})
+  }, [backendBootstrap.token])
 
   useEffect(() => {
     logGameDebug('app:state-snapshot', {
@@ -5168,6 +5183,23 @@ function App() {
     console.log('Telegram initData on app intro:', initData)
     console.log('Telegram initDataUnsafe on app intro:', webApp?.initDataUnsafe ?? null)
   }, [])
+
+  useEffect(() => {
+    if (backendBootstrap.status !== 'ready' || hasLoggedAppOpenRef.current) {
+      return
+    }
+
+    hasLoggedAppOpenRef.current = true
+    sendIntroActivity('app-opened', {
+      isExisting: Boolean(backendBootstrap.player?.isExisting),
+      subscribedToChannel: Boolean(backendBootstrap.player?.subscribedToChannel),
+    })
+  }, [
+    backendBootstrap.player?.isExisting,
+    backendBootstrap.player?.subscribedToChannel,
+    backendBootstrap.status,
+    sendIntroActivity,
+  ])
 
   useEffect(() => {
     const syncIntroLayout = () => {
@@ -5268,13 +5300,34 @@ function App() {
     setActiveIndex(nextIndex)
   }, [activeIndex])
 
-  const openUnityGame = useCallback(() => {
+  const openUnityGame = useCallback(({ logSubscriptionPassed = false } = {}) => {
+    if (logSubscriptionPassed) {
+      sendIntroActivity('subscription-stage-passed', {
+        skippedCheck: true,
+        subscribedToChannel: Boolean(backendBootstrap.player?.subscribedToChannel || isSubscriptionConfirmed),
+      })
+    }
+
+    if (!hasLoggedEnteredGameRef.current) {
+      hasLoggedEnteredGameRef.current = true
+      sendIntroActivity('entered-game', {
+        from: screen,
+        activeIndex,
+      })
+    }
+
     patchTelegramAvatarLoadingForUnity()
     setUnityLoadError('')
     setShouldMountUnityLayer(true)
     setScreen('unity')
     requestTelegramFullscreen()
-  }, [])
+  }, [
+    activeIndex,
+    backendBootstrap.player?.subscribedToChannel,
+    isSubscriptionConfirmed,
+    screen,
+    sendIntroActivity,
+  ])
 
   useEffect(() => {
     if (screen !== 'intro' || !shouldSkipSubscriptionIntro || activeIndex < 1) {
@@ -5285,7 +5338,7 @@ function App() {
       activeIndex,
       playerId: backendBootstrap.player?.id ?? null,
     })
-    openUnityGame()
+    openUnityGame({ logSubscriptionPassed: true })
   }, [activeIndex, backendBootstrap.player?.id, openUnityGame, screen, shouldSkipSubscriptionIntro])
 
   const handleSubscriptionCheck = useCallback(async () => {
@@ -5295,7 +5348,7 @@ function App() {
 
     if (shouldBypassSubscriptionCheckOnLocalhost()) {
       setIsSubscriptionConfirmed(true)
-      openUnityGame()
+      openUnityGame({ logSubscriptionPassed: true })
       return
     }
 
@@ -5412,7 +5465,7 @@ function App() {
                             logGameDebug('app:existing-player-open-game-from-alert', {
                               playerId: backendBootstrap.player?.id ?? null,
                             })
-                            openUnityGame()
+                            openUnityGame({ logSubscriptionPassed: true })
                             return
                           }
 

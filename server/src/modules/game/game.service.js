@@ -194,6 +194,10 @@ function buildGameResultPayload(session, gameDurationSeconds, {
   };
 }
 
+function getLoggedFoundPairsCount(session) {
+  return normalizeCollectedSneakers(session?.foundSneakerNumbers).length;
+}
+
 export function createGameService({
   gameRepository,
   gameDurationSeconds,
@@ -201,6 +205,20 @@ export function createGameService({
   playerOnlineWindowSeconds,
   telegramSubscriptionChecker = null,
 }) {
+  async function createSessionActivityLog(session, action, details = {}) {
+    if (!session?.id || !session?.playerId) {
+      return null;
+    }
+
+    return gameRepository.createActivityLog({
+      playerId: session.playerId,
+      gameSessionId: session.id,
+      source: "server",
+      action,
+      details,
+    });
+  }
+
   async function getPlayerRewardState(playerId) {
     const rewardState = await gameRepository.findPlayerRewardStateById(playerId);
 
@@ -284,6 +302,19 @@ export function createGameService({
       ? await gameRepository.markPlayerSubscribedToChannel(player.id)
       : subscribedToChannel;
 
+    await gameRepository.createActivityLog({
+      playerId: player.id,
+      gameSessionId: null,
+      source: "server",
+      action: result.subscribed ? "subscription-stage-passed" : "subscription-stage-failed",
+      details: {
+        available: true,
+        memberStatus: result.memberStatus ?? null,
+        subscribedPreviously: subscribedToChannel,
+        subscribedToChannel: persistedSubscribedToChannel,
+      },
+    });
+
     return {
       available: true,
       subscribed: result.subscribed,
@@ -307,6 +338,14 @@ export function createGameService({
     await persistSessionOutcome(timedOutSession, {
       reason: PLAYER_GAME_COMPLETION_STATE.TIME_ENDED,
       remainingSeconds: 0,
+    });
+
+    await createSessionActivityLog(timedOutSession, "session-finished", {
+      completionReason: PLAYER_GAME_COMPLETION_STATE.TIME_ENDED,
+      remainingSeconds: 0,
+      completedInSeconds: gameDurationSeconds,
+      foundPairsCount: getLoggedFoundPairsCount(timedOutSession),
+      foundSneakerNumbers: normalizeCollectedSneakers(timedOutSession.foundSneakerNumbers),
     });
 
     return timedOutSession;
@@ -382,6 +421,14 @@ export function createGameService({
     const rewardState = await persistSessionOutcome(finishedSession, {
       reason,
       remainingSeconds,
+    });
+
+    await createSessionActivityLog(finishedSession, "session-finished", {
+      completionReason: reason,
+      remainingSeconds,
+      completedInSeconds: Math.max(0, gameDurationSeconds - remainingSeconds),
+      foundPairsCount: getLoggedFoundPairsCount(finishedSession),
+      foundSneakerNumbers: normalizeCollectedSneakers(finishedSession.foundSneakerNumbers),
     });
 
     return {
@@ -461,6 +508,12 @@ export function createGameService({
         lastHeartbeatAt: now,
       });
 
+      await createSessionActivityLog(createdSession, "session-started", {
+        entryPoint: "new-session",
+        foundPairsCount: getLoggedFoundPairsCount(createdSession),
+        foundSneakerNumbers: normalizeCollectedSneakers(createdSession.foundSneakerNumbers),
+      });
+
       return buildSessionResponse(
         createdSession,
         now,
@@ -490,6 +543,12 @@ export function createGameService({
         last_heartbeat_at: now,
         finished_at: null,
         completion_reason: null,
+      });
+
+      await createSessionActivityLog(restartedSession, "session-started", {
+        entryPoint: "referral-reset",
+        foundPairsCount: getLoggedFoundPairsCount(restartedSession),
+        foundSneakerNumbers: normalizeCollectedSneakers(restartedSession.foundSneakerNumbers),
       });
 
       return buildSessionResponse(
@@ -678,7 +737,11 @@ export function createGameService({
       const now = new Date();
       const openSession = await getOpenSession(playerId);
 
-      let session = openSession ?? await gameRepository.findLatestSessionByPlayerId(playerId);
+      let session = openSession;
+
+      if (!session && source !== "intro") {
+        session = await gameRepository.findLatestSessionByPlayerId(playerId);
+      }
 
       if (openSession?.status === "active") {
         const runningState = openSession.lastResumedAt
