@@ -26,6 +26,7 @@ export function createAdminRouter({ adminController, config }) {
   router.post("/raffle/players", asyncHandler(adminController.rafflePlayers));
   router.post("/raffle/winner", asyncHandler(adminController.raffleWinner));
   router.post("/raffle/finish", asyncHandler(adminController.finishRaffle));
+  router.post("/raffle/reset", asyncHandler(adminController.resetRaffleWinners));
   router.post("/logs/user", asyncHandler(adminController.playerLogs));
   router.post("/users/delete", asyncHandler(adminController.deletePlayer));
 

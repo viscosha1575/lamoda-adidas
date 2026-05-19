@@ -48,6 +48,10 @@ export function createAdminController({ adminService }) {
       response.json(await adminService.finishRaffle());
     },
 
+    async resetRaffleWinners(_request, response) {
+      response.json(await adminService.resetRaffleWinners());
+    },
+
     async deletePlayer(request, response) {
       response.json(await adminService.deletePlayer(request.body));
     },

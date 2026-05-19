@@ -106,3 +106,30 @@ test("POST /api/admin/analytics/overview returns summary", async () => {
   assert.equal(response.body.series.newPlayers[0].value, 2);
   assert.equal(response.body.series.totalPlayers[0].value, 10);
 });
+
+test("POST /api/admin/raffle/reset resets raffle winners", async () => {
+  const adminService = {
+    async resetRaffleWinners() {
+      return {
+        updatedCount: 12,
+      };
+    },
+  };
+
+  const app = express();
+  app.use(express.json());
+  app.use("/api/admin", createAdminRouter({
+    adminController: createAdminController({ adminService }),
+    config: {
+      requestBodySecret: "",
+    },
+  }));
+  app.use(errorHandler);
+
+  const response = await request(app)
+    .post("/api/admin/raffle/reset")
+    .send({});
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.updatedCount, 12);
+});

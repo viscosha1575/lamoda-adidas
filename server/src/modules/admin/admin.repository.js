@@ -690,6 +690,39 @@ export function createAdminRepository({ pool }) {
       }
     },
 
+    async resetRaffleWinners() {
+      const client = await pool.connect();
+
+      try {
+        await client.query("BEGIN");
+
+        const resetAt = new Date();
+        const result = await client.query(
+          `UPDATE players
+              SET raffle_won = NULL,
+                  code_id = NULL,
+                  updated_at = $1
+            WHERE raffle_won IS NOT NULL
+               OR code_id IS NOT NULL
+          RETURNING id`,
+          [resetAt],
+        );
+
+        await client.query(
+          `DELETE FROM app_settings
+            WHERE key = 'raffle_finished_at'`,
+        );
+
+        await client.query("COMMIT");
+        return Number(result.rowCount ?? 0);
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+
     async deletePlayerById(playerId) {
       return deletePlayerWithRelations(pool, playerId);
     },

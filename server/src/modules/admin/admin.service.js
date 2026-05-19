@@ -497,6 +497,14 @@ export function createAdminService({
       };
     },
 
+    async resetRaffleWinners() {
+      const updatedCount = await adminRepository.resetRaffleWinners();
+
+      return {
+        updatedCount,
+      };
+    },
+
     async deletePlayer(payload = {}) {
       const playerId = Number(payload?.playerId);
 

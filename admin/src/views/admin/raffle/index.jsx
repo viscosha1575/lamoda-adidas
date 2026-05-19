@@ -22,7 +22,7 @@ import {
 } from "@chakra-ui/react";
 import { SearchIcon } from "@chakra-ui/icons";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { MdCheckCircle, MdDownload, MdFlag } from "react-icons/md";
+import { MdCheckCircle, MdDownload, MdFlag, MdReplay } from "react-icons/md";
 import * as XLSX from "xlsx";
 import Card from "components/card/Card";
 import MiniStatistics from "components/card/MiniStatistics";
@@ -76,6 +76,7 @@ export default function RafflePage() {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [finishingRaffle, setFinishingRaffle] = useState(false);
+  const [resettingRaffle, setResettingRaffle] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [winnerPlayerId, setWinnerPlayerId] = useState(null);
 
@@ -206,6 +207,30 @@ export default function RafflePage() {
     }
   }
 
+  async function handleResetRaffleWinners() {
+    const confirmed = window.confirm("Откатить результаты розыгрыша? У всех игроков raffleWon станет null, а codeId будет очищен.");
+
+    if (!confirmed) {
+      return;
+    }
+
+    setResettingRaffle(true);
+    setError("");
+    setSuccessMessage("");
+
+    try {
+      const nextResponse = await postJson("/api/raffle/reset", {});
+      const updatedCount = Number(nextResponse?.updatedCount ?? 0);
+
+      await loadRafflePlayers();
+      setSuccessMessage(`Результаты розыгрыша сброшены. Обновлено игроков: ${updatedCount}.`);
+    } catch (requestError) {
+      setError(requestError.message || "Не удалось откатить победителей");
+    } finally {
+      setResettingRaffle(false);
+    }
+  }
+
   async function handleExport() {
     setExporting(true);
     setError("");
@@ -295,6 +320,23 @@ export default function RafflePage() {
                 _hover={{ bg: "brand.600" }}
               >
                 Экспорт
+              </Button>
+
+              <Button
+                h="56px"
+                flex={{ base: "1 1 100%", lg: "0 0 250px" }}
+                bg="orange.400"
+                color="white"
+                borderRadius="20px"
+                fontSize="sm"
+                fontWeight="700"
+                isLoading={resettingRaffle}
+                leftIcon={<Icon as={MdReplay} boxSize="20px" />}
+                loadingText="Откатываем"
+                onClick={handleResetRaffleWinners}
+                _hover={{ bg: "orange.500" }}
+              >
+                Откатить победителей
               </Button>
 
               <Button

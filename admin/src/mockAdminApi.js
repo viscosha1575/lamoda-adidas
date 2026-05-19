@@ -516,6 +516,23 @@ function finishRaffle() {
   };
 }
 
+function resetRaffleWinners() {
+  let updatedCount = 0;
+
+  for (const player of mockState.players) {
+    if (player.raffleWon != null || player.codeId != null) {
+      player.raffleWon = null;
+      player.codeId = null;
+      player.updatedAt = new Date().toISOString();
+      updatedCount += 1;
+    }
+  }
+
+  return {
+    updatedCount,
+  };
+}
+
 function buildSeries(items, dateKey, range) {
   const bucketMap = new Map();
 
@@ -805,6 +822,10 @@ export function resolveMockAdminResponse(path, body = {}) {
 
   if (path === "/api/raffle/finish") {
     return finishRaffle();
+  }
+
+  if (path === "/api/raffle/reset") {
+    return resetRaffleWinners();
   }
 
   if (path === "/api/logs/user") {
