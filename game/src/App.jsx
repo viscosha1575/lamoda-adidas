@@ -5153,6 +5153,7 @@ function App() {
   const isUnityScreen = screen === 'unity'
   const hasLoggedAppOpenRef = useRef(false)
   const hasLoggedEnteredGameRef = useRef(false)
+  const previousIntroSlideRef = useRef(null)
 
   const sendIntroActivity = useCallback((action, details = {}) => {
     if (!backendBootstrap.token) {
@@ -5165,6 +5166,24 @@ function App() {
       details,
     }).catch(() => {})
   }, [backendBootstrap.token])
+
+  const logIntroSlideView = useCallback((slideId, index) => {
+    if (!slideId || screen !== 'intro') {
+      return
+    }
+
+    sendIntroActivity('intro-slide-viewed', {
+      slideId,
+      activeIndex: index,
+      isExisting: Boolean(backendBootstrap.player?.isExisting),
+      subscribedToChannel: Boolean(backendBootstrap.player?.subscribedToChannel),
+    })
+  }, [
+    backendBootstrap.player?.isExisting,
+    backendBootstrap.player?.subscribedToChannel,
+    screen,
+    sendIntroActivity,
+  ])
 
   useEffect(() => {
     logGameDebug('app:state-snapshot', {
@@ -5200,6 +5219,21 @@ function App() {
     backendBootstrap.status,
     sendIntroActivity,
   ])
+
+  useEffect(() => {
+    if (backendBootstrap.status !== 'ready' || screen !== 'intro' || !slide?.id) {
+      return
+    }
+
+    const currentSlideKey = `${screen}:${activeIndex}:${slide.id}`
+
+    if (previousIntroSlideRef.current === currentSlideKey) {
+      return
+    }
+
+    previousIntroSlideRef.current = currentSlideKey
+    logIntroSlideView(slide.id, activeIndex)
+  }, [activeIndex, backendBootstrap.status, logIntroSlideView, screen, slide?.id])
 
   useEffect(() => {
     const syncIntroLayout = () => {
@@ -5334,12 +5368,25 @@ function App() {
       return
     }
 
+    sendIntroActivity('intro-autoskip-to-game', {
+      slideId: slide?.id ?? null,
+      activeIndex,
+      playerId: backendBootstrap.player?.id ?? null,
+    })
     logGameDebug('app:skip-extra-intro-for-existing-player', {
       activeIndex,
       playerId: backendBootstrap.player?.id ?? null,
     })
     openUnityGame({ logSubscriptionPassed: true })
-  }, [activeIndex, backendBootstrap.player?.id, openUnityGame, screen, shouldSkipSubscriptionIntro])
+  }, [
+    activeIndex,
+    backendBootstrap.player?.id,
+    openUnityGame,
+    screen,
+    sendIntroActivity,
+    shouldSkipSubscriptionIntro,
+    slide?.id,
+  ])
 
   const handleSubscriptionCheck = useCallback(async () => {
     if (isCheckingSubscription) {
@@ -5347,11 +5394,21 @@ function App() {
     }
 
     if (shouldBypassSubscriptionCheckOnLocalhost()) {
+      sendIntroActivity('subscription-check-clicked', {
+        slideId: slide?.id ?? null,
+        activeIndex,
+        mode: 'localhost-bypass',
+      })
       setIsSubscriptionConfirmed(true)
       openUnityGame({ logSubscriptionPassed: true })
       return
     }
 
+    sendIntroActivity('subscription-check-clicked', {
+      slideId: slide?.id ?? null,
+      activeIndex,
+      mode: 'telegram-api',
+    })
     setIsCheckingSubscription(true)
 
     try {
@@ -5362,6 +5419,12 @@ function App() {
       }
 
       if (result?.subscribed) {
+        sendIntroActivity('subscription-check-succeeded', {
+          slideId: slide?.id ?? null,
+          activeIndex,
+          memberStatus: result?.memberStatus ?? null,
+          available: result?.available ?? true,
+        })
         setIsSubscriptionConfirmed(true)
         openUnityGame()
         logGameDebug('app:subscription-confirmed', {
@@ -5372,9 +5435,21 @@ function App() {
       }
 
       setIsSubscriptionConfirmed(false)
+      sendIntroActivity('subscription-check-failed', {
+        slideId: slide?.id ?? null,
+        activeIndex,
+        memberStatus: result?.memberStatus ?? null,
+        available: result?.available ?? true,
+      })
       navigateTo(2)
     } catch (error) {
       setIsSubscriptionConfirmed(false)
+      sendIntroActivity('subscription-check-error', {
+        slideId: slide?.id ?? null,
+        activeIndex,
+        message: error?.message ?? 'unknown error',
+        status: error?.status ?? null,
+      })
       logGameDebug('app:subscription-check-failed', {
         message: error?.message ?? 'unknown error',
         status: error?.status ?? null,
@@ -5383,7 +5458,7 @@ function App() {
     } finally {
       setIsCheckingSubscription(false)
     }
-  }, [isCheckingSubscription, navigateTo, openUnityGame])
+  }, [activeIndex, isCheckingSubscription, navigateTo, openUnityGame, sendIntroActivity, slide?.id])
 
   return (
     <div className={`unity-app-shell${isUnityScreen ? ' unity-app-shell--immersive' : ''}`}>
@@ -5461,6 +5536,12 @@ function App() {
                         key={action.label}
                         label={action.label}
                         onClick={() => {
+                          sendIntroActivity('intro-primary-cta-clicked', {
+                            slideId: slide.id,
+                            activeIndex,
+                            label: action.label,
+                          })
+
                           if (slide.id === 'alert' && shouldSkipSubscriptionIntro) {
                             logGameDebug('app:existing-player-open-game-from-alert', {
                               playerId: backendBootstrap.player?.id ?? null,
@@ -5491,6 +5572,13 @@ function App() {
                         disabled={isCheckingSubscription}
                         onClick={() => {
                           if (isSubscriptionAction) {
+                            sendIntroActivity('subscription-primary-cta-clicked', {
+                              slideId: slide.id,
+                              activeIndex,
+                              label: action.label,
+                              isSubscriptionConfirmed,
+                            })
+
                             if (isSubscriptionConfirmed) {
                               openUnityGame()
                               return
@@ -5522,6 +5610,14 @@ function App() {
                         target="_blank"
                         rel="noreferrer"
                         className="pixel-button-svg-light"
+                        onClick={() => {
+                          sendIntroActivity('subscription-channel-open-clicked', {
+                            slideId: slide.id,
+                            activeIndex,
+                            label: action.label,
+                            target: subscriptionChannelUrl,
+                          })
+                        }}
                       >
                         <ButtonSvgLight width="100%" className="absolute inset-0 h-full w-full" />
                         <span className="button-text-light relative z-10">
