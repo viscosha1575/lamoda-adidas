@@ -940,7 +940,7 @@ function SneakerArt() {
     <div className="intro-art-entrance flex h-[12.5rem] w-[17rem] max-w-full items-center justify-center overflow-hidden">
       <img
         src="/assets/sneakers.webp"
-        alt="Кроссовок Adidas"
+        alt="Кроссовок adidas"
         className="h-[15.25rem] w-auto max-w-none"
       />
     </div>
@@ -5050,11 +5050,11 @@ const slides = [
     body: (
       <div className="w-full text-center text-[16px] font-normal leading-normal text-white">
         <p>
-          Пропали 10 пар новеньких кроссовок Adidas.
+          Пропали 10 пар новеньких кроссовок adidas.
         </p>
         <p className="mt-6">
           Свидетелей нет, вся надежда только на вас. Исследуйте локации на карте,
-          соберите все кроссовки и участвуйте в розыгрыше одной из 10 пар Adidas
+          соберите все кроссовки и участвуйте в розыгрыше одной из 10 пар adidas
           Originals.
         </p>
       </div>
@@ -5082,11 +5082,11 @@ const slides = [
           на канал Lamoda.
         </p>
         <p>
-          Тренды, новинки сезона
+          Новости о трендах,
           <br />
-          и обзоры появляются
+          брендах и скидках
           <br />
-          там раньше всех.
+          ждут там.
         </p>
       </div>
     ),
@@ -5113,7 +5113,7 @@ const slides = [
           <br />
           также, как пропавшие
           <br />
-          кроссовки Adidas.
+          кроссовки adidas.
         </p>
         <p>
           Попробуйте ещё раз
@@ -5148,7 +5148,12 @@ function App() {
   const [unityLoadError, setUnityLoadError] = useState('')
   const [useDesktopIntroLayout, setUseDesktopIntroLayout] = useState(() => shouldUseDesktopIntroLayout())
   const shouldSkipSubscriptionIntro = Boolean(backendBootstrap.player?.subscribedToChannel)
-  const slide = typeof activeIndex === 'number' ? slides[activeIndex] : null
+  const introSlides = shouldSkipSubscriptionIntro
+    ? slides.filter((item) => item.id === 'alert')
+    : slides
+  const slide = typeof activeIndex === 'number'
+    ? (introSlides[activeIndex] ?? introSlides[0] ?? null)
+    : null
   const isAlertSlide = slide?.id === 'alert'
   const isUnityScreen = screen === 'unity'
   const hasLoggedAppOpenRef = useRef(false)
