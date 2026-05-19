@@ -315,6 +315,49 @@ test("createSession rejects requests without Telegram initData", async () => {
   );
 });
 
+test("createSession accepts null startParam and treats it as missing", async () => {
+  const authRepository = {
+    async findPlayerByTelegramUserId() {
+      return null;
+    },
+    async findPlayerByReferralCode() {
+      throw new Error("should not load referral owner without inbound referral");
+    },
+    async upsertTelegramPlayer(player) {
+      assert.equal(player.referredByCode, null);
+      assert.equal(player.utmSlug, null);
+
+      return {
+        id: 18,
+        telegram_user_id: player.telegramUserId,
+        username: player.username,
+        first_name: player.firstName,
+        last_name: player.lastName,
+        auth_provider: player.authProvider,
+        referral_code: player.referralCode,
+        referred_by_code: player.referredByCode,
+        has_referral: player.hasReferral,
+        utm_slug: null,
+        subscribed_to_channel: false,
+        raffle_won: null,
+        code_id: null,
+        auth_token: player.authToken,
+        auth_token_expires_at: player.authTokenExpiresAt,
+        last_seen_at: player.lastSeenAt,
+      };
+    },
+  };
+
+  const authService = createAuthServiceForTest(authRepository);
+  const result = await authService.createSession({
+    initData: createInitData(),
+    startParam: null,
+  });
+
+  assert.equal(result.referredByCode, null);
+  assert.equal(result.utmSlug, null);
+});
+
 test("createSession stores lowercase startapp as utm slug and tracks visit", async () => {
   let trackedVisit = null;
   const authRepository = {

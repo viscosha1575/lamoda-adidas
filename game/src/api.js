@@ -55,9 +55,9 @@ export async function createAuthSession() {
     headers: {
       'X-Telegram-Init-Data': initData,
     },
-    body: {
-      startParam,
-    },
+    body: startParam
+      ? { startParam }
+      : {},
   })
 }
 
