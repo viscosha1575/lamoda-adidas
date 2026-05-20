@@ -95,7 +95,7 @@ services:
       - traefik.http.middlewares.lamoda-api-ratelimit.ratelimit.average=1000
       - traefik.http.middlewares.lamoda-api-ratelimit.ratelimit.burst=2000
       - traefik.http.middlewares.lamoda-api-ratelimit.ratelimit.period=1s
-      - traefik.http.middlewares.lamoda-api-inflight.inflightreq.amount=80
+      - traefik.http.middlewares.lamoda-api-inflight.inflightreq.amount=300
       - traefik.http.middlewares.lamoda-api-retry.retry.attempts=2
       - traefik.http.middlewares.lamoda-api-retry.retry.initialinterval=100ms
       - traefik.http.services.lamoda-api.loadbalancer.server.port=3001
