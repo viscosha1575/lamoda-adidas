@@ -5180,10 +5180,25 @@ const slides = [
   },
 ]
 
-function App() {
-  const previewMode = typeof window !== 'undefined'
-    ? new URLSearchParams(window.location.search).get('preview')
-    : null
+function UnityWarningPreview() {
+  return (
+    <div className="unity-app-shell unity-app-shell--immersive">
+      <div className="unity-layer unity-layer--visible">
+        <UnityPlayer
+          preload={false}
+          isVisible
+          onLoadError={() => {}}
+          previewBanner={{
+            type: 'warning',
+            message: 'Failed to load file /unity/Build/FinalBuild.framework.js',
+          }}
+        />
+      </div>
+    </div>
+  )
+}
+
+function MainApp() {
   const backendBootstrap = useBackendBootstrap()
   const [activeIndex, setActiveIndex] = useState(0)
   const [screen, setScreen] = useState('intro')
@@ -5205,24 +5220,6 @@ function App() {
   const hasLoggedAppOpenRef = useRef(false)
   const hasLoggedEnteredGameRef = useRef(false)
   const previousIntroSlideRef = useRef(null)
-
-  if (previewMode === 'unity-warning') {
-    return (
-      <div className="unity-app-shell unity-app-shell--immersive">
-        <div className="unity-layer unity-layer--visible">
-          <UnityPlayer
-            preload={false}
-            isVisible
-            onLoadError={() => {}}
-            previewBanner={{
-              type: 'warning',
-              message: 'Failed to load file /unity/Build/FinalBuild.framework.js',
-            }}
-          />
-        </div>
-      </div>
-    )
-  }
 
   const sendIntroActivity = useCallback((action, details = {}) => {
     if (!backendBootstrap.token) {
@@ -5727,6 +5724,18 @@ function App() {
       ) : null}
     </div>
   )
+}
+
+function App() {
+  const previewMode = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('preview')
+    : null
+
+  if (previewMode === 'unity-warning') {
+    return <UnityWarningPreview />
+  }
+
+  return <MainApp />
 }
 
 export default App
