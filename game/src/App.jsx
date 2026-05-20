@@ -1248,7 +1248,7 @@ function UnityPlayer({ preload = false, isVisible = false, onLoadError }) {
               className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,8,8,0.28)_0%,rgba(10,10,10,0.06)_34%,rgba(6,6,6,0.28)_68%,rgba(0,0,0,0.82)_100%)]"
             />
 
-            <div className="relative z-10 flex min-h-svh w-full max-w-[390px] flex-col items-center px-8 pt-[15vh] pb-[9vh]">
+            <div className="relative z-10 flex min-h-svh w-full max-w-[430px] flex-col items-center px-8 pt-[15vh] pb-[9vh]">
               <h1 className="loading-title text-center font-display leading-none text-white">
                 <span className="loading-title-top block whitespace-nowrap">В ПОИСКАХ</span>
                 <span className="loading-title-bottom block">СТИЛЯ</span>
@@ -1264,7 +1264,7 @@ function UnityPlayer({ preload = false, isVisible = false, onLoadError }) {
                   </div>
                 </div>
 
-                <p className="loading-caption whitespace-pre-line text-center font-display text-[clamp(1.4rem,6vw,2rem)] leading-[1.05] text-white">
+                <p className="loading-caption w-full max-w-[26rem] whitespace-pre-line text-center font-display text-[clamp(1.15rem,4.9vw,1.65rem)] leading-[1.05] text-white">
                   {loadingHint}
                 </p>
               </div>
@@ -1291,7 +1291,7 @@ function LoadingScreen({ progress }) {
           className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,8,8,0.28)_0%,rgba(10,10,10,0.06)_34%,rgba(6,6,6,0.28)_68%,rgba(0,0,0,0.82)_100%)]"
         />
 
-        <div className="relative z-10 flex min-h-svh w-full max-w-[390px] flex-col items-center px-8 pt-[15vh] pb-[9vh]">
+        <div className="relative z-10 flex min-h-svh w-full max-w-[430px] flex-col items-center px-8 pt-[15vh] pb-[9vh]">
           <h1 className="loading-title text-center font-display leading-none text-white">
             <span className="loading-title-top block whitespace-nowrap">В ПОИСКАХ</span>
             <span className="loading-title-bottom block">СТИЛЯ</span>
@@ -1307,7 +1307,7 @@ function LoadingScreen({ progress }) {
               </div>
             </div>
 
-            <p className="loading-caption text-center font-display text-[clamp(1.4rem,6vw,2rem)] leading-none text-white">
+            <p className="loading-caption w-full max-w-[26rem] text-center font-display text-[clamp(1.15rem,4.9vw,1.65rem)] leading-none text-white">
               Уже почти...
             </p>
           </div>
