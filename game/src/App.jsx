@@ -1100,7 +1100,7 @@ function UnityPlayer({ preload = false, isVisible = false, onLoadError }) {
 
     function renderSlowLoadHint() {
       setLoadingHint(
-        'Если долго грузится —\nотключите VPN и перезагрузите\nMini App (нажмите на 3 точки в\nправом верхнем углу)',
+        'Если долго грузится —\nотключите VPN и перезагрузите\nMini App (нажмите на 3 точки\nв правом верхнем углу)',
       )
     }
 
