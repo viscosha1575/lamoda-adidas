@@ -92,8 +92,8 @@ services:
       - traefik.http.routers.lamoda-api.tls.certresolver=letsencrypt
       - traefik.http.routers.lamoda-api.priority=100
       - traefik.http.routers.lamoda-api.middlewares=lamoda-api-ratelimit@docker,lamoda-api-inflight@docker,lamoda-api-retry@docker
-      - traefik.http.middlewares.lamoda-api-ratelimit.ratelimit.average=30
-      - traefik.http.middlewares.lamoda-api-ratelimit.ratelimit.burst=60
+      - traefik.http.middlewares.lamoda-api-ratelimit.ratelimit.average=100
+      - traefik.http.middlewares.lamoda-api-ratelimit.ratelimit.burst=200
       - traefik.http.middlewares.lamoda-api-ratelimit.ratelimit.period=1s
       - traefik.http.middlewares.lamoda-api-inflight.inflightreq.amount=80
       - traefik.http.middlewares.lamoda-api-retry.retry.attempts=2
