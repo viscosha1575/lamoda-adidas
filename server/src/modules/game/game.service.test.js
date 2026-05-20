@@ -254,7 +254,7 @@ test("checkSubscription keeps saved subscription flag when Telegram now reports 
   });
 });
 
-test("logActivity stores source and action and refreshes online activity", async () => {
+test("logActivity pauses timer for non-game sources and stores source/action", async () => {
   const now = Date.now();
   const session = {
     id: 25,
@@ -275,7 +275,7 @@ test("logActivity stores source and action and refreshes online activity", async
     },
     async updateSession(_sessionId, valuesToUpdate) {
       assert.equal(valuesToUpdate.remaining_seconds, 255);
-      assert.ok(valuesToUpdate.last_resumed_at instanceof Date);
+      assert.equal(valuesToUpdate.last_resumed_at, null);
       assert.ok(valuesToUpdate.last_heartbeat_at instanceof Date);
 
       return {
@@ -312,6 +312,66 @@ test("logActivity stores source and action and refreshes online activity", async
   assert.equal(result.activityLog.source, "unity");
   assert.equal(result.activityLog.action, "swipe");
   assert.equal(result.session.remainingSeconds, 255);
+  assert.equal(result.session.status, "active");
+  assert.equal(result.session.isOnline, true);
+});
+
+test("logActivity resumes timer only for game source", async () => {
+  const now = Date.now();
+  const session = {
+    id: 26,
+    playerId: 6,
+    status: "active",
+    remainingSeconds: 211,
+    foundSneakerNumbers: [1, 2],
+    startedAt: new Date(now - 120_000),
+    lastResumedAt: null,
+    lastHeartbeatAt: new Date(now - 30_000),
+    finishedAt: null,
+    completionReason: null,
+  };
+
+  const rewardAwareRepository = withRewardRepository({
+    async findLatestOpenSessionByPlayerId() {
+      return session;
+    },
+    async updateSession(_sessionId, valuesToUpdate) {
+      assert.equal(valuesToUpdate.remaining_seconds, 211);
+      assert.ok(valuesToUpdate.last_resumed_at instanceof Date);
+      assert.ok(valuesToUpdate.last_heartbeat_at instanceof Date);
+
+      return {
+        ...session,
+        remainingSeconds: valuesToUpdate.remaining_seconds,
+        lastResumedAt: valuesToUpdate.last_resumed_at,
+        lastHeartbeatAt: valuesToUpdate.last_heartbeat_at,
+      };
+    },
+    async createActivityLog(activityLog) {
+      assert.equal(activityLog.playerId, 6);
+      assert.equal(activityLog.gameSessionId, 26);
+      assert.equal(activityLog.source, "game");
+      assert.equal(activityLog.action, "tap");
+
+      return {
+        id: 101,
+        ...activityLog,
+        createdAt: new Date(),
+      };
+    },
+  });
+
+  const gameService = createGameServiceForTest(rewardAwareRepository.repository);
+  const result = await gameService.logActivity(6, {
+    source: "game",
+    action: "tap",
+    details: { hotspot: "map" },
+  });
+
+  assert.equal(result.logged, true);
+  assert.equal(result.lifecycle, "active");
+  assert.equal(result.activityLog.source, "game");
+  assert.equal(result.session.remainingSeconds, 211);
   assert.equal(result.session.isOnline, true);
 });
 

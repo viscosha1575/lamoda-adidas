@@ -264,6 +264,24 @@ export function createGameService({
     return valuesToUpdate;
   }
 
+  function buildActivitySessionValues(session, now, runningState, source) {
+    const remainingSeconds = Number(runningState?.remainingSeconds ?? session.remainingSeconds ?? 0);
+
+    if (source === "game") {
+      return {
+        remaining_seconds: remainingSeconds,
+        last_resumed_at: now,
+        last_heartbeat_at: now,
+      };
+    }
+
+    return {
+      remaining_seconds: remainingSeconds,
+      last_resumed_at: null,
+      last_heartbeat_at: now,
+    };
+  }
+
   async function buildSessionResponse(session, now, lifecycle, reason = null) {
     const rewardState = await getPlayerRewardState(session.playerId);
 
@@ -752,7 +770,7 @@ export function createGameService({
 
         session = await gameRepository.updateSession(
           openSession.id,
-          buildTimerResumeValues(openSession, now, runningState),
+          buildActivitySessionValues(openSession, now, runningState, source),
         );
       }
 
