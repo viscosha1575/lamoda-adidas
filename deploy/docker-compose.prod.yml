@@ -3,9 +3,9 @@ services:
     image: traefik:v3.6
     container_name: lamoda-traefik
     restart: unless-stopped
-    mem_limit: 256m
-    cpus: 0.50
-    pids_limit: 256
+    mem_limit: 1g
+    cpus: 2.00
+    pids_limit: 1024
     environment:
       DOCKER_API_VERSION: "1.44"
     command:
@@ -92,10 +92,10 @@ services:
       - traefik.http.routers.lamoda-api.tls.certresolver=letsencrypt
       - traefik.http.routers.lamoda-api.priority=100
       - traefik.http.routers.lamoda-api.middlewares=lamoda-api-ratelimit@docker,lamoda-api-inflight@docker,lamoda-api-retry@docker
-      - traefik.http.middlewares.lamoda-api-ratelimit.ratelimit.average=1000
-      - traefik.http.middlewares.lamoda-api-ratelimit.ratelimit.burst=2000
+      - traefik.http.middlewares.lamoda-api-ratelimit.ratelimit.average=5000
+      - traefik.http.middlewares.lamoda-api-ratelimit.ratelimit.burst=10000
       - traefik.http.middlewares.lamoda-api-ratelimit.ratelimit.period=1s
-      - traefik.http.middlewares.lamoda-api-inflight.inflightreq.amount=300
+      - traefik.http.middlewares.lamoda-api-inflight.inflightreq.amount=1500
       - traefik.http.middlewares.lamoda-api-retry.retry.attempts=2
       - traefik.http.middlewares.lamoda-api-retry.retry.initialinterval=100ms
       - traefik.http.services.lamoda-api.loadbalancer.server.port=3001
