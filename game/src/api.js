@@ -9,7 +9,6 @@ function getTelegramInitData() {
 
 async function request(pathname, {
   method = 'GET',
-  token = null,
   body,
   keepalive = false,
   headers = {},
@@ -39,12 +38,8 @@ async function request(pathname, {
 }
 
 export async function createAuthSession() {
-  const webApp = getTelegramWebApp()
   const initData = getTelegramInitData()
   const startParam = getTelegramStartParam()
-
-  console.log('Telegram initData before auth session:', initData ?? null)
-  console.log('Telegram initDataUnsafe before auth session:', webApp?.initDataUnsafe ?? null)
 
   if (!initData) {
     throw new Error('Telegram initData is required')

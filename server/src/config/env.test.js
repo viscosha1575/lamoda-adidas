@@ -33,3 +33,17 @@ test("loadConfig falls back to default Telegram subscription target when env val
     assert.equal(config.telegramSubscriptionUrl, "https://t.me/lamoda_na_svyazi");
   });
 });
+
+test("loadConfig parses admin Telegram auth configuration", () => {
+  withEnv({
+    NODE_ENV: "test",
+    DATABASE_URL: "postgres://postgres:postgres@localhost:5432/lamoda_adidas",
+    ADMIN_TELEGRAM_BOT_TOKEN: "admin-bot-token",
+    ADMIN_TELEGRAM_IDS: "434092620, 612078835 ,",
+  }, () => {
+    const config = loadConfig();
+
+    assert.equal(config.adminTelegramBotToken, "admin-bot-token");
+    assert.deepEqual(config.adminTelegramIds, ["434092620", "612078835"]);
+  });
+});

@@ -12,6 +12,7 @@ import { createGameRouter } from "./modules/game/game.routes.js";
 import { createGameService } from "./modules/game/game.service.js";
 import { createTelegramSubscriptionChecker } from "./modules/game/telegram-subscription.js";
 import { createAuthMiddleware } from "./middlewares/auth.js";
+import { createAdminAuthMiddleware } from "./middlewares/admin-auth.js";
 
 export function buildDependencies({ pool, config }) {
   const adminRepository = createAdminRepository({ pool });
@@ -47,12 +48,17 @@ export function buildDependencies({ pool, config }) {
   const gameController = createGameController({ gameService });
   const authController = createAuthController({ authService, gameService });
   const authMiddleware = createAuthMiddleware({ authService });
+  const adminAuthMiddleware = createAdminAuthMiddleware({
+    adminTelegramBotToken: config.adminTelegramBotToken,
+    allowedTelegramIds: config.adminTelegramIds,
+  });
 
   return {
     pool,
     adminController,
-    adminRouter: createAdminRouter({ adminController, config }),
+    adminRouter: createAdminRouter({ adminController, config, adminAuthMiddleware }),
     adminService,
+    adminAuthMiddleware,
     authController,
     authService,
     authMiddleware,

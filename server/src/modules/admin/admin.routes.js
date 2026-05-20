@@ -3,8 +3,10 @@ import { Router } from "express";
 import { asyncHandler } from "../../lib/async-handler.js";
 import { decryptAdminRequestBody } from "./admin-crypto.js";
 
-export function createAdminRouter({ adminController, config }) {
+export function createAdminRouter({ adminController, config, adminAuthMiddleware }) {
   const router = Router();
+
+  router.use(adminAuthMiddleware);
 
   router.use((request, _response, next) => {
     try {

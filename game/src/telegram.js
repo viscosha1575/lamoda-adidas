@@ -212,9 +212,7 @@ function safelyExpandTelegramApp(webApp) {
         fullscreenResult.catch(() => {})
       }
     }
-  } catch (error) {
-    console.warn('Telegram Mini App initialization failed', error)
-  }
+  } catch {}
 }
 
 export function bootstrapTelegram() {
@@ -254,9 +252,7 @@ export function bootstrapTelegram() {
 
       safelyExpandTelegramApp(webApp)
       syncTelegramUiState(webApp)
-    } catch (error) {
-      console.warn('Telegram Mini App bootstrap failed', error)
-    }
+    } catch {}
   })()
 
   return bootstrapPromise
@@ -281,7 +277,5 @@ export function requestTelegramFullscreen() {
         fullscreenResult.catch(() => {})
       }
     }
-  } catch (error) {
-    console.warn('Telegram fullscreen request failed', error)
-  }
+  } catch {}
 }

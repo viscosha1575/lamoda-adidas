@@ -230,11 +230,14 @@ export function createAdminService({
   config,
 }) {
   return {
-    getAuthMe() {
+    getAuthMe(admin) {
       return {
         admin: {
-          id: "local-admin",
-          username: config.environment === "production" ? "admin" : "local_admin",
+          id: String(admin?.telegramUserId ?? ""),
+          telegramUserId: admin?.telegramUserId ?? null,
+          username: admin?.username ?? null,
+          firstName: admin?.firstName ?? null,
+          lastName: admin?.lastName ?? null,
         },
       };
     },

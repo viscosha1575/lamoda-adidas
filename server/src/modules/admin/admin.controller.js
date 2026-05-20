@@ -1,7 +1,7 @@
 export function createAdminController({ adminService }) {
   return {
-    async authMe(_request, response) {
-      response.json(await adminService.getAuthMe());
+    async authMe(request, response) {
+      response.json(await adminService.getAuthMe(request.admin));
     },
 
     async analyticsOverview(request, response) {

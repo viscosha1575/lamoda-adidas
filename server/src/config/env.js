@@ -30,6 +30,8 @@ const envSchema = z.object({
     .default("http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173"),
   TELEGRAM_BOT_TOKEN: optionalNonEmptyString,
   TELEGRAM_GAME_BOT_TOKEN: optionalNonEmptyString,
+  ADMIN_TELEGRAM_BOT_TOKEN: optionalNonEmptyString,
+  ADMIN_TELEGRAM_IDS: optionalNonEmptyString,
   TELEGRAM_TRUST_CLIENT_USER: booleanFromEnv.default("true"),
   TELEGRAM_APP_URL: z.string().url().default("https://t.me/lamoda_games_bot/search"),
   TELEGRAM_SUBSCRIPTION_CHAT_ID: optionalNonEmptyString,
@@ -76,6 +78,11 @@ export function loadConfig() {
     corsOrigins: env.CORS_ORIGINS.split(",").map((origin) => origin.trim()).filter(Boolean),
     telegramBotToken: env.TELEGRAM_BOT_TOKEN ?? null,
     telegramGameBotToken: env.TELEGRAM_GAME_BOT_TOKEN ?? env.TELEGRAM_BOT_TOKEN ?? null,
+    adminTelegramBotToken: env.ADMIN_TELEGRAM_BOT_TOKEN ?? null,
+    adminTelegramIds: String(env.ADMIN_TELEGRAM_IDS ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
     trustTelegramClientUser: env.TELEGRAM_TRUST_CLIENT_USER,
     telegramAppUrl: env.TELEGRAM_APP_URL,
     telegramSubscriptionChatId: env.TELEGRAM_SUBSCRIPTION_CHAT_ID ?? "@lamoda_na_svyazi",

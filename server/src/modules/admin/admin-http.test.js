@@ -8,6 +8,33 @@ import request from "supertest";
 import { errorHandler } from "../../middlewares/error-handler.js";
 import { createAdminController } from "./admin.controller.js";
 import { createAdminRouter } from "./admin.routes.js";
+import { createAdminAuthMiddleware } from "../../middlewares/admin-auth.js";
+
+function createSignedInitData(botToken, overrides = {}) {
+  const params = new URLSearchParams({
+    query_id: "AAAdmin",
+    user: JSON.stringify({
+      id: 434092620,
+      username: "mila_admin",
+      first_name: "Mila",
+      last_name: "Admin",
+      ...overrides,
+    }),
+    auth_date: "1710000000",
+  });
+  const entries = Array.from(params.entries())
+    .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
+    .map(([key, value]) => `${key}=${value}`)
+    .join("\n");
+  const secretKey = crypto.createHmac("sha256", "WebAppData").update(botToken).digest();
+  const hash = crypto
+    .createHmac("sha256", secretKey)
+    .update(entries)
+    .digest("hex");
+
+  params.set("hash", hash);
+  return params.toString();
+}
 
 async function encryptAdminPayload(payload, secret) {
   const key = crypto.createHash("sha256").update(secret).digest();
@@ -28,20 +55,26 @@ async function encryptAdminPayload(payload, secret) {
 
 test("POST /api/admin/auth/me returns admin info", async () => {
   const adminService = {
-    async getAuthMe() {
+    async getAuthMe(admin) {
       return {
         admin: {
-          id: "local-admin",
-          username: "local_admin",
+          id: String(admin.telegramUserId),
+          telegramUserId: admin.telegramUserId,
+          username: admin.username,
         },
       };
     },
   };
+  const adminBotToken = "admin-bot-token";
 
   const app = express();
   app.use(express.json());
   app.use("/api/admin", createAdminRouter({
     adminController: createAdminController({ adminService }),
+    adminAuthMiddleware: createAdminAuthMiddleware({
+      adminTelegramBotToken: adminBotToken,
+      allowedTelegramIds: ["434092620"],
+    }),
     config: {
       requestBodySecret: "",
     },
@@ -50,10 +83,12 @@ test("POST /api/admin/auth/me returns admin info", async () => {
 
   const response = await request(app)
     .post("/api/admin/auth/me")
+    .set("X-Telegram-Init-Data", createSignedInitData(adminBotToken))
     .send({});
 
   assert.equal(response.statusCode, 200);
-  assert.equal(response.body.admin.username, "local_admin");
+  assert.equal(response.body.admin.telegramUserId, 434092620);
+  assert.equal(response.body.admin.username, "mila_admin");
 });
 
 test("POST /api/admin/analytics/overview returns summary", async () => {
@@ -82,11 +117,16 @@ test("POST /api/admin/analytics/overview returns summary", async () => {
       };
     },
   };
+  const adminBotToken = "test-secret-bot";
 
   const app = express();
   app.use(express.json());
   app.use("/api/admin", createAdminRouter({
     adminController: createAdminController({ adminService }),
+    adminAuthMiddleware: createAdminAuthMiddleware({
+      adminTelegramBotToken: adminBotToken,
+      allowedTelegramIds: ["434092620"],
+    }),
     config: {
       requestBodySecret: "test-secret",
     },
@@ -99,6 +139,7 @@ test("POST /api/admin/analytics/overview returns summary", async () => {
 
   const response = await request(app)
     .post("/api/admin/analytics/overview")
+    .set("X-Telegram-Init-Data", createSignedInitData(adminBotToken))
     .send(encryptedBody);
 
   assert.equal(response.statusCode, 200);
@@ -115,11 +156,16 @@ test("POST /api/admin/raffle/reset resets raffle winners", async () => {
       };
     },
   };
+  const adminBotToken = "admin-bot-token";
 
   const app = express();
   app.use(express.json());
   app.use("/api/admin", createAdminRouter({
     adminController: createAdminController({ adminService }),
+    adminAuthMiddleware: createAdminAuthMiddleware({
+      adminTelegramBotToken: adminBotToken,
+      allowedTelegramIds: ["434092620"],
+    }),
     config: {
       requestBodySecret: "",
     },
@@ -128,8 +174,42 @@ test("POST /api/admin/raffle/reset resets raffle winners", async () => {
 
   const response = await request(app)
     .post("/api/admin/raffle/reset")
+    .set("X-Telegram-Init-Data", createSignedInitData(adminBotToken))
     .send({});
 
   assert.equal(response.statusCode, 200);
   assert.equal(response.body.updatedCount, 12);
+});
+
+test("POST /api/admin/auth/me rejects non-admin Telegram user", async () => {
+  const app = express();
+  app.use(express.json());
+  app.use("/api/admin", createAdminRouter({
+    adminController: createAdminController({
+      adminService: {
+        async getAuthMe() {
+          return {};
+        },
+      },
+    }),
+    adminAuthMiddleware: createAdminAuthMiddleware({
+      adminTelegramBotToken: "admin-bot-token",
+      allowedTelegramIds: ["434092620"],
+    }),
+    config: {
+      requestBodySecret: "",
+    },
+  }));
+  app.use(errorHandler);
+
+  const response = await request(app)
+    .post("/api/admin/auth/me")
+    .set("X-Telegram-Init-Data", createSignedInitData("admin-bot-token", {
+      id: 999999999,
+      username: "outsider",
+    }))
+    .send({});
+
+  assert.equal(response.statusCode, 403);
+  assert.equal(response.body.error.message, "Admin access denied");
 });

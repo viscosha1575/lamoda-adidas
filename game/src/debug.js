@@ -39,6 +39,4 @@ export function logGameDebug(event, payload = {}) {
       store.splice(0, store.length - 400)
     }
   }
-
-  console.log('[lamoda-debug]', event, payload)
 }

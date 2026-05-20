@@ -294,6 +294,10 @@
       var unityInstance = null;
 
       function unityShowBanner(msg, type) {
+        if (type === 'warning') {
+          return;
+        }
+
         var warningBanner = document.querySelector("#unity-warning");
         function updateBannerVisibility() {
           warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';

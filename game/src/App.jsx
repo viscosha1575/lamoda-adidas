@@ -342,9 +342,7 @@ function warmUnityInBackground() {
       type: 'application/wasm',
     })
 
-    ensureUnityLoaderScript().catch((error) => {
-      console.warn('Unity background warmup failed', error)
-    })
+    ensureUnityLoaderScript().catch(() => {})
   }
 
   if (typeof window.requestIdleCallback === 'function') {
@@ -1031,9 +1029,7 @@ function UnityPlayer({ preload = false, isVisible = false, onLoadError }) {
               window.addEventListener('deviceorientation', handleOrientation)
             }
           })
-          .catch((error) => {
-            console.warn('Accelerometer permission failed', error)
-          })
+          .catch(() => {})
 
         return
       }
@@ -1072,7 +1068,6 @@ function UnityPlayer({ preload = false, isVisible = false, onLoadError }) {
 
     function showBanner(message, type) {
       if (type === 'warning') {
-        console.warn('Unity warning:', message)
         return
       }
 
@@ -1167,10 +1162,9 @@ function UnityPlayer({ preload = false, isVisible = false, onLoadError }) {
             setIsReady(true)
             onLoadErrorRef.current?.('')
           })
-          .catch((error) => {
+          .catch(() => {
             hasBootedRef.current = false
             stopLoadingHints()
-            console.error('Unity boot failed', error)
             onLoadErrorRef.current?.('Не удалось загрузить игру. Попробуй обновить страницу.')
           })
       }
@@ -1182,10 +1176,9 @@ function UnityPlayer({ preload = false, isVisible = false, onLoadError }) {
 
       ensureUnityLoaderScript()
         .then(runUnity)
-        .catch((error) => {
+        .catch(() => {
           hasBootedRef.current = false
           stopLoadingHints()
-          console.error('Unity loader failed', error)
           onLoadErrorRef.current?.('Не удалось загрузить Unity loader.')
         })
     }
@@ -2326,23 +2319,10 @@ function DraggableGameMapCanvas({
           const collectSneaker = async (entry, pointer, event) => {
             const { object, sprite, hitZone } = entry
 
-            console.log('[game-sneaker] pointerdown', {
-              key: object.key,
-              sneakerNumber: object.sneakerNumber,
-              worldX: object.x,
-              worldY: object.y,
-              screenX: pointer?.x,
-              screenY: pointer?.y,
-            })
-
             event?.stopPropagation?.()
             isDragging = false
 
             if (!collectionEnabled || sprite.getData('collected') || sprite.getData('collecting')) {
-              console.log('[game-sneaker] already collected', {
-                key: object.key,
-                sneakerNumber: object.sneakerNumber,
-              })
               return
             }
 
@@ -2384,11 +2364,6 @@ function DraggableGameMapCanvas({
               onComplete: () => {
                 applyEntrySceneState(entry)
               },
-            })
-
-            console.log('[game-sneaker] collect animation started', {
-              key: object.key,
-              sneakerNumber: object.sneakerNumber,
             })
           }
 
@@ -3393,22 +3368,11 @@ function DraggableGameMapCanvas({
             this.input.manager.hitTest(pointer, interactiveSprites, cam, hitTargets)
 
             if (hitTargets.length > 0) {
-              console.log('[game-map] pointerdown hit interactive sprite', {
-                pointerX: pointer.x,
-                pointerY: pointer.y,
-                hitCount: hitTargets.length,
-                keys: hitTargets.map((target) => target.texture?.key ?? 'unknown'),
-              })
               pointerDownHitInteractive = true
               isDragging = false
               return
             }
 
-            console.log('[game-map] pointerdown starts drag', {
-              pointerX: pointer.x,
-              pointerY: pointer.y,
-              interactiveCount: interactiveSprites.length,
-            })
             pointerDownHitInteractive = false
             isDragging = true
             dragOriginX = pointer.x
@@ -3596,8 +3560,6 @@ function MapTutorialScreen({
       return
     }
 
-    const initData = getTelegramWebApp()?.initData?.trim() ?? null
-    console.log('Telegram initData on intro:', initData)
     introInitDataLoggedRef.current = true
   }, [phase])
 
@@ -5201,11 +5163,7 @@ function App() {
   }, [activeIndex, backendBootstrap.player?.id, backendBootstrap.status, slide?.id])
 
   useEffect(() => {
-    const webApp = getTelegramWebApp()
-    const initData = webApp?.initData?.trim() ?? null
-
-    console.log('Telegram initData on app intro:', initData)
-    console.log('Telegram initDataUnsafe on app intro:', webApp?.initDataUnsafe ?? null)
+    getTelegramWebApp()
   }, [])
 
   useEffect(() => {
