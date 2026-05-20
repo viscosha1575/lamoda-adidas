@@ -56,8 +56,10 @@ services:
   server:
     build:
       context: ../server
-    container_name: lamoda-server
     restart: unless-stopped
+    mem_limit: 1g
+    cpus: 1.50
+    pids_limit: 1024
     environment:
       NODE_ENV: production
       PORT: 3001

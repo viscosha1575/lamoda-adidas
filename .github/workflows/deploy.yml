@@ -85,7 +85,10 @@ jobs:
             git fetch --all --prune
             git checkout main
             git pull --ff-only origin main
-            docker compose --env-file deploy/.env -f deploy/docker-compose.prod.yml up -d --build
+            set -a
+            . deploy/.env
+            set +a
+            docker compose --env-file deploy/.env -f deploy/docker-compose.prod.yml up -d --build --scale server="${SERVER_REPLICAS:-2}"
             docker image prune -f
 
       - name: Check public API health

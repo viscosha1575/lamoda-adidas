@@ -49,6 +49,7 @@ Set these values in `deploy/.env`:
 - `TELEGRAM_TRUST_CLIENT_USER=false` or your desired mode
 - `TELEGRAM_APP_URL=...`
 - `REQUEST_BODY_SECRET=` a long random secret used by admin frontend and server together
+- `SERVER_REPLICAS=2` to run multiple backend instances behind Traefik
 
 3. Secret shared by admin and server
 
@@ -62,7 +63,10 @@ Without this, admin API requests will not be decrypted correctly in production.
 ## Start
 
 ```bash
-docker compose --env-file /opt/lamoda-adidas/deploy/.env -f /opt/lamoda-adidas/deploy/docker-compose.prod.yml up -d --build
+set -a
+. /opt/lamoda-adidas/deploy/.env
+set +a
+docker compose --env-file /opt/lamoda-adidas/deploy/.env -f /opt/lamoda-adidas/deploy/docker-compose.prod.yml up -d --build --scale server="${SERVER_REPLICAS:-2}"
 ```
 
 ## GitHub Actions
