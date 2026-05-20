@@ -66,7 +66,7 @@ services:
       PGDATABASE: ${POSTGRES_DB}
       PGUSER: ${POSTGRES_USER}
       PGPASSWORD: ${POSTGRES_PASSWORD}
-      CORS_ORIGINS: https://${DOMAIN},https://${ADMIN_DOMAIN}
+      CORS_ORIGINS: https://${DOMAIN},https://${ADMIN_DOMAIN},https://cdn.${DOMAIN}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       TELEGRAM_GAME_BOT_TOKEN: ${TELEGRAM_GAME_BOT_TOKEN}
       ADMIN_TELEGRAM_BOT_TOKEN: ${ADMIN_TELEGRAM_BOT_TOKEN}
@@ -107,7 +107,7 @@ services:
     build:
       context: ../game
       args:
-        VITE_API_URL: /api
+        VITE_API_URL: https://${DOMAIN}/api
     container_name: lamoda-game
     restart: unless-stopped
     labels:
