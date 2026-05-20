@@ -198,6 +198,13 @@ export function createGameRepository({ pool }) {
 
       try {
         await client.query("BEGIN");
+        await client.query(
+          `SELECT id
+             FROM players
+            WHERE id = $1
+            FOR UPDATE`,
+          [playerId],
+        );
 
         const existingResult = await client.query(
           `SELECT code
@@ -212,29 +219,23 @@ export function createGameRepository({ pool }) {
           return existingResult.rows[0].code;
         }
 
-        const availableResult = await client.query(
-          `SELECT id, code
-             FROM promo_codes
-            WHERE assigned_player_id IS NULL
-            ORDER BY id ASC
-            LIMIT 1
-            FOR UPDATE SKIP LOCKED`,
-        );
-
-        if (!availableResult.rows[0]) {
-          await client.query("COMMIT");
-          return null;
-        }
-
         const assignedResult = await client.query(
-          `UPDATE promo_codes
+          `WITH next_code AS (
+             SELECT id
+               FROM promo_codes
+              WHERE assigned_player_id IS NULL
+              ORDER BY id ASC
+              LIMIT 1
+              FOR UPDATE SKIP LOCKED
+           )
+           UPDATE promo_codes
               SET assigned_player_id = $1,
                   assigned_at = NOW(),
                   updated_at = NOW()
-            WHERE id = $2
+            WHERE id = (SELECT id FROM next_code)
               AND assigned_player_id IS NULL
           RETURNING code`,
-          [playerId, availableResult.rows[0].id],
+          [playerId],
         );
 
         await client.query("COMMIT");

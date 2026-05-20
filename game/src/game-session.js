@@ -254,29 +254,6 @@ export function useServerGameSession({ token, initialGameState = null, autoStart
     return undefined
   }, [autoStart, initialGameState?.lifecycle, initialGameState?.session, startSession])
 
-  useEffect(() => {
-    if (gameState?.session?.status !== 'active') {
-      return undefined
-    }
-
-    const intervalId = window.setInterval(() => {
-      void logSessionActivity(
-        {
-          source: 'webapp',
-          action: 'presence-ping',
-          details: {
-            visibilityState: document.visibilityState,
-          },
-        },
-        { silent: true },
-      )
-    }, 5_000)
-
-    return () => {
-      window.clearInterval(intervalId)
-    }
-  }, [gameState?.session?.status, logSessionActivity])
-
   const clientRemainingSeconds = useMemo(() => {
     if (!gameState?.session) {
       return 0
