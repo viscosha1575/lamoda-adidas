@@ -1099,7 +1099,9 @@ function UnityPlayer({ preload = false, isVisible = false, onLoadError }) {
     let loadingHintIntervalId = null
 
     function renderSlowLoadHint() {
-      setLoadingHint('Если долго грузится: отключи VPN и перезапусти mini app')
+      setLoadingHint(
+        'Если долго грузится —\nотключите VPN и перезагрузите\nMini App (нажмите на 3 точки в\nправом верхнем углу)',
+      )
     }
 
     function renderPatienceHint() {
@@ -1262,7 +1264,7 @@ function UnityPlayer({ preload = false, isVisible = false, onLoadError }) {
                   </div>
                 </div>
 
-                <p className="loading-caption text-center font-display text-[clamp(1.4rem,6vw,2rem)] leading-[1.05] text-white">
+                <p className="loading-caption whitespace-pre-line text-center font-display text-[clamp(1.4rem,6vw,2rem)] leading-[1.05] text-white">
                   {loadingHint}
                 </p>
               </div>
