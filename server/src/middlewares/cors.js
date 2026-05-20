@@ -1,5 +1,10 @@
 export function createCorsMiddleware({ allowedOrigins }) {
   const allowAll = allowedOrigins.includes("*");
+  const allowedHeaders = [
+    "Authorization",
+    "Content-Type",
+    "X-Telegram-Init-Data",
+  ].join(", ");
 
   return function corsMiddleware(request, response, next) {
     const requestOrigin = request.headers.origin;
@@ -11,7 +16,7 @@ export function createCorsMiddleware({ allowedOrigins }) {
     }
 
     response.header("Vary", "Origin");
-    response.header("Access-Control-Allow-Headers", "Authorization, Content-Type");
+    response.header("Access-Control-Allow-Headers", allowedHeaders);
     response.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
 
     if (request.method === "OPTIONS") {

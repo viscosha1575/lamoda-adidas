@@ -32,3 +32,19 @@ test("GET /api/health returns service status", async () => {
   assert.equal(response.body.status, "ok");
   assert.equal(response.body.database, "connected");
 });
+
+test("OPTIONS preflight allows telegram init data header", async () => {
+  const app = createTestApp();
+  const response = await request(app)
+    .options("/api/auth/session")
+    .set("Origin", "http://localhost:5173")
+    .set("Access-Control-Request-Method", "POST")
+    .set("Access-Control-Request-Headers", "x-telegram-init-data, content-type");
+
+  assert.equal(response.statusCode, 204);
+  assert.equal(response.headers["access-control-allow-origin"], "http://localhost:5173");
+  assert.match(
+    response.headers["access-control-allow-headers"] ?? "",
+    /X-Telegram-Init-Data/i,
+  );
+});
