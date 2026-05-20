@@ -27,6 +27,8 @@ const UNITY_LOADING_BACKGROUND_URL = `${UNITY_TEMPLATE_BASE_URL}/back-loading.we
 const UNITY_FONT_URL = `${UNITY_TEMPLATE_BASE_URL}/VCROSDMONO[NOLIVANTNTEDIT]-REGULAR.TTF`
 const UNITY_TELEGRAM_AVATAR_PLACEHOLDER_URL = `${UNITY_TEMPLATE_BASE_URL}/webmemd-icon.png`
 const UNITY_MOBILE_DEVICE_PATTERN = /iPhone|iPad|iPod|Android/i
+const UNITY_RELOAD_GUIDANCE = 'Отключите VPN, затем нажмите на 3 точки в правом верхнем углу и перезагрузите приложение.'
+const UNITY_LOAD_ERROR_MESSAGE = `Ошибка загрузки. ${UNITY_RELOAD_GUIDANCE}`
 const TUTORIAL_MAP_OVERSCAN_X = 1.12
 const TUTORIAL_MAP_TOP_CROP_RATIO = 0.1
 const GAME_MAP_SCALE = MOBILE_CANVAS_WIDTH / MAP_IMAGE_WIDTH
@@ -355,6 +357,63 @@ function warmUnityInBackground() {
 
 function isUnityMobileDevice() {
   return UNITY_MOBILE_DEVICE_PATTERN.test(window.navigator.userAgent)
+}
+
+function normalizeUnityBannerMessage(message) {
+  if (typeof message !== 'string') {
+    return ''
+  }
+
+  return message
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim()
+}
+
+function isUnityLoadFailureMessage(message) {
+  return /(failed to load|unable to load|network|fetch|loader|framework|\.data\b|\.wasm\b)/i.test(
+    message,
+  )
+}
+
+function buildUnityBannerContent(message, type) {
+  const normalizedMessage = normalizeUnityBannerMessage(message)
+  const isLoadFailure = isUnityLoadFailureMessage(normalizedMessage)
+
+  return {
+    title: type === 'warning' ? 'Проблема с загрузкой' : 'Ошибка загрузки',
+    body: UNITY_RELOAD_GUIDANCE,
+    detail: normalizedMessage && !isLoadFailure ? normalizedMessage : '',
+  }
+}
+
+function createUnityBannerEntry(message, type) {
+  const bannerType = type === 'warning' ? 'warning' : 'error'
+  const { title, body, detail } = buildUnityBannerContent(message, bannerType)
+  const bannerEntry = document.createElement('div')
+  bannerEntry.className = `unity-warning-card unity-warning-card--${bannerType}`
+
+  const titleElement = document.createElement('p')
+  titleElement.className = 'unity-warning-card__title'
+  titleElement.textContent = title
+  bannerEntry.appendChild(titleElement)
+
+  const bodyElement = document.createElement('p')
+  bodyElement.className = 'unity-warning-card__body'
+  bodyElement.textContent = body
+  bannerEntry.appendChild(bodyElement)
+
+  if (detail) {
+    const detailElement = document.createElement('p')
+    detailElement.className = 'unity-warning-card__detail'
+    detailElement.textContent = detail
+    bannerEntry.appendChild(detailElement)
+  }
+
+  return bannerEntry
 }
 
 function createUnityConfig(showBanner) {
@@ -987,7 +1046,12 @@ function HiddenMapWarmupImage() {
   )
 }
 
-function UnityPlayer({ preload = false, isVisible = false, onLoadError }) {
+function UnityPlayer({
+  preload = false,
+  isVisible = false,
+  onLoadError,
+  previewBanner = null,
+}) {
   const canvasRef = useRef(null)
   const containerRef = useRef(null)
   const warningBannerRef = useRef(null)
@@ -998,6 +1062,7 @@ function UnityPlayer({ preload = false, isVisible = false, onLoadError }) {
   const [progress, setProgress] = useState(0)
   const [isReady, setIsReady] = useState(false)
   const [loadingHint, setLoadingHint] = useState('Уже почти...')
+  const [hasWarningBanner, setHasWarningBanner] = useState(false)
 
   useEffect(() => {
     onLoadErrorRef.current = onLoadError
@@ -1066,29 +1131,39 @@ function UnityPlayer({ preload = false, isVisible = false, onLoadError }) {
       container.classList.add('unity-desktop')
     }
 
-    function showBanner(message, type) {
-      if (type === 'warning') {
-        return
-      }
+    function syncWarningBannerVisibility() {
+      const hasChildren = warningBanner.children.length > 0
+      warningBanner.style.display = hasChildren ? 'grid' : 'none'
+      setHasWarningBanner(hasChildren)
+    }
 
-      const bannerEntry = document.createElement('div')
-      bannerEntry.innerHTML = message
+    if (previewBanner) {
+      const bannerEntry = createUnityBannerEntry(previewBanner.message, previewBanner.type)
       warningBanner.appendChild(bannerEntry)
+      syncWarningBannerVisibility()
+      setLoadingHint(
+        'Если долго грузится —\nотключите VPN, нажмите на 3 точки\nв правом верхнем углу\nи перезагрузите приложение',
+      )
 
-      if (type === 'error') {
-        bannerEntry.style.background = '#f4383e'
-        bannerEntry.style.color = '#fff'
-        bannerEntry.style.padding = '10px 12px'
-      } else {
+      return () => {
+        warningBanner.innerHTML = ''
+        syncWarningBannerVisibility()
+      }
+    }
+
+    function showBanner(message, type) {
+      const bannerEntry = createUnityBannerEntry(message, type)
+      warningBanner.appendChild(bannerEntry)
+      syncWarningBannerVisibility()
+
+      if (type !== 'error') {
         window.setTimeout(() => {
           if (warningBanner.contains(bannerEntry)) {
             warningBanner.removeChild(bannerEntry)
-            warningBanner.style.display = warningBanner.children.length ? 'block' : 'none'
+            syncWarningBannerVisibility()
           }
-        }, 5000)
+        }, 8000)
       }
-
-      warningBanner.style.display = warningBanner.children.length ? 'block' : 'none'
     }
 
     function toUnityProgress(nextProgress) {
@@ -1100,7 +1175,7 @@ function UnityPlayer({ preload = false, isVisible = false, onLoadError }) {
 
     function renderSlowLoadHint() {
       setLoadingHint(
-        'Если долго грузится —\nотключите VPN и перезагрузите\nMini App (нажмите на 3 точки\nв правом верхнем углу)',
+        'Если долго грузится —\nотключите VPN, нажмите на 3 точки\nв правом верхнем углу\nи перезагрузите приложение',
       )
     }
 
@@ -1167,7 +1242,7 @@ function UnityPlayer({ preload = false, isVisible = false, onLoadError }) {
           .catch(() => {
             hasBootedRef.current = false
             stopLoadingHints()
-            onLoadErrorRef.current?.('Не удалось загрузить игру. Попробуй обновить страницу.')
+            onLoadErrorRef.current?.(UNITY_LOAD_ERROR_MESSAGE)
           })
       }
 
@@ -1181,7 +1256,7 @@ function UnityPlayer({ preload = false, isVisible = false, onLoadError }) {
         .catch(() => {
           hasBootedRef.current = false
           stopLoadingHints()
-          onLoadErrorRef.current?.('Не удалось загрузить Unity loader.')
+          onLoadErrorRef.current?.(UNITY_LOAD_ERROR_MESSAGE)
         })
     }
 
@@ -1206,9 +1281,11 @@ function UnityPlayer({ preload = false, isVisible = false, onLoadError }) {
         window.unityInstance = null
       }
 
+      warningBanner.innerHTML = ''
+      syncWarningBannerVisibility()
       unityInstanceRef.current = null
     }
-  }, [])
+  }, [previewBanner])
 
   useEffect(() => {
     if (preload || isVisible) {
@@ -1234,6 +1311,8 @@ function UnityPlayer({ preload = false, isVisible = false, onLoadError }) {
             background: `#000 url('${UNITY_LOADING_BACKGROUND_URL}') center / cover no-repeat`,
           }}
         />
+
+        <div className={`unity-warning-overlay${hasWarningBanner ? ' unity-warning-overlay--visible' : ''}`} />
 
         <div className={`unity-loading-overlay${isReady ? ' unity-loading-overlay--hidden' : ''}`}>
           <section className="relative flex min-h-svh items-center justify-center overflow-hidden">
@@ -5102,6 +5181,9 @@ const slides = [
 ]
 
 function App() {
+  const previewMode = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('preview')
+    : null
   const backendBootstrap = useBackendBootstrap()
   const [activeIndex, setActiveIndex] = useState(0)
   const [screen, setScreen] = useState('intro')
@@ -5123,6 +5205,24 @@ function App() {
   const hasLoggedAppOpenRef = useRef(false)
   const hasLoggedEnteredGameRef = useRef(false)
   const previousIntroSlideRef = useRef(null)
+
+  if (previewMode === 'unity-warning') {
+    return (
+      <div className="unity-app-shell unity-app-shell--immersive">
+        <div className="unity-layer unity-layer--visible">
+          <UnityPlayer
+            preload={false}
+            isVisible
+            onLoadError={() => {}}
+            previewBanner={{
+              type: 'warning',
+              message: 'Failed to load file /unity/Build/FinalBuild.framework.js',
+            }}
+          />
+        </div>
+      </div>
+    )
+  }
 
   const sendIntroActivity = useCallback((action, details = {}) => {
     if (!backendBootstrap.token) {

@@ -243,10 +243,68 @@
       }
       #unity-warning {
         position: absolute;
-        top: 10px;
+        top: 50%;
         left: 50%;
-        transform: translateX(-50%);
+        transform: translate(-50%, -50%);
         z-index: 20;
+        display: none;
+        width: min(92vw, 28rem);
+        max-width: min(92vw, 28rem);
+        gap: 12px;
+      }
+
+      #unity-warning-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 19;
+        background: rgba(0, 0, 0, 0.5);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 180ms ease;
+      }
+
+      #unity-warning-overlay.visible {
+        opacity: 1;
+      }
+
+      .unity-warning-card {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 18px 18px 16px;
+        border: 2px solid #d53c44;
+        background: rgba(255, 255, 255, 0.96);
+        color: #111;
+        text-align: center;
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.24);
+      }
+
+      .unity-warning-card--warning {
+        border-color: #d53c44;
+        outline-color: rgba(213, 60, 68, 0.35);
+      }
+
+      .unity-warning-card__title,
+      .unity-warning-card__body,
+      .unity-warning-card__detail {
+        margin: 0;
+        font-family: var(--font-display);
+      }
+
+      .unity-warning-card__title {
+        font-size: 18px;
+        line-height: 1.15;
+      }
+
+      .unity-warning-card__body {
+        font-size: 16px;
+        line-height: 1.35;
+      }
+
+      .unity-warning-card__detail {
+        color: #4e4e4e;
+        font-size: 14px;
+        line-height: 1.35;
       }
     </style>
   </head>
@@ -255,6 +313,7 @@
     <!-- Контейнер самой игры Юнити -->
     <div id="unity-container">
       <canvas id="unity-canvas" width="960" height="600"></canvas>
+      <div id="unity-warning-overlay"></div>
       <div id="unity-warning"></div>
     </div>
 
@@ -292,26 +351,68 @@
       var fill = document.getElementById("loading-fill");
       var captionText = document.getElementById("loading-text");
       var unityInstance = null;
+      var unityReloadGuidance = "Отключите VPN, затем нажмите на 3 точки в правом верхнем углу и перезагрузите приложение.";
+      var warningOverlay = document.getElementById("unity-warning-overlay");
+
+      function normalizeUnityBannerMessage(message) {
+        if (typeof message !== "string") {
+          return "";
+        }
+
+        return message
+          .replace(/<br\s*\/?>/gi, "\n")
+          .replace(/<[^>]+>/g, " ")
+          .replace(/[ \t]+\n/g, "\n")
+          .replace(/\n[ \t]+/g, "\n")
+          .replace(/[ \t]{2,}/g, " ")
+          .trim();
+      }
+
+      function isUnityLoadFailureMessage(message) {
+        return /(failed to load|unable to load|network|fetch|loader|framework|\.data\b|\.wasm\b)/i.test(message);
+      }
+
+      function createUnityBannerEntry(message, type) {
+        var normalizedMessage = normalizeUnityBannerMessage(message);
+        var isLoadFailure = isUnityLoadFailureMessage(normalizedMessage);
+        var bannerType = type === "warning" ? "warning" : "error";
+        var bannerEntry = document.createElement("div");
+        bannerEntry.className = "unity-warning-card unity-warning-card--" + bannerType;
+
+        var titleElement = document.createElement("p");
+        titleElement.className = "unity-warning-card__title";
+        titleElement.textContent = bannerType === "warning" ? "Проблема с загрузкой" : "Ошибка загрузки";
+        bannerEntry.appendChild(titleElement);
+
+        var bodyElement = document.createElement("p");
+        bodyElement.className = "unity-warning-card__body";
+        bodyElement.textContent = unityReloadGuidance;
+        bannerEntry.appendChild(bodyElement);
+
+        if (normalizedMessage && !isLoadFailure) {
+          var detailElement = document.createElement("p");
+          detailElement.className = "unity-warning-card__detail";
+          detailElement.textContent = normalizedMessage;
+          bannerEntry.appendChild(detailElement);
+        }
+
+        return bannerEntry;
+      }
 
       function unityShowBanner(msg, type) {
-        if (type === 'warning') {
-          return;
-        }
-
         var warningBanner = document.querySelector("#unity-warning");
         function updateBannerVisibility() {
-          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+          var isVisible = warningBanner.children.length > 0;
+          warningBanner.style.display = isVisible ? 'grid' : 'none';
+          warningOverlay.classList.toggle('visible', isVisible);
         }
-        var div = document.createElement('div');
-        div.innerHTML = msg;
+        var div = createUnityBannerEntry(msg, type);
         warningBanner.appendChild(div);
-        if (type == 'error') div.style = 'background: red; padding: 10px; color: white;';
-        else {
-          if (type == 'warning') div.style = 'background: yellow; padding: 10px; color: black;';
+        if (type !== 'error') {
           setTimeout(function() {
             warningBanner.removeChild(div);
             updateBannerVisibility();
-          }, 5000);
+          }, 8000);
         }
         updateBannerVisibility();
       }
