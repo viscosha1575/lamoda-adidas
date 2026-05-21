@@ -1343,7 +1343,7 @@ function UnityPlayer({
                   </div>
                 </div>
 
-                <p className="loading-caption w-full max-w-[26rem] whitespace-pre-line text-center font-display text-[clamp(1.15rem,4.9vw,1.65rem)] leading-[1.05] text-white">
+                <p className="loading-caption w-full max-w-[30rem] whitespace-pre-line text-center font-display text-[clamp(1rem,4.3vw,1.45rem)] leading-[1.05] text-white">
                   {loadingHint}
                 </p>
               </div>
@@ -1386,7 +1386,7 @@ function LoadingScreen({ progress }) {
               </div>
             </div>
 
-            <p className="loading-caption w-full max-w-[26rem] text-center font-display text-[clamp(1.15rem,4.9vw,1.65rem)] leading-none text-white">
+            <p className="loading-caption w-full max-w-[30rem] text-center font-display text-[clamp(1rem,4.3vw,1.45rem)] leading-none text-white">
               Уже почти...
             </p>
           </div>
