@@ -7,7 +7,24 @@ import tailwindcss from '@tailwindcss/vite'
 const certDir = path.resolve(process.cwd(), 'certs')
 const certPath = path.join(certDir, 'localhost.pem')
 const keyPath = path.join(certDir, 'localhost-key.pem')
-const unityBuildVersion = new Date().toISOString().slice(0, 10)
+
+function padDatePart(value) {
+  return String(value).padStart(2, '0')
+}
+
+function createUnityBuildVersion(date) {
+  return [
+    date.getUTCFullYear(),
+    padDatePart(date.getUTCMonth() + 1),
+    padDatePart(date.getUTCDate()),
+  ].join('') + '-' + [
+    padDatePart(date.getUTCHours()),
+    padDatePart(date.getUTCMinutes()),
+    padDatePart(date.getUTCSeconds()),
+  ].join('') + 'Z'
+}
+
+const unityBuildVersion = process.env.VITE_UNITY_BUILD_VERSION?.trim() || createUnityBuildVersion(new Date())
 const httpsConfig = fs.existsSync(certPath) && fs.existsSync(keyPath)
   ? {
       cert: fs.readFileSync(certPath),
